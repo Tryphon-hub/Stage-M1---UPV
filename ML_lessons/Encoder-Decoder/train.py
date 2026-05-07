@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-def train(model, train_loader, epochs=10):
+def train(model, train_loader, epochs=10, device=None):
+    if device is None:
+        device = next(model.parameters()).device
     criterion = nn.MSELoss()                                    # erreur pixel par pixel
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
@@ -13,6 +15,8 @@ def train(model, train_loader, epochs=10):
         total_loss = 0
 
         for noisy_imgs, clean_imgs in train_loader:
+            noisy_imgs = noisy_imgs.to(device)
+            clean_imgs = clean_imgs.to(device)
             optimizer.zero_grad()
 
             output = model(noisy_imgs)          # reconstruit depuis l'image bruitée

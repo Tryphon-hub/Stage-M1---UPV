@@ -1,8 +1,12 @@
+import torch
 from dataset import get_dataloaders
 from model import Autoencoder
 from train import train
 from evaluate import evaluate, visualize
 from torch.utils.data import DataLoader, random_split
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Device : {device}")
 
 train_loader, test_loader = get_dataloaders(batch_size=64, noise_factor=1)
 
@@ -15,9 +19,9 @@ test_loader   = DataLoader(test_sub,  batch_size=64, shuffle=False)
 
 print(f"Train : {len(train_sub)} images | Test : {len(test_sub)} images")
 
-model = Autoencoder()
+model = Autoencoder().to(device)
 print(model)
 
-train(model, train_loader, epochs=10)
-evaluate(model, test_loader)
-visualize(model, test_loader)
+train(model, train_loader, epochs=10, device=device)
+evaluate(model, test_loader, device=device)
+visualize(model, test_loader, device=device)

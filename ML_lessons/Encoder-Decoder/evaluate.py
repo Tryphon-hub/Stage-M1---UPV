@@ -2,24 +2,36 @@ import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
 
-def evaluate(model, test_loader):
+def evaluate(model, test_loader, device=None):
+    if device is None:
+        device = next(model.parameters()).device
     model.eval()
     criterion  = nn.MSELoss()
     total_loss = 0
 
     with torch.no_grad():
         for noisy_imgs, clean_imgs in test_loader:
+            noisy_imgs = noisy_imgs.to(device)
+            clean_imgs = clean_imgs.to(device)
             output      = model(noisy_imgs)
             total_loss += criterion(output, clean_imgs).item()
 
     print(f"MSE moyen sur le test set : {total_loss/len(test_loader):.6f}")
 
-def visualize(model, test_loader, n=10):
+def visualize(model, test_loader, n=10, device=None):
+    if device is None:
+        device = next(model.parameters()).device
     model.eval()
     noisy_imgs, clean_imgs = next(iter(test_loader))  # premier batch
+    noisy_imgs = noisy_imgs.to(device)
+    clean_imgs = clean_imgs.to(device)
 
     with torch.no_grad():
         reconstructed = model(noisy_imgs)              # reconstruction
+
+    noisy_imgs    = noisy_imgs.cpu()
+    clean_imgs    = clean_imgs.cpu()
+    reconstructed = reconstructed.cpu()
 
     fig, axes = plt.subplots(3, n, figsize=(15, 5))
 
