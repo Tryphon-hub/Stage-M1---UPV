@@ -1,5 +1,7 @@
 # main.py
 import torch
+import time
+from datetime import datetime
 from dataset import get_dataloaders
 from model import UNet
 from train import train
@@ -13,10 +15,20 @@ train_loader, test_loader = get_dataloaders(batch_size=16)
 
 # 2. Modèle
 model = UNet(n_classes=3).to(device)
-print(model)
 
 # 3. Entraînement
+print(f"\nDébut : {datetime.now().strftime('%H:%M:%S')}")
+start = time.time()
+
 loss_history = train(model, train_loader, epochs=10)
+
+elapsed = time.time() - start
+heures  = int(elapsed // 3600)
+minutes = int((elapsed % 3600) // 60)
+secondes = int(elapsed % 60)
+
+print(f"Fin   : {datetime.now().strftime('%H:%M:%S')}")
+print(f"Durée : {heures:02d}h {minutes:02d}m {secondes:02d}s")
 
 # 4. Évaluation
 evaluate(model, test_loader)

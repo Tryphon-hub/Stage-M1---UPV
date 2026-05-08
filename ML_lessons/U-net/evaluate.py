@@ -21,8 +21,8 @@ def evaluate(model, test_loader, device=None):
     model.to(device)
     model.eval()
 
-    iou_per_class = torch.zeros(3)
-    count         = torch.zeros(3)
+    iou_per_class = torch.zeros(3, device=device)
+    count         = torch.zeros(3, device=device)
 
     with torch.no_grad():
         for images, masks in test_loader:
