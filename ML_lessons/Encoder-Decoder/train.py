@@ -20,7 +20,7 @@ def train(model, train_loader, epochs=10, device=None):
             optimizer.zero_grad()
 
             output = model(noisy_imgs)          # reconstruit depuis l'image bruitée
-            loss   = criterion(output, clean_imgs)  # compare à l'image PROPRE
+            loss   = criterion(output, noisy_imgs)  # compare à l'image PROPRE
 
             loss.backward()
             optimizer.step()

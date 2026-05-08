@@ -15,12 +15,12 @@ class Autoencoder(nn.Module):
         )
 
         self.fc_enc = nn.Sequential(
-            nn.Linear(64 * 7 * 7, 128),   # [3136] → [128] : compression
+            nn.Linear(64 * 7 * 7, 32),   # [3136] → [128] : compression
             nn.ReLU(),
         )
 
         self.fc_dec = nn.Sequential(
-            nn.Linear(128, 64 * 7 * 7),   # [128] → [3136] : expansion
+            nn.Linear(32, 64 * 7 * 7),   # [128] → [3136] : expansion
             nn.ReLU(),
         )
 
