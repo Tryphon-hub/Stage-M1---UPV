@@ -1,4 +1,4 @@
-function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples)
+function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractons,Net,NumSamples)
 clc
 addpath '..\OT_Functions'
 
@@ -8,8 +8,8 @@ GeoFileName = 'Square.geo';
 if isfile('Square.msh')
     delete('Square.msh')
 end
-CallString = ['"C:\Program Files\gmsh\gmsh.exe" ' GeoFileName ' -setnumber numLayers 32 -o Square.msh -'];
-% BARTOLO -> C:\Program Files\gmsh-4.12.0-Windows64\gmsh
+CallString = ['C:\Program Files\gmsh\gmsh.exe '  ...
+              GeoFileName ' -setnumber numLayers 32 -o Square.msh -'];% BARTOLO -> C:\Program Files\gmsh-4.12.0-Windows64\gmsh
 % SURFACE Enrique -> C:\Program Files (x86)\gmsh-4.13.1-Windows64\gmsh
 % I2MBSRVMEF02 -> D:\ennaso\3D_OT_Software\gmsh-4.13.1-Windows64\gmsh
 % Maxence -> C:\Users\maxen\Desktop\cours\ENS\2A\S2\AEF\Projet\Projet\code\gmsh
@@ -36,7 +36,7 @@ if NumSamples == -1
     % 'Cantilever_MacroTO_Info'
     NumSamples = size(Tractions,3);
 else
-    Tractions = GenerateTractions(NumSamples,[Folder '\' TractionFile],GenerateNewTractions);
+    Tractions = GenerateTractions(NumSamples,[Folder '\' TractionFile],GenerateNewTractons);
     Center = [0;0]*ones(1,NumSamples);
     Scale = 1*ones(1,NumSamples);
     List = 1:NumSamples;
