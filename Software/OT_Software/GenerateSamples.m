@@ -81,7 +81,7 @@ end
 
 %% Generate topology
 TStart = tic;
-figure
+% figure
 MainFig = gcf;
 hold on
 for iSample = List
@@ -105,11 +105,11 @@ for iSample = List
      %Value = repmat((dc-adc)',size(Top,1),1);
 
      % figure
-     figure(MainFig)
-     patch(Xval,Yval,-Value,'EdgeColor','none');
-     axis equal
-     caxis([-1,0]) %límites de colores
-     colormap gray
+     % figure(MainFig)
+     % patch(Xval,Yval,-Value,'EdgeColor','none');
+     % axis equal
+     % caxis([-1,0]) %límites de colores
+     % colormap gray
      
     % Al terminar, enviamos un mensaje a la cola para avisar
     send(q, iSample);
