@@ -1,22 +1,23 @@
 function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples)
 clc
-addpath '..\OT_Functions'
+addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
+addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
 
 %% Generate Mesh
-% Generate Mesh with GMSH
-GeoFileName = 'Square.geo';
-if isfile('Square.msh')
-    delete('Square.msh')
+GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
+Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
+
+if isfile(Mesh_File)
+    delete(Mesh_File)
 end
-CallString = ['"C:\Program Files\gmsh\gmsh.exe" ' GeoFileName ' -setnumber numLayers 32 -o Square.msh -'];
-% BARTOLO -> C:\Program Files\gmsh-4.12.0-Windows64\gmsh
-% SURFACE Enrique -> C:\Program Files (x86)\gmsh-4.13.1-Windows64\gmsh
-% I2MBSRVMEF02 -> D:\ennaso\3D_OT_Software\gmsh-4.13.1-Windows64\gmsh
-% Maxence -> C:\Users\maxen\Desktop\cours\ENS\2A\S2\AEF\Projet\Projet\code\gmsh
-system(CallString); % Executes the command in a windows terminal
-Mesh_File = 'Square.msh'; 
+CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+system(CallString);
 [MeshData] = ReadGMSH(Mesh_File);
 
+%% Create output folder
+if ~exist(Folder,'dir')
+    mkdir(Folder)
+end
 %% Cell information
 % Tractions = [  tn_s1_n1   tn_s1_n2 ...
 %                tt_s1_n1   tt_s1_n2 ...
@@ -105,11 +106,11 @@ for iSample = List
      %Value = repmat((dc-adc)',size(Top,1),1);
 
      % figure
-     figure(MainFig)
-     patch(Xval,Yval,-Value,'EdgeColor','none');
-     axis equal
-     caxis([-1,0]) %límites de colores
-     colormap gray
+     % figure(MainFig)
+     % patch(Xval,Yval,-Value,'EdgeColor','none');
+     % axis equal
+     % caxis([-1,0]) %límites de colores
+     % colormap gray
      
     % Al terminar, enviamos un mensaje a la cola para avisar
     send(q, iSample);
