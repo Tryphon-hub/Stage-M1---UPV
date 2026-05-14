@@ -82,7 +82,7 @@ end
 
 %% Generate topology
 TStart = tic;
-figure
+% figure
 MainFig = gcf;
 hold on
 for iSample = List
