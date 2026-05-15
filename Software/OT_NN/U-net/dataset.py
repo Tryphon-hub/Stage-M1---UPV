@@ -13,7 +13,7 @@ import os
 
 def load_mat(filepath: str) -> dict:
     import scipy.io
-    return scipy.io.loadmat(filepath)
+    return scipy.io.loadmat(filepath, squeeze_me=True, struct_as_record=False)
 
 
 def inspect_mat(filepath: str) -> None:
@@ -47,30 +47,25 @@ class Dataset_TopOpt(Dataset):
 
     def __len__(self):
         return len(self.c) # number of traction distributions in the dataset
-
+        
     def __getitem__(self, idx):
         i, j = idx
         return {
-            'Tractions'        : torch.from_numpy(self.Tractions[:, :, i]).float().unsqueeze(0),
-            'Densities'        : torch.from_numpy(self.Densities[i, 0][:, j]).float().unsqueeze(0),
-            'Relative_Vol_Frac': torch.tensor(self.Relative_Vol_Frac[0, i]).float(),
-            'Stress' : torch.from_numpy(self.Stress[i, 0][:, :, j]).float(),
-            'FEMc'             : torch.tensor(self.FEMc[0, i][0, j]).float(),
-            'c'                : torch.tensor(self.c[i,0][j,0]).float(),
-            'NumIts'           : torch.tensor(self.NumIts[i, 0]).float(),
-            'ItsFull'          : torch.tensor(self.ItsFull[i, 0]).float(),
-            'TEnd'             : torch.tensor(self.TEnd[0, 0]).float(),
+            'Tractions'         : torch.from_numpy(self.Tractions[:, :, i]).float().unsqueeze(0),
+            'Densities'         : torch.from_numpy(self.Densities[i][:, j]).float().unsqueeze(0),
+            'Relative_Vol_Frac' : torch.tensor(self.Relative_Vol_Frac[i]).float(),
+            'Stress'            : torch.from_numpy(self.Stress[i][:, :, j]).float(),
+            'FEMc'              : torch.tensor(self.FEMc[i][j]).float(),
+            'c'                 : torch.tensor(self.c[i][j]).float(),
+            'NumIts'            : torch.tensor(self.NumIts[i]).float(),
+            'ItsFull'           : torch.tensor(self.ItsFull[i]).float(),
+            'TEnd'              : torch.tensor(self.TEnd).float(),
         }
+    
 
     def __repr__(self):
         return (f"Dataset_TopOpt\n"
-                f"  Compliance  : {len(self.c)}\n"
-                f"  Tractions   : {self.Tractions.shape}\n"
-                f"  Densities   : {self.Densities.shape}\n"
-                f"  Rel_Density : {self.Rel_Density.shape}\n"
-                f"  Stress      : {self.Stress.shape}\n"
-                f"  NumIts      : {[self.NumIts[i,0] for i in range(len(self.c))]}")
-
+            f"  NumIts : {[self.NumIts[i] for i in range(len(self.c))]}")
 
 #%% Dataset for all iterations
 
@@ -80,7 +75,7 @@ class IterationDataset(Dataset):
         self.index = [
             (i, j)
             for i in range(len(dataset))
-            for j in range(dataset.NumIts[i, 0])
+            for j in range(int(dataset.NumIts[i]))
         ]
 
     def __len__(self):
@@ -302,13 +297,13 @@ def get_dataloader(dataset: IterationDataset, batch_size: int = 32, shuffle: boo
 if __name__ == '__main__':
     os.chdir(r'C:\Users\maxen\Documents\Stage')
     print("Current working directory:", Path.cwd())
-    path = (Path.cwd() / 'Software/OT_Software/data/Test_3_gen.mat').resolve()
-    data = scipy.io.loadmat(path)
+    path = (Path.cwd() / 'Heavy files/data/dataset_test.mat').resolve()
+    data = load_mat(path)
     dataset = Dataset_TopOpt(data)
 
     data_iter = IterationDataset(dataset)
 
-    sample = data_iter[30]
+    sample = IterationSample(data_iter, idx=30)
     sample.plot()
     sample.plot_inputs()
     sample.plot_outputs()
