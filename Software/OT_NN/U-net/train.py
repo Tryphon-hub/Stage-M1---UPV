@@ -30,37 +30,31 @@ class sMAPELoss(nn.Module):
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _batch_to_tensors(batch: dict, device: torch.device):
-    """
-    Construit (input, target) depuis un batch du IterationDataset.
 
-    Input  : [B, 3, H, W]  — densité + tx + ty
-    Target : [B, 3, H, W]  — σx, σy, τxy
-    """
-    densities = batch['Densities']          # [B, 1, n_pixels]  (flat)
-    stress    = batch['Stress']             # [B, n_pixels, 6]
-    tractions = batch['Tractions']          # [B, 1, 2, 8]  (nodal forces)
+    densities = batch['Densities']
+    stress    = batch['Stress']
+    tractions = batch['Tractions']
 
     B          = densities.shape[0]
     n_pixels   = densities.shape[-1]
     img_size   = int(n_pixels ** 0.5)
 
-    # --- densité → carte 2D [B, 1, H, W]
+    # densité → carte 2D [B, 1, H, W]  — reste sur CPU pour l'instant
     rho = densities.squeeze(1).reshape(B, 1, img_size, img_size)
 
-    # --- tractions nodales → cartes 2D [B, 2, H, W] via interpolation linéaire
-    tx_map, ty_map = _tractions_to_maps(tractions, img_size, device)
+    # tractions → cartes 2D — on passe device=cpu, on envoie tout à la fin
+    tx_map, ty_map = _tractions_to_maps(tractions, img_size, torch.device('cpu'))
 
-    x = torch.cat([rho, tx_map, ty_map], dim=1).to(device)   # [B, 3, H, W]
+    x = torch.cat([rho, tx_map, ty_map], dim=1).to(device)   # tout vers GPU ici
 
-    # --- stress : colonnes 0=σx, 1=σy, 3=τxy → [B, 3, H, W]
+    # stress
     sigma_x = stress[:, :, 0].reshape(B, 1, img_size, img_size)
     sigma_y = stress[:, :, 1].reshape(B, 1, img_size, img_size)
     tau_xy  = stress[:, :, 3].reshape(B, 1, img_size, img_size)
 
-    y = torch.cat([sigma_x, sigma_y, tau_xy], dim=1).to(device)  # [B, 3, H, W]
+    y = torch.cat([sigma_x, sigma_y, tau_xy], dim=1).to(device)
 
     return x, y
-
 
 def _tractions_to_maps(tractions: torch.Tensor, img_size: int,
                         device: torch.device) -> tuple:
