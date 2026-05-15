@@ -5,6 +5,7 @@ import scipy.io
 from datetime import datetime
 from pathlib import Path
 
+
 from dataset  import Dataset_TopOpt, IterationDataset
 from model    import UNetTopo
 from train    import train
@@ -14,9 +15,11 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-DATA_PATH   = Path(r'C:\Users\maxen\Documents\Stage\Software\OT_Software\data\Test_3_gen.mat')
+# DATA_PATH   = Path(r'C:\Users\maxen\Documents\Stage\Software\OT_Software\data\Test_3_gen.mat')
 
-BATCH_SIZE  = 1
+DATA_PATH   = Path(r'D:\Maxence\Heavy files\data\dataset.mat')
+
+BATCH_SIZE  = 32
 VAL_SPLIT   = 0.15          # 15 % du dataset pour la validation
 NUM_WORKERS = 0             # mettre 4 sur Linux/Mac
 
@@ -27,10 +30,12 @@ LR          = 1e-3          # learning rate initial (ignoré si RESUME=True)
 EPS_SMAPE   = 1e-6          # epsilon de la sMAPE
 
 #%% ── Chemins de sauvegarde ──────────────────────────────────────────────────────
-CHECKPOINT_PATH = "unet_topo_checkpoint.pth"   # état complet (reprise)
-BEST_PATH       = "unet_topo_best.pth"         # meilleurs poids seuls (inférence)
-TB_LOG_DIR      = "runs/unet_topo"             # logs TensorBoard
 
+RESULTS_DIR     = Path(r"D:\Maxence\Heavy files\U-net\results")
+
+CHECKPOINT_PATH = str(RESULTS_DIR / "unet_topo_checkpoint.pth")
+BEST_PATH       = str(RESULTS_DIR / "unet_topo_best.pth")
+TB_LOG_DIR      = str(RESULTS_DIR / "runs" / "unet_topo")
 #%% ── Contrôle de l'entraînement ────────────────────────────────────────────────
 #
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
@@ -41,7 +46,7 @@ TB_LOG_DIR      = "runs/unet_topo"             # logs TensorBoard
 #       EPOCHS = 500       ← 500 epochs supplémentaires
 #
 RESUME = False
-EPOCHS = 50
+EPOCHS = 500
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  Device
