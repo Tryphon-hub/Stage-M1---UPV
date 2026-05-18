@@ -1,0 +1,152 @@
+[
+  {
+    "trial_id": 1,
+    "trial_name": "trial01_arch-proposed_nif32_lr1e-03_bs32_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 32,
+      "lr": 0.001,
+      "batch_size": 32,
+      "data_frac": 1.0
+    },
+    "best_val": 0.2084445665720143,
+    "n_params": 7831685,
+    "train_time_s": 12432,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial01_arch-proposed_nif32_lr1e-03_bs32_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 2,
+    "trial_name": "trial02_arch-article_nif32_lr1e-03_bs32_frac100pct",
+    "config": {
+      "arch": "article",
+      "nif": 32,
+      "lr": 0.001,
+      "batch_size": 32,
+      "data_frac": 1.0
+    },
+    "best_val": 0.2548044622887539,
+    "n_params": 11696483,
+    "train_time_s": 15636,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial02_arch-article_nif32_lr1e-03_bs32_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 3,
+    "trial_name": "trial03_arch-proposed_nif16_lr1e-03_bs32_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 16,
+      "lr": 0.001,
+      "batch_size": 32,
+      "data_frac": 1.0
+    },
+    "best_val": 0.2800010672852963,
+    "n_params": 1960565,
+    "train_time_s": 8895,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial03_arch-proposed_nif16_lr1e-03_bs32_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 4,
+    "trial_name": "trial04_arch-proposed_nif48_lr1e-03_bs16_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 48,
+      "lr": 0.001,
+      "batch_size": 16,
+      "data_frac": 1.0
+    },
+    "best_val": 0.18743677470419143,
+    "n_params": 17613461,
+    "train_time_s": 28523,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial04_arch-proposed_nif48_lr1e-03_bs16_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 5,
+    "trial_name": "trial05_arch-article_nif16_lr1e-03_bs32_frac100pct",
+    "config": {
+      "arch": "article",
+      "nif": 16,
+      "lr": 0.001,
+      "batch_size": 32,
+      "data_frac": 1.0
+    },
+    "best_val": 0.3109664649148531,
+    "n_params": 2927795,
+    "train_time_s": 10557,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial05_arch-article_nif16_lr1e-03_bs32_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 6,
+    "trial_name": "trial06_arch-proposed_nif32_lr5e-04_bs32_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 32,
+      "lr": 0.0005,
+      "batch_size": 32,
+      "data_frac": 1.0
+    },
+    "best_val": 0.2038444529605817,
+    "n_params": 7831685,
+    "train_time_s": 12484,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial06_arch-proposed_nif32_lr5e-04_bs32_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 7,
+    "trial_name": "trial07_arch-proposed_nif32_lr1e-04_bs32_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 32,
+      "lr": 0.0001,
+      "batch_size": 32,
+      "data_frac": 1.0
+    },
+    "best_val": 0.2514041383055192,
+    "n_params": 7831685,
+    "train_time_s": 12475,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial07_arch-proposed_nif32_lr1e-04_bs32_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 8,
+    "trial_name": "trial08_arch-proposed_nif32_lr1e-03_bs16_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 32,
+      "lr": 0.001,
+      "batch_size": 16,
+      "data_frac": 1.0
+    },
+    "best_val": 0.22837708644450658,
+    "n_params": 7831685,
+    "train_time_s": 17140,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial08_arch-proposed_nif32_lr1e-03_bs16_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 9,
+    "trial_name": "trial09_arch-proposed_nif32_lr1e-03_bs48_frac100pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 32,
+      "lr": 0.001,
+      "batch_size": 48,
+      "data_frac": 1.0
+    },
+    "best_val": 0.20283852035091038,
+    "n_params": 7831685,
+    "train_time_s": 11594,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial09_arch-proposed_nif32_lr1e-03_bs48_frac100pct_best.pth"
+  },
+  {
+    "trial_id": 10,
+    "trial_name": "trial10_arch-proposed_nif32_lr1e-03_bs32_frac50pct",
+    "config": {
+      "arch": "proposed",
+      "nif": 32,
+      "lr": 0.001,
+      "batch_size": 32,
+      "data_frac": 0.5
+    },
+    "best_val": 0.23584343568433688,
+    "n_params": 7831685,
+    "train_time_s": 6249,
+    "best_path": "D:\\Maxence\\Heavy files\\U-net\\tune_hyperparameters\\trial10_arch-proposed_nif32_lr1e-03_bs32_frac50pct_best.pth"
+  }
+]
