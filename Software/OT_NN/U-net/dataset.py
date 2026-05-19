@@ -8,6 +8,7 @@ from PIL import Image
 from pathlib import Path
 import scipy.io
 import os
+import matplotlib.pyplot as plt
 
 #%% Useful functions
 
@@ -102,18 +103,20 @@ class IterationSample:
         self.Tractions         = sample['Tractions']
         self.Densities         = sample['Densities']
         self.Relative_Vol_Frac = sample['Relative_Vol_Frac']
-        self.Stress            = sample['Stress']
+        self.FEM_Stress            = sample['Stress']
         self.FEMc              = sample['FEMc']
         self.c                 = sample['c']
         self.NumIts            = sample['NumIts']
         self.ItsFull           = sample['ItsFull']
         self.TEnd              = sample['TEnd']
+        self.UNet_Stress       = None  # To be filled after prediction
 
     def __repr__(self):
         return (f"IterationSample\n"
                 f"  Tractions         : {tuple(self.Tractions.shape)}\n"
                 f"  Densities         : {tuple(self.Densities.shape)}\n"
-                f"  Stress            : {tuple(self.Stress.shape)}\n"
+                f"  FEM_Stress            : {tuple(self.FEM_Stress.shape)}\n"
+                f"  UNet_Stress       : {tuple(self.UNet_Stress.shape) if self.UNet_Stress is not None else 'Not computed'}\n"
                 f"  Relative_Vol_Frac : {self.Relative_Vol_Frac.item():.3f}\n"
                 f"  c                 : {self.c.item():.6f}\n"
                 f"  NumIts            : {int(self.NumIts.item())}\n"
@@ -249,12 +252,19 @@ class IterationSample:
         plt.tight_layout()
         plt.show()
 
-    def plot_outputs(self) -> None:
+    def plot_outputs(self, TYPE) -> None:
         import matplotlib.pyplot as plt
 
-        stress   = self.Stress.numpy()  # (1024, 6)
-        img_size = int(np.sqrt(stress.shape[0]))
+        if TYPE == 'FEM':
+            stress   = self.FEM_Stress.numpy()  # (1024, 6)
 
+        if TYPE == 'UNet':
+            assert self.UNet_Stress is not None, "UNet stress not computed yet. Run prediction first."
+            stress   = self.UNet_Stress.numpy()  # (1024, 6)
+            
+
+        img_size = int(np.sqrt(stress.shape[0]))
+      
         sigma_x = stress[:, 0].reshape(img_size, img_size)
         sigma_y = stress[:, 1].reshape(img_size, img_size)
         tau_xy  = stress[:, 3].reshape(img_size, img_size)
@@ -272,7 +282,7 @@ class IterationSample:
             ax.set_title(title, fontsize=14)
             ax.axis('off')
 
-        plt.suptitle('U-Net outputs', fontsize=16)
+        plt.suptitle(f'{TYPE} outputs', fontsize=16)
         plt.tight_layout()
         plt.show()
 #%% data loader
@@ -289,7 +299,35 @@ def get_dataloader(dataset: IterationDataset, batch_size: int = 32, shuffle: boo
     
     return train_loader, val_loader
 
+def get_traction_distribution(Tractions, Densities, img_size=32):
+    """
+    Build tx, ty images from nodal traction values.
+    Tractions : (2, 8) numpy array
+    Densities : (NumEls,) numpy array
+    """
+    tx = np.zeros((img_size, img_size))
+    ty = np.zeros((img_size, img_size))
 
+    Points = np.array([
+        [0,          img_size-1],
+        [img_size-1, img_size-1],
+        [img_size-1, img_size-1],
+        [img_size-1, 0         ],
+        [img_size-1, 0         ],
+        [0,          0         ],
+        [0,          0         ],
+        [0,          img_size-1],
+    ], dtype=float)
+
+    for k in range(0, 8, 2):
+        p1 = Points[k]
+        p2 = Points[k+1]
+        xs = np.round(np.linspace(p1[0], p2[0], img_size)).astype(int)
+        ys = np.round(np.linspace(p1[1], p2[1], img_size)).astype(int)
+        tx[ys, xs] += np.linspace(Tractions[0, k], Tractions[0, k+1], img_size)
+        ty[ys, xs] += np.linspace(Tractions[1, k], Tractions[1, k+1], img_size)
+
+    return tx, ty
 
 
 #%%Test
@@ -297,7 +335,7 @@ def get_dataloader(dataset: IterationDataset, batch_size: int = 32, shuffle: boo
 if __name__ == '__main__':
     os.chdir(r'C:\Users\maxen\Documents\Stage')
     print("Current working directory:", Path.cwd())
-    path = (Path.cwd() / 'Heavy files/data/dataset_test.mat').resolve()
+    path = (Path.cwd() / 'HeavyFiles/data/dataset_test.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
 
@@ -306,6 +344,6 @@ if __name__ == '__main__':
     sample = IterationSample(data_iter, idx=30)
     sample.plot()
     sample.plot_inputs()
-    sample.plot_outputs()
+    sample.plot_outputs('FEM')
 
 #%%
