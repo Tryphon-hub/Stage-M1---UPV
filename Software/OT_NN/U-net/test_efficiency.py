@@ -42,41 +42,6 @@ print(f"Itérations totales      : {len(ds_iter)}")
 print()
 
 
-
-# ─── Iterating over iterations ────────────────────────────────────────────────
-#
-#  The dataset is indexed by (i, j) :
-#    i = traction distribution index   [0 .. len(ds_base)-1]
-#    j = iteration index within distrib [0 .. NumIts[i]-1]
-#
-#  ds_iter.index holds the flat list of all (i, j) pairs.
-#  Examples :
-#
-#    # Access a specific iteration by its global index
-#    sample = ds_iter[42]           # dict with Densities, Stress, Tractions...
-#
-#    # Access distribution i=2, iteration j=10
-#    idx = ds_iter.index.index((2, 10))
-#    sample = ds_iter[idx]
-#
-#    # Loop over all iterations of distribution i=0
-#    i = 0
-#    n_its = int(ds_base.NumIts[i, 0])
-#    for j in range(n_its):
-#        idx    = ds_iter.index.index((i, j))
-#        sample = ds_iter[idx]
-#        # → do something with sample
-#
-#    # Predict stress fields for a given sample
-#    sample  = ds_iter[42]
-#    batch   = {k: v.unsqueeze(0) for k, v in sample.items()
-#               if hasattr(v, 'unsqueeze')}   # simulate a batch of size 1
-#    with torch.no_grad():
-#        x, y = _batch_to_tensors(batch, device)
-#        pred = model(x)                      # [1, 3, 32, 32]
-#    # pred[0, 0] → σx   pred[0, 1] → σy   pred[0, 2] → τxy
-
-
 # ───────── First attempt to measure the difference between predicted and true stress fields ────────────────────────
 
 #%% Retrieve inputs and outputs for a given sample

@@ -6,6 +6,12 @@ and return the density image for the next topology optimization iteration.
 '''
 
 #%% Libraries
+
+import sys
+sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net')
+sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Software')
+sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
+
 import torch
 import numpy as np
 import matlab.engine
@@ -56,8 +62,42 @@ def predict_stress(model, sample):
 
     return sigma_x, sigma_y, tau_xy
 
+def predict_stress_FEM(eng, sample):
+    """
+    Compute stress fields using the full Finite Element Method (SIMP method).
+    sample : IterationSample containing Densities and Tractions
+    Updates sample.FEM_Stress with the computed stress tensor.
+    """
+    # Extract current state
+    Rel_Density = sample.Densities.squeeze().numpy().flatten()  # (NumEls,)
+    Tractions   = sample.Tractions.squeeze().numpy()            # (2, 8)
 
-def GenTopology(sample: IterationSample, eng, model) -> IterationSample:
+    # Pass variables to MATLAB workspace
+    eng.workspace['Rel_Density'] = matlab.double(Rel_Density.reshape(-1, 1).tolist())
+    eng.workspace['Tractions']   = matlab.double(Tractions.tolist())
+
+    # Solve finite element system KU = F
+    eng.eval(
+        f"Sol = SolveFE(MeshData, Rel_Density.^{PENAL}, {NGPpS}, {NGPpL}, D, Tractions, true, true);",
+        nargout=0
+    )
+
+    # Evaluate stress fields
+    eng.eval(
+        "Stress_FEM = EvalStress(MeshData.Surf.Topology, MeshData.XYZ, Rel_Density.^1, D, Sol, 2, true, true, 'Plane Stress', 1000, 0.3);",
+        nargout=0
+    )
+
+    # Retrieve stress from MATLAB
+    Stress_FEM = np.array(eng.workspace['Stress_FEM'])  # (NumEls, 6)
+
+    # Store FEM stress in sample
+    sample.FEM_Stress = torch.tensor(Stress_FEM).float()  # (NumEls, 6)
+
+    return Stress_FEM
+
+
+def GenTopology(sample: IterationSample, eng, model, TYPE) -> IterationSample:
     """
     Compute one topology optimization iteration using the U-Net for stress prediction.
     Takes an IterationSample, returns the updated IterationSample.
@@ -67,7 +107,7 @@ def GenTopology(sample: IterationSample, eng, model) -> IterationSample:
     sample : IterationSample — current iteration state
     eng    : matlab.engine   — MATLAB engine instance
     model  : UNetTopo        — trained U-Net model
-
+    TYPE   : str             — type of optimization (e.g., 'UNet', 'FEM')
     Returns
     -------
     next_sample : IterationSample — next iteration state
@@ -76,8 +116,13 @@ def GenTopology(sample: IterationSample, eng, model) -> IterationSample:
     Rel_Density = sample.Densities.squeeze().numpy().flatten()  # (NumEls,)
 
     # ── Predict stress fields with U-Net ───────────────────────────────
-    sigma_x, sigma_y, tau_xy = predict_stress(model, sample)
-    Stress = sample.UNet_Stress.numpy()  # (NumEls, 6) — σx, σy, τxy
+    if TYPE == 'UNet':
+        predict_stress(model, sample)
+        Stress = sample.UNet_Stress.numpy()  # (NumEls, 6) — σx, σy, τxy
+    elif TYPE == 'FEM':
+        Stress = predict_stress_FEM(eng, sample)  # (NumEls, 6) — σx, σy, τxy
+    else:
+        raise ValueError("Invalid TYPE. Must be 'UNet' or 'FEM'.")
 
     # ── Pass variables to MATLAB workspace ────────────────────────────
     eng.workspace['Rel_Density'] = matlab.double(Rel_Density.tolist())
@@ -114,15 +159,20 @@ def GenTopology(sample: IterationSample, eng, model) -> IterationSample:
     eng.workspace['InfVol'] = matlab.double(InfVol.tolist())
     eng.workspace['VolFrac']= float(sample.Relative_Vol_Frac)
 
+    eng.eval("InfVol = InfVol(:);",      nargout=0) # reshape to column vector
+    eng.eval("dc     = dc(:);",          nargout=0)
+    eng.eval("Rel_Density = Rel_Density(:);", nargout=0)
     eng.eval("New_Rel_Density = OC(Rel_Density, dc, InfVol, VolFrac);", nargout=0)
-    New_Rel_Density = np.array(eng.workspace['New_Rel_Density']).flatten()
 
+    New_Rel_Density = np.array(eng.workspace['New_Rel_Density']).flatten()
+    
     # ── Build next IterationSample ─────────────────────────────────────
     next_sample                   = IterationSample.__new__(IterationSample)
     next_sample.Tractions         = sample.Tractions
     next_sample.Densities         = torch.tensor(New_Rel_Density).float().unsqueeze(0)
     next_sample.Relative_Vol_Frac = sample.Relative_Vol_Frac
-    next_sample.Stress            = torch.tensor(Stress).float()
+    next_sample.FEM_Stress        = torch.tensor(Stress).float()
+    next_sample.UNet_Stress       = None # will be computed in the next iteration
     next_sample.c                 = torch.tensor(float(c)).float()
     next_sample.FEMc              = torch.tensor(0.0).float()
     next_sample.NumIts            = sample.NumIts
@@ -132,43 +182,13 @@ def GenTopology(sample: IterationSample, eng, model) -> IterationSample:
     return next_sample
 
 
-#%% Example usage
-# if __name__ == '__main__':
-
-#%% ── Start MATLAB engine ────────────────────────────────────────────
-eng = matlab.engine.start_matlab()
-eng.addpath(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
-eng.addpath(r'C:\Users\maxen\Documents\Stage\Software\OT_Software')
-
-#%% ── Load mesh and material matrix ──────────────────────────────────
-eng.eval("MeshData = ReadGMSH('C:\\Users\\maxen\\Documents\\Stage\\Software\\OT_Software\\Square.msh');", nargout=0)
-eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
-
-#%% ── Load U-Net model ───────────────────────────────────────────────
-model = UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
-state_dict = torch.load(
-    r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net\results\unet_topo_best.pth',
-    map_location='cpu'
-)
-model.load_state_dict(state_dict)
-model.eval()
-
-#%% ── Load dataset and select initial sample ─────────────────────────
-data    = load_mat(r'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_test.mat')
-ds_base = Dataset_TopOpt(data)
-ds_iter = IterationDataset(ds_base)
-sample  = IterationSample(ds_iter, idx=0)  # first iteration of first sample
-
-#%% ── Run one topology optimization iteration ────────────────────────
-next_sample = GenTopology(sample, eng, model)
-
-print(f'Compliance : {next_sample.c.item():.4f}')
-print(f'Density range : [{next_sample.Densities.min():.3f}, {next_sample.Densities.max():.3f}]')
-
-#%%
-
-sample.plot_inputs()
-sample.plot_outputs('FEM')
-sample.plot_outputs('UNet')
-
-# %%
+def is_converged(sample_a: IterationSample, sample_b: IterationSample, tol=1e-3) -> bool:
+    '''
+    Check convergence between two IterationSamples based on compliance change.
+    '''
+    c_a = sample_a.c.item()
+    c_b = sample_b.c.item()
+    if abs(c_b - c_a) / abs(c_a) < tol:
+        return True
+    else:
+        return False
