@@ -1,13 +1,11 @@
-#%% main.py
+# main.py  —  BE_Unet
 import torch
 import time
-import scipy.io
 from datetime import datetime
 from pathlib import Path
 
-
 from dataset  import *
-from model    import UNetTopo
+from model    import *
 from train    import train
 from evaluate import evaluate, visualize, visualize_error
 
@@ -15,40 +13,36 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-DATA_PATH   = Path(r'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_macro.mat')
+user      = 'laptop'   # 'laptop' ou 'server'
+name_file = 'dataset_macro'
 
-# DATA_PATH   = Path(r'D:\Maxence\Heavy files\data\dataset.mat')
+if user == 'laptop':
+    BASE = Path(r'C:\Users\maxen\Documents\Stage')
+elif user == 'server':
+    BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
-BATCH_SIZE  = 32
-VAL_SPLIT   = 0.15          # 15 % du dataset pour la validation
-NUM_WORKERS = 0             # mettre 4 sur Linux/Mac
+DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
+RESULTS_DIR     = BASE / 'HeavyFiles' / 'BE_Unet' / 'results'
+CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
 
-NIF         = 32            # hyperparamètre principal — tester 16, 32, 64
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+BATCH_SIZE  = 16
+VAL_SPLIT   = 0.15
+NUM_WORKERS = 0
+
+NIF         = 32
 USE_CBAM    = True
+EMBED_N1    = 32     # taille couche cachée 1 du BoundaryEmbedding
+EMBED_OUT   = 64     # dimension de l'embedding
 
-LR          = 1e-3          # learning rate initial (ignoré si RESUME=True)
-EPS_SMAPE   = 1e-6          # epsilon de la sMAPE
+LR          = 1e-3
+EPS_SMAPE   = 1e-6
 
-#%% ── Chemins de sauvegarde ──────────────────────────────────────────────────────
-
-# RESULTS_DIR     = Path(r"D:\Maxence\Heavy files\U-net\results")
-
-RESULTS_DIR     = Path(r"C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net\results")
-
-CHECKPOINT_PATH = str(RESULTS_DIR / "unet_topo_checkpoint.pth")
-BEST_PATH       = str(RESULTS_DIR / "unet_topo_best.pth")
-TB_LOG_DIR      = str(RESULTS_DIR / "runs" / "unet_topo")
-#%% ── Contrôle de l'entraînement ────────────────────────────────────────────────
-#
-#   Premier lancement   →  RESUME = False  /  EPOCHS = 50
-#   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
-#
-#   Exemple : après 50 epochs, si la convergence n'est pas atteinte :
-#       RESUME = True
-#       EPOCHS = 500       ← 500 epochs supplémentaires
-#
 RESUME = False
-EPOCHS = 300
+EPOCHS = 1
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  Device
@@ -58,7 +52,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device : {device}")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  1. Données
+#%%  1. Données
 # ═══════════════════════════════════════════════════════════════════════════════
 
 print("\nChargement du dataset...")
@@ -73,7 +67,7 @@ n_val   = int(len(ds_iter) * VAL_SPLIT)
 n_train = len(ds_iter) - n_val
 train_ds, val_ds = torch.utils.data.random_split(
     ds_iter, [n_train, n_val],
-    generator=torch.Generator().manual_seed(42)   # split identique à chaque run
+    generator=torch.Generator().manual_seed(42)
 )
 
 train_loader = torch.utils.data.DataLoader(
@@ -88,11 +82,19 @@ print(f"  Val   : {n_val}   samples  ({len(val_loader)} batches)")
 #%%  2. Modèle
 # ═══════════════════════════════════════════════════════════════════════════════
 
-model = UNetTopo(nif=NIF, n_in=3, n_out=3, use_cbam=USE_CBAM).to(device)
+model = BE_UNetTopo(
+    nif           = NIF,
+    n_in          = 1,          # ρ seul — tractions via BoundaryEmbedding
+    n_out         = 3,
+    use_cbam      = USE_CBAM,
+    embed_n1      = EMBED_N1,
+    embed_out     = EMBED_OUT,
+).to(device)
 
 n_params = sum(p.numel() for p in model.parameters())
-print(f"\nModèle : UNetTopo(nif={NIF}, cbam={USE_CBAM})")
-print(f"Paramètres : {n_params:,}")
+print(f"\nModèle : BE_UNetTopo(nif={NIF}, cbam={USE_CBAM}, embedding=True)")
+print(f"  embed_n1={EMBED_N1}, embed_out={EMBED_OUT}")
+print(f"  Paramètres : {n_params:,}")
 
 if RESUME:
     print(f"\nMode reprise — chargement de {CHECKPOINT_PATH}")
@@ -119,6 +121,8 @@ train_losses, val_losses = train(
     best_path       = BEST_PATH,
     resume          = RESUME,
     tb_log_dir      = TB_LOG_DIR,
+    BASE            = BASE,
+    name_file       = name_file,
 )
 
 elapsed = time.time() - start
@@ -134,11 +138,15 @@ print(f"\nChargement du meilleur modèle ({BEST_PATH})...")
 model.load_state_dict(torch.load(BEST_PATH, map_location=device))
 
 print("\n── Métriques sur le jeu de validation ──")
-evaluate(model, val_loader, device=device, eps=EPS_SMAPE)
+evaluate(model, val_loader, device=device, eps=EPS_SMAPE,
+         BASE=BASE, name_file=name_file)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  5. Visualisation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-visualize(model, val_loader, device=device, n=3)
-visualize_error(model, val_loader, device=device, n=3)
+visualize(model, val_loader, device=device, n=3,
+          BASE=BASE, name_file=name_file)
+
+visualize_error(model, val_loader, device=device, n=3,
+                BASE=BASE, name_file=name_file)
