@@ -110,7 +110,7 @@ def visualize(model, loader, device=None, n: int = 3):
 
     plt.suptitle("Comparaison GT vs Prédiction — champs de contraintes", fontsize=14)
     plt.tight_layout()
-    plt.savefig("visualisation_contraintes.png", dpi=150)
+    plt.savefig("visualisation_contraintes_dataset_macro.png", dpi=150)
     plt.show()
 
 
@@ -148,5 +148,6 @@ def visualize_error(model, loader, device=None, n: int = 3):
 
     plt.suptitle("Cartes d'erreur absolue |GT − Pred|", fontsize=14)
     plt.tight_layout()
-    plt.savefig("erreur_contraintes.png", dpi=150)
+    plt.savefig("erreur_contraintes_dataset_macro.png", dpi=150)
     plt.show()
+
