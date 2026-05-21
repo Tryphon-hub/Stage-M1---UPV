@@ -5,7 +5,6 @@ import scipy.io
 from datetime import datetime
 from pathlib import Path
 
-
 from dataset  import *
 from model    import UNetTopo
 from train    import train
@@ -15,29 +14,35 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# DATA_PATH   = Path(r'C:\Users\maxen\Documents\Stage\Software\OT_Software\data\Test_3_gen.mat')
+user = 'laptop'  # 'laptop' ou 'server'
 
-DATA_PATH   = Path(r'D:\Maxence\Heavy files\data\dataset_macro.mat')
+name_file = 'dataset_macro'
 
-BATCH_SIZE  = 32
-VAL_SPLIT   = 0.15          # 15 % du dataset pour la validation
-NUM_WORKERS = 0             # mettre 4 sur Linux/Mac
 
-NIF         = 32            # hyperparamètre principal — tester 16, 32, 64
+if user == 'laptop':
+    BASE = Path(r'C:\Users\maxen\Documents\Stage')
+elif user == 'server':
+    BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+
+DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file+'.mat')
+RESULTS_DIR     = BASE / 'HeavyFiles' / 'U-net' / 'results'
+CHECKPOINT_PATH = RESULTS_DIR / ("unet_" + name_file + "_checkpoint.pth")
+BEST_PATH       = RESULTS_DIR / ("unet_" + name_file + "_best.pth")
+TB_LOG_DIR      = RESULTS_DIR / ("runs_" + name_file + "_") / ("unet_" + name_file)
+
+BATCH_SIZE  = 16
+VAL_SPLIT   = 0.15
+NUM_WORKERS = 0
+
+NIF         = 32
 USE_CBAM    = True
 
-LR          = 1e-3          # learning rate initial (ignoré si RESUME=True)
-EPS_SMAPE   = 1e-6          # epsilon de la sMAPE
+LR          = 1e-3
+EPS_SMAPE   = 1e-6
 
-#%% ── Chemins de sauvegarde ──────────────────────────────────────────────────────
+RESUME = True
+EPOCHS = 0
 
-RESULTS_DIR     = Path(r"D:\Maxence\Heavy files\U-net\results")
-
-CHECKPOINT_PATH = str(RESULTS_DIR / "unet_macro_checkpoint.pth")
-BEST_PATH       = str(RESULTS_DIR / "unet_macro_best.pth")
-TB_LOG_DIR      = str(RESULTS_DIR / "runs_macro" / "unet_macro")
-#%% ── Contrôle de l'entraînement ────────────────────────────────────────────────
-#
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
 #   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
 #
@@ -45,8 +50,6 @@ TB_LOG_DIR      = str(RESULTS_DIR / "runs_macro" / "unet_macro")
 #       RESUME = True
 #       EPOCHS = 500       ← 500 epochs supplémentaires
 #
-RESUME = False
-EPOCHS = 300
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  Device
@@ -117,6 +120,8 @@ train_losses, val_losses = train(
     best_path       = BEST_PATH,
     resume          = RESUME,
     tb_log_dir      = TB_LOG_DIR,
+    BASE            = BASE,
+    name_file       = name_file,
 )
 
 elapsed = time.time() - start
@@ -138,5 +143,6 @@ evaluate(model, val_loader, device=device, eps=EPS_SMAPE)
 #%%  5. Visualisation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-visualize(model, val_loader, device=device, n=3)
-visualize_error(model, val_loader, device=device, n=3)
+visualize(model, val_loader, device=device, n=3, BASE=BASE, name_file=name_file)
+visualize_error(model, val_loader, device=device, n=3, BASE=BASE, name_file=name_file)
+# %%

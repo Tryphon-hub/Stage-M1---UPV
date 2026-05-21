@@ -1,4 +1,4 @@
-# train.py
+# train.py  —  BE_Unet
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -12,10 +12,6 @@ class sMAPELoss(nn.Module):
     Symmetric Mean Absolute Percentage Error, pixel-à-pixel.
 
         L = (1/N) * sum_i  2|σ_i - σ̃_i| / (|σ_i| + |σ̃_i| + ε)
-
-    Parameters
-    ----------
-    eps : stabilisation term to avoid division by zero when both σ_i and σ̃_i are near zero.
     """
     def __init__(self, eps: float = 1e-6):
         super().__init__()
@@ -30,81 +26,41 @@ class sMAPELoss(nn.Module):
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _batch_to_tensors(batch: dict, device: torch.device):
+    """
+    Construit (x, nodes, y) depuis un batch du IterationDataset.
 
-    densities = batch['Densities']
-    stress    = batch['Stress']
-    tractions = batch['Tractions']
+    x     : [B, 1, H, W]   — densité ρ seule
+    nodes : [B, 16]         — scalaires nodaux (tx×8 + ty×8), entrée du BoundaryEmbedding
+    y     : [B, 3, H, W]   — σx, σy, τxy
+    """
+    densities = batch['Densities']   # [B, 1, n_pixels]
+    stress    = batch['Stress']      # [B, n_pixels, 6]
+    tractions = batch['Tractions']   # [B, 1, 2, 8]
 
-    B          = densities.shape[0]
-    n_pixels   = densities.shape[-1]
-    img_size   = int(n_pixels ** 0.5)
+    B        = densities.shape[0]
+    n_pixels = densities.shape[-1]
+    img_size = int(n_pixels ** 0.5)
 
-    # densité → carte 2D [B, 1, H, W]  — reste sur CPU pour l'instant
-    rho = densities.squeeze(1).reshape(B, 1, img_size, img_size)
+    # ── densité → carte 2D [B, 1, H, W] ──
+    rho = densities.squeeze(1).reshape(B, 1, img_size, img_size).to(device)
 
-    # tractions → cartes 2D — on passe device=cpu, on envoie tout à la fin
-    tx_map, ty_map = _tractions_to_maps(tractions, img_size, torch.device('cpu'))
+    # ── scalaires nodaux → [B, 16]  (tx_0..tx_7, ty_0..ty_7) ──
+    T     = tractions.squeeze(1)          # [B, 2, 8]
+    nodes = T.reshape(B, 16).to(device)   # [B, 16]
 
-    x = torch.cat([rho, tx_map, ty_map], dim=1).to(device)   # tout vers GPU ici
-
-    # stress
+    # ── stress → [B, 3, H, W] ──
     sigma_x = stress[:, :, 0].reshape(B, 1, img_size, img_size)
     sigma_y = stress[:, :, 1].reshape(B, 1, img_size, img_size)
     tau_xy  = stress[:, :, 3].reshape(B, 1, img_size, img_size)
-
     y = torch.cat([sigma_x, sigma_y, tau_xy], dim=1).to(device)
 
-    return x, y
-
-def _tractions_to_maps(tractions: torch.Tensor, img_size: int,
-                        device: torch.device) -> tuple:
-    """
-    Convertit les forces nodales (B, 1, 2, 8) en deux cartes 2D (B, 1, H, W)
-    par interpolation linéaire le long des 4 bords.
-    """
-    import numpy as np
-
-    B  = tractions.shape[0]
-    T  = tractions.squeeze(1).numpy()   # [B, 2, 8]
-
-    points = np.array([
-        [0,          img_size - 1],
-        [img_size-1, img_size - 1],
-        [img_size-1, img_size - 1],
-        [img_size-1, 0           ],
-        [img_size-1, 0           ],
-        [0,          0           ],
-        [0,          0           ],
-        [0,          img_size - 1],
-    ], dtype=float)
-
-    tx_batch = np.zeros((B, img_size, img_size), dtype=np.float32)
-    ty_batch = np.zeros((B, img_size, img_size), dtype=np.float32)
-
-    for b in range(B):
-        for k in range(0, 8, 2):
-            p1 = points[k]
-            p2 = points[k + 1]
-            xs = np.round(np.linspace(p1[0], p2[0], img_size)).astype(int)
-            ys = np.round(np.linspace(p1[1], p2[1], img_size)).astype(int)
-            tx_batch[b, ys, xs] += np.linspace(T[b, 0, k], T[b, 0, k+1], img_size)
-            ty_batch[b, ys, xs] += np.linspace(T[b, 1, k], T[b, 1, k+1], img_size)
-
-    tx_map = torch.from_numpy(tx_batch).unsqueeze(1).to(device)  # [B, 1, H, W]
-    ty_map = torch.from_numpy(ty_batch).unsqueeze(1).to(device)  # [B, 1, H, W]
-
-    return tx_map, ty_map
+    return rho, nodes, y
 
 
 # ─── Checkpoint ──────────────────────────────────────────────────────────────
 
-def save_checkpoint(path: str, model, optimizer, scheduler,
-                    epoch: int, best_val: float,
-                    train_losses: list, val_losses: list) -> None:
-    """
-    Sauvegarde l'état complet : poids + optimizer + scheduler + historique.
-    Permet de reprendre l'entraînement exactement là où il s'est arrêté.
-    """
+def save_checkpoint(path, model, optimizer, scheduler,
+                    epoch, best_val, train_losses, val_losses):
     torch.save({
         'epoch'        : epoch,
         'model_state'  : model.state_dict(),
@@ -116,26 +72,20 @@ def save_checkpoint(path: str, model, optimizer, scheduler,
     }, path)
 
 
-def load_checkpoint(path: str, model, optimizer, scheduler, device):
-    """
-    Charge un checkpoint et restaure tous les états.
-
-    Retourne (epoch_start, best_val, train_losses, val_losses).
-    epoch_start est le numéro de la prochaine epoch à exécuter.
-    """
+def load_checkpoint(path, model, optimizer, scheduler, device):
     ckpt = torch.load(path, map_location=device)
     model.load_state_dict(ckpt['model_state'])
     optimizer.load_state_dict(ckpt['optim_state'])
     scheduler.load_state_dict(ckpt['sched_state'])
 
-    epoch_start  = ckpt['epoch'] + 1          # reprend après la dernière epoch sauvegardée
+    epoch_start  = ckpt['epoch'] + 1
     best_val     = ckpt['best_val']
     train_losses = ckpt['train_losses']
     val_losses   = ckpt['val_losses']
 
-    print(f"  Checkpoint chargé  : epoch {ckpt['epoch']}  "
+    print(f"  Checkpoint chargé : epoch {ckpt['epoch']}  "
           f"best_val={best_val:.5f}  "
-          f"({len(train_losses)} epochs déjà effectuées)")
+          f"({len(train_losses)} epochs effectuées)")
 
     return epoch_start, best_val, train_losses, val_losses
 
@@ -143,33 +93,33 @@ def load_checkpoint(path: str, model, optimizer, scheduler, device):
 # ─── Entraînement ────────────────────────────────────────────────────────────
 
 def train(model, train_loader, val_loader=None,
-          epochs: int       = 50,
-          lr: float         = 1e-3,
-          eps: float        = 1e-6,
-          device            = None,
-          checkpoint_path   : str  = "unet_topo_checkpoint.pth",
-          best_path         : str  = "unet_topo_best.pth",
-          resume            : bool = False,
-          tb_log_dir        : str  = "runs/unet_topo"):
+          epochs          : int   = 50,
+          lr              : float = 1e-3,
+          eps             : float = 1e-6,
+          device                  = None,
+          checkpoint_path         = "unet_be_checkpoint.pth",
+          best_path               = "unet_be_best.pth",
+          resume          : bool  = False,
+          tb_log_dir              = "runs/unet_be",
+          BASE                    = None,
+          name_file               = None):
     """
-    Entraîne le modèle UNetTopo avec TensorBoard et support de reprise.
+    Entraîne UNetTopo avec BoundaryEmbedding.
 
-    Paramètres
+    Parameters
     ----------
-    model            : UNetTopo
-    train_loader     : DataLoader (IterationDataset)
-    val_loader       : DataLoader optionnel
-    epochs           : nombre d'epochs SUPPLÉMENTAIRES à effectuer
-                       (si resume=True, s'ajoute aux epochs déjà enregistrées
-                        dans le checkpoint)
-    lr               : learning rate initial — ignoré si resume=True,
-                       l'optimizer reprend son état sauvegardé
-    eps              : epsilon de la sMAPE loss
-    checkpoint_path  : fichier .pth de checkpoint complet (reprise possible)
-    best_path        : fichier .pth du meilleur modèle (poids seuls, léger)
-    resume           : si True, charge checkpoint_path avant de continuer
-    tb_log_dir       : dossier de logs TensorBoard
-                       → lancer dans un terminal : tensorboard --logdir runs/unet_topo
+    model           : UNetTopo (use_embedding=True)
+    train_loader    : DataLoader
+    val_loader      : DataLoader optionnel
+    epochs          : epochs supplémentaires (si resume=True)
+    lr              : learning rate initial
+    eps             : epsilon sMAPE
+    checkpoint_path : fichier .pth complet (reprise)
+    best_path       : fichier .pth meilleurs poids
+    resume          : reprendre depuis checkpoint
+    tb_log_dir      : dossier logs TensorBoard
+    BASE            : Path racine du projet
+    name_file       : nom du dataset (pour la sauvegarde)
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -183,7 +133,6 @@ def train(model, train_loader, val_loader=None,
         optimizer, mode='min', factor=0.5, patience=5
     )
 
-    # ── reprise éventuelle ──────────────────────────────────────────────────
     epoch_start  = 1
     best_val     = float('inf')
     train_losses = []
@@ -195,34 +144,28 @@ def train(model, train_loader, val_loader=None,
 
     epoch_end = epoch_start + epochs - 1
 
-    # ── TensorBoard ─────────────────────────────────────────────────────────
-    # Les logs s'accumulent dans tb_log_dir à chaque run/reprise.
-    # TensorBoard affiche une courbe continue même après plusieurs reprises.
-    writer = SummaryWriter(log_dir=tb_log_dir)
-    print(f"TensorBoard logs : {tb_log_dir}")
-    print(f"  → tensorboard --logdir {tb_log_dir}\n")
+    writer = SummaryWriter(log_dir=str(tb_log_dir))
+    print(f"TensorBoard : tensorboard --logdir {tb_log_dir}\n")
 
-    # Graphe du modèle (utile pour inspecter l'architecture dans TensorBoard)
     try:
-        dummy = torch.zeros(1, 3, 32, 32, device=device)
-        writer.add_graph(model, dummy)
+        dummy_x     = torch.zeros(1, 1, 32, 32, device=device)
+        dummy_nodes = torch.zeros(1, 16, device=device)
+        writer.add_graph(model, (dummy_x, dummy_nodes))
     except Exception:
-        pass   # non bloquant
+        pass
 
     print(f"Epochs {epoch_start} → {epoch_end}  "
           f"({'reprise' if resume else 'nouveau départ'})\n")
 
-    # ── boucle d'entraînement ────────────────────────────────────────────────
     for epoch in range(epoch_start, epoch_end + 1):
 
-        # train
+        # ── train ──
         model.train()
         total_train = 0.0
-
         for batch in train_loader:
-            x, y = _batch_to_tensors(batch, device)
+            rho, nodes, y = _batch_to_tensors(batch, device)
             optimizer.zero_grad()
-            pred = model(x)
+            pred = model(rho, nodes)
             loss = criterion(pred, y)
             loss.backward()
             optimizer.step()
@@ -231,30 +174,26 @@ def train(model, train_loader, val_loader=None,
         avg_train  = total_train / len(train_loader)
         current_lr = optimizer.param_groups[0]['lr']
         train_losses.append(avg_train)
-
         writer.add_scalar('Loss/train', avg_train,  epoch)
         writer.add_scalar('LR',         current_lr, epoch)
 
-        # validation
+        # ── validation ──
         if val_loader is not None:
             model.eval()
             total_val = 0.0
             with torch.no_grad():
                 for batch in val_loader:
-                    x, y  = _batch_to_tensors(batch, device)
-                    pred  = model(x)
+                    rho, nodes, y = _batch_to_tensors(batch, device)
+                    pred = model(rho, nodes)
                     total_val += criterion(pred, y).item()
 
             avg_val = total_val / len(val_loader)
             val_losses.append(avg_val)
-
-            writer.add_scalar('Loss/val',           avg_val,                    epoch)
-            writer.add_scalars('Loss/comparaison',  {'train': avg_train,
-                                                     'val':   avg_val},         epoch)
-
+            writer.add_scalar('Loss/val',          avg_val,                    epoch)
+            writer.add_scalars('Loss/comparaison', {'train': avg_train,
+                                                    'val':   avg_val},         epoch)
             scheduler.step(avg_val)
 
-            # meilleur modèle — poids seuls
             if avg_val < best_val:
                 best_val = avg_val
                 torch.save(model.state_dict(), best_path)
@@ -267,15 +206,12 @@ def train(model, train_loader, val_loader=None,
             print(f"Epoch {epoch:4d}/{epoch_end}  "
                   f"train={avg_train:.5f}  lr={current_lr:.2e}")
 
-        # checkpoint complet — écrase le précédent à chaque epoch
-        save_checkpoint(
-            checkpoint_path, model, optimizer, scheduler,
-            epoch, best_val, train_losses, val_losses
-        )
+        save_checkpoint(checkpoint_path, model, optimizer, scheduler,
+                        epoch, best_val, train_losses, val_losses)
 
     writer.close()
 
-    # ── courbe matplotlib (complément statique de TensorBoard) ──────────────
+    # ── loss curve ──
     all_epochs = range(1, len(train_losses) + 1)
     plt.figure(figsize=(9, 4))
     plt.plot(all_epochs, train_losses, label='Train', color='steelblue')
@@ -290,7 +226,11 @@ def train(model, train_loader, val_loader=None,
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("loss_curve.png", dpi=150)
-    plt.show()
 
+    if BASE is not None and name_file is not None:
+        save_dir = BASE / 'HeavyFiles' / 'BE_Unet' / 'results' / name_file
+        save_dir.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_dir / "loss_curve.png", dpi=150)
+
+    plt.show()
     return train_losses, val_losses

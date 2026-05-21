@@ -1,17 +1,14 @@
-# evaluate.py
+# evaluate.py  —  BE_Unet
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from train import sMAPELoss, _batch_to_tensors
 
 
-# ─── Évaluation quantitative ─────────────────────────────────────────────────
-
-def evaluate(model, loader, device=None, eps: float = 1e-6):
+def evaluate(model, loader, device=None, eps: float = 1e-6,
+             BASE=None, name_file=None):
     """
-    Calcule la SMAPE moyenne et le MAE par composante (σx, σy, τxy).
-
-    Retourne un dict avec les métriques.
+    Calcule la sMAPE moyenne et le MAE par composante (σx, σy, τxy).
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -23,19 +20,17 @@ def evaluate(model, loader, device=None, eps: float = 1e-6):
     components = ['σx', 'σy', 'τxy']
 
     total_smape = 0.0
-    mae_sum     = torch.zeros(3)   # une valeur par composante
+    mae_sum     = torch.zeros(3)
     n_batches   = 0
 
     with torch.no_grad():
         for batch in loader:
-            x, y = _batch_to_tensors(batch, device)
-            pred = model(x)                         # [B, 3, H, W]
+            rho, nodes, y = _batch_to_tensors(batch, device)
+            pred = model(rho, nodes)
 
             total_smape += criterion(pred, y).item()
-
-            # MAE par composante — moyenne sur B, H, W
-            mae_sum += (pred - y).abs().mean(dim=(0, 2, 3)).cpu()
-            n_batches += 1
+            mae_sum     += (pred - y).abs().mean(dim=(0, 2, 3)).cpu()
+            n_batches   += 1
 
     smape_mean = total_smape / n_batches
     mae_mean   = mae_sum / n_batches
@@ -47,21 +42,17 @@ def evaluate(model, loader, device=None, eps: float = 1e-6):
     print("─" * 40)
 
     return {
-        'smape' : smape_mean,
-        'mae_sx': mae_mean[0].item(),
-        'mae_sy': mae_mean[1].item(),
+        'smape'  : smape_mean,
+        'mae_sx' : mae_mean[0].item(),
+        'mae_sy' : mae_mean[1].item(),
         'mae_txy': mae_mean[2].item(),
     }
 
 
-# ─── Visualisation qualitative ───────────────────────────────────────────────
-
-def visualize(model, loader, device=None, n: int = 3):
+def visualize(model, loader, device=None, n: int = 3,
+              BASE=None, name_file=None):
     """
-    Affiche n exemples côte à côte : vérité terrain vs prédiction,
-    pour chacune des 3 composantes (σx, σy, τxy).
-
-    Disposition : 3 lignes (composantes) × 2n colonnes (GT | Pred par exemple)
+    Affiche n exemples côte à côte : GT vs prédiction pour σx, σy, τxy.
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -70,24 +61,22 @@ def visualize(model, loader, device=None, n: int = 3):
     model.eval()
 
     batch = next(iter(loader))
-    x, y  = _batch_to_tensors(batch, device)
+    rho, nodes, y = _batch_to_tensors(batch, device)
 
     with torch.no_grad():
-        pred = model(x)                   # [B, 3, H, W]
+        pred = model(rho, nodes)
 
-    n        = min(n, y.shape[0])
-    labels   = ['σx', 'σy', 'τxy']
-    n_rows   = 3
-    n_cols   = 2 * n                      # GT | Pred  pour chaque exemple
+    n      = min(n, y.shape[0])
+    labels = ['σx', 'σy', 'τxy']
+    n_cols = 2 * n
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows))
+    fig, axes = plt.subplots(3, n_cols, figsize=(4 * n_cols, 12))
 
     for comp in range(3):
         for ex in range(n):
             gt_map   = y[ex, comp].cpu().numpy()
             pred_map = pred[ex, comp].cpu().numpy()
 
-            # Échelle commune GT/Pred pour comparaison visuelle
             vmin = min(gt_map.min(), pred_map.min())
             vmax = max(gt_map.max(), pred_map.max())
 
@@ -96,28 +85,31 @@ def visualize(model, loader, device=None, n: int = 3):
 
             im_gt = axes[comp, col_gt].imshow(
                 gt_map, cmap='RdBu', origin='lower', vmin=vmin, vmax=vmax)
-            axes[comp, col_gt].set_title(
-                f"GT {labels[comp]} — ex {ex+1}", fontsize=10)
+            axes[comp, col_gt].set_title(f"GT {labels[comp]} — ex {ex+1}", fontsize=10)
             axes[comp, col_gt].axis('off')
             fig.colorbar(im_gt, ax=axes[comp, col_gt], fraction=0.046)
 
             im_pr = axes[comp, col_pred].imshow(
                 pred_map, cmap='RdBu', origin='lower', vmin=vmin, vmax=vmax)
-            axes[comp, col_pred].set_title(
-                f"Pred {labels[comp]} — ex {ex+1}", fontsize=10)
+            axes[comp, col_pred].set_title(f"Pred {labels[comp]} — ex {ex+1}", fontsize=10)
             axes[comp, col_pred].axis('off')
             fig.colorbar(im_pr, ax=axes[comp, col_pred], fraction=0.046)
 
     plt.suptitle("Comparaison GT vs Prédiction — champs de contraintes", fontsize=14)
     plt.tight_layout()
-    plt.savefig("visualisation_contraintes.png", dpi=150)
+
+    if BASE is not None and name_file is not None:
+        save_dir = BASE / 'HeavyFiles' / 'BE_Unet' / 'results' / name_file
+        save_dir.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_dir / "visualisation_contraintes.png", dpi=150)
+
     plt.show()
 
 
-def visualize_error(model, loader, device=None, n: int = 3):
+def visualize_error(model, loader, device=None, n: int = 3,
+                    BASE=None, name_file=None):
     """
-    Affiche les cartes d'erreur absolue |GT - Pred| pour les 3 composantes.
-    Utile pour repérer où le réseau se trompe (bords, singularités...).
+    Affiche les cartes d'erreur absolue |GT - Pred| pour σx, σy, τxy.
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -126,10 +118,10 @@ def visualize_error(model, loader, device=None, n: int = 3):
     model.eval()
 
     batch = next(iter(loader))
-    x, y  = _batch_to_tensors(batch, device)
+    rho, nodes, y = _batch_to_tensors(batch, device)
 
     with torch.no_grad():
-        pred = model(x)
+        pred = model(rho, nodes)
 
     n      = min(n, y.shape[0])
     labels = ['σx', 'σy', 'τxy']
@@ -139,14 +131,17 @@ def visualize_error(model, loader, device=None, n: int = 3):
     for comp in range(3):
         for ex in range(n):
             err = (y[ex, comp] - pred[ex, comp]).abs().cpu().numpy()
-            im  = axes[comp, ex].imshow(
-                err, cmap='hot', origin='lower')
-            axes[comp, ex].set_title(
-                f"|err| {labels[comp]} — ex {ex+1}", fontsize=10)
+            im  = axes[comp, ex].imshow(err, cmap='hot', origin='lower')
+            axes[comp, ex].set_title(f"|err| {labels[comp]} — ex {ex+1}", fontsize=10)
             axes[comp, ex].axis('off')
             fig.colorbar(im, ax=axes[comp, ex], fraction=0.046)
 
     plt.suptitle("Cartes d'erreur absolue |GT − Pred|", fontsize=14)
     plt.tight_layout()
-    plt.savefig("erreur_contraintes.png", dpi=150)
+
+    if BASE is not None and name_file is not None:
+        save_dir = BASE / 'HeavyFiles' / 'BE_Unet' / 'results' / name_file
+        save_dir.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_dir / "erreur_contraintes.png", dpi=150)
+
     plt.show()

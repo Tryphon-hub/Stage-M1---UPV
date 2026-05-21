@@ -107,7 +107,7 @@ class CBAM(nn.Module):
 
 # ─── Boundary-Embedding ──────────────────────────────────────────────────────
 
- class BoundaryEmbedding(nn.Module):
+class BoundaryEmbedding(nn.Module):
     """
     Embedding des tractions de bordure directement dans l'espace latent du U-Net, 
     pour mieux guider la reconstruction.
@@ -149,14 +149,14 @@ class CBAM(nn.Module):
 
 # ─── U-Net principal ─────────────────────────────────────────────────────────
 
-class UNetTopo(nn.Module):
+class BE_UNetTopo(nn.Module):
     """
     U-Net pour optimisation topologique 2D.
 
     Paramètres
     ----------
     nif           : nombre de filtres au niveau 0 (hyperparamètre principal)
-    n_in          : canaux d'entrée  — ρ seul = 1 si use_embedding, sinon ρ+tx+ty = 3
+    n_in          : canaux d'entrée  — ρ seul = 1 
     n_out         : canaux de sortie — σx, σy, τxy = 3
     use_cbam      : active le module CBAM au bottleneck
     embed_n1      : taille du premier layer caché du MLP
@@ -173,12 +173,9 @@ class UNetTopo(nn.Module):
                   → total       = 576 filtres  ← CBAM ici
     """
     def __init__(self, nif=32, n_in=3, n_out=3,
-                 use_cbam=True,
-                 use_embedding=False, embed_n1=32, embed_out=64):
+                use_cbam=True, embed_n1=32, embed_out=64):
         super().__init__()
-        self.use_cbam      = use_cbam
-        self.use_embedding = use_embedding
-
+        self.use_cbam = use_cbam
         f = nif
 
         # Encodeur
@@ -191,36 +188,33 @@ class UNetTopo(nn.Module):
         self.bottleneck = Down(f * 8, f * 16)
 
         # BoundaryEmbedding
-
         self.boundary_embedding = BoundaryEmbedding(
-            in_channels  = 16,         # 8 nœuds × (tx + ty)
+            in_channels  = 16,
             n1           = embed_n1,
             out_channels = embed_out
         )
-        bottleneck_out = f * 16 + embed_out   # 512 + 64 = 576 
 
-        # CBAM — s'applique après la concaténation éventuelle
+        # calcul de bottleneck_out AVANT de l'utiliser
+        bottleneck_out = f * 16 + embed_out        # 512 + 64 = 576
+
+        # CBAM sur les 576 canaux enrichis
         if use_cbam:
             self.cbam = CBAM(bottleneck_out)
 
-        # Décodeur — le premier Up reçoit bottleneck_out au lieu de f*16
-        self.up1 = Up(bottleneck_out, f * 8)
-        self.up2 = Up(f * 8,          f * 4)
-        self.up3 = Up(f * 4,          f * 2)
-        self.up4 = Up(f * 2,          f)
+        # Projection 576 → 512 pour restaurer la symétrie du décodeur
+        self.bottleneck_proj = nn.Conv2d(bottleneck_out, f * 16, kernel_size=1)
+
+        # Décodeur — symétrique, up1 reçoit f*16=512 après projection
+        self.up1 = Up(f * 16, f * 8)
+        self.up2 = Up(f * 8,  f * 4)
+        self.up3 = Up(f * 4,  f * 2)
+        self.up4 = Up(f * 2,  f)
 
         # Tête de sortie
         self.outc = nn.Conv2d(f, n_out, kernel_size=1)
 
 
-
     def forward(self, x, nodes=None):
-        """
-        Paramètres
-        ----------
-        x     : [B, n_in, 32, 32]  — densité (+ tx, ty si use_embedding=False)
-        nodes : [B, 16]             — scalaires nodaux (requis si use_embedding=True)
-        """
         # Encodeur
         x1 = self.inc(x)
         x2 = self.down1(x1)
@@ -228,15 +222,18 @@ class UNetTopo(nn.Module):
         x4 = self.down3(x3)
 
         # Bottleneck
-        xb = self.bottleneck(x4)          # [B, f×16, 2, 2]
+        xb = self.bottleneck(x4)              # [B, 512, 2, 2]
 
-         # BoundaryEmbedding — concat au bottleneck
-        e_T = self.boundary_embedding(nodes)          # [B, embed_out, 2, 2]
-        xb  = torch.cat([xb, e_T], dim=1)            # [B, f×16+embed_out, 2, 2]
+        # BoundaryEmbedding — concat
+        e_T = self.boundary_embedding(nodes)  # [B, 64,  2, 2]
+        xb  = torch.cat([xb, e_T], dim=1)    # [B, 576, 2, 2]
 
-        # CBAM
+        # CBAM sur les 576 canaux enrichis
         if self.use_cbam:
             xb = self.cbam(xb)
+
+        # Projection 576 → 512
+        xb = self.bottleneck_proj(xb)         # [B, 512, 2, 2]
 
         # Décodeur
         x = self.up1(xb, x4)
@@ -244,5 +241,4 @@ class UNetTopo(nn.Module):
         x = self.up3(x,  x2)
         x = self.up4(x,  x1)
 
-        return self.outc(x)               # [B, 3, 32, 32]
-        
+        return self.outc(x)                   # [B, 3, 32, 32]

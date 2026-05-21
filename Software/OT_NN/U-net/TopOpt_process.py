@@ -32,12 +32,12 @@ E        = 1000
 NU       = 0.3
 
 #%% Load dataset
-data    = load_mat(BASE / 'HeavyFiles' / 'data' / name_data)
+data    = load_mat(BASE / 'HeavyFiles' / 'data' / name_data+'.mat')
 ds_base = Dataset_TopOpt(data)
 ds_iter = IterationDataset(ds_base)
 
 #%% Select one sample
-IDX    = 5
+IDX    = 23
 sample = IterationSample(ds_iter, IDX)
 
 #%% Start MATLAB engine
@@ -53,17 +53,11 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 #%% Load U-Net model
 model = UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
 state_dict = torch.load(
-    BASE / 'Software' / 'OT_NN' / 'U-net' / 'results' / 'unet_macro_best.pth',
+    BASE / 'Software' / 'OT_NN' / 'U-net' / 'results' / name_data / 'unet_topo_best.pth',
     map_location='cpu'
 )
 model.load_state_dict(state_dict)
 model.eval()
-
-#%% Load test dataset
-data    = load_mat(BASE / 'HeavyFiles' / 'data' / 'dataset_test.mat')
-ds_base = Dataset_TopOpt(data)
-ds_iter = IterationDataset(ds_base)
-sample  = IterationSample(ds_iter, idx=IDX)
 
 #%% Run topology optimization
 next_sample     = GenTopology(sample, eng, model, TYPE='UNet')

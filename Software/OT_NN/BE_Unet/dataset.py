@@ -114,10 +114,12 @@ class IterationDataset(Dataset):
             (i, j)
             for i in range(len(dataset))
             for j in range(int(dataset.NumIts[i]))
+            if 0.15 <= dataset.Densities[i][:, j].mean() <= 0.85
         ]
         self.last_iteration_index = [
-            self.index.index((i, dataset.NumIts[i] - 1))
+            self.index.index((i, int(dataset.NumIts[i]) - 1))
             for i in range(len(dataset))
+            if (i, int(dataset.NumIts[i]) - 1) in self.index
         ]
 
 

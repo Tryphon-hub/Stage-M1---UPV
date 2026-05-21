@@ -150,7 +150,9 @@ def train(model, train_loader, val_loader=None,
           checkpoint_path   : str  = "unet_topo_checkpoint.pth",
           best_path         : str  = "unet_topo_best.pth",
           resume            : bool = False,
-          tb_log_dir        : str  = "runs/unet_topo"):
+          tb_log_dir        : str  = "runs/unet_topo",
+          BASE              = None,
+          name_file         = None,):
     """
     Entraîne le modèle UNetTopo avec TensorBoard et support de reprise.
 
@@ -290,7 +292,10 @@ def train(model, train_loader, val_loader=None,
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("loss_curve.png", dpi=150)
+
+    save_dir = BASE / 'Software' / 'OT_NN' / 'U-net' / 'illustrations' / name_file
+    save_dir.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save_dir / "loss_curve.png", dpi=150)
     plt.show()
 
     return train_losses, val_losses
