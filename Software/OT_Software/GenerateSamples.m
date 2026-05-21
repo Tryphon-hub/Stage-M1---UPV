@@ -1,26 +1,26 @@
 function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples)
 clc
-% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
-% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
+addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
+addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
 
-addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
-addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
-addpath C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net
+% addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
+% addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
+% addpath C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net
 
 %% Generate Mesh
-% GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
-% Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
-
-GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
-Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
+GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
+Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
+% 
+% GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
+% Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
 
 
 if isfile(Mesh_File)
     delete(Mesh_File)
 end
-% CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
-CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+% CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
 
 system(CallString);
@@ -68,7 +68,7 @@ ItsFull = zeros(NumSamples,1);
 
 %% Generate topology
 TStart = tic;
-figure
+% figure
 MainFig = gcf;
 hold on
 
@@ -97,7 +97,7 @@ for iSample = List
     Xval = reshape(XY(1,Top),size(Top,1),[])*Scale(iSample) + Center(1,iSample);
     Yval = reshape(XY(2,Top),size(Top,1),[])*Scale(iSample) + Center(2,iSample);
 
-    figure(MainFig)
+    % figure(MainFig)
     patch(Xval,Yval,-Value,'EdgeColor','none');
     axis equal
     caxis([-1,0])
