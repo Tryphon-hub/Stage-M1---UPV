@@ -5,17 +5,14 @@ user='server'
 
 
 if user=='laptop':
-    path=r'C:\Users\maxen\Documents\Stage\'
+    path=r'C:\Users\maxen\Documents\Stage'
 elif user=='server':
-    path=r'D:\Maxence\Stage-M1---UPV\'
+    path=r'D:\Maxence\Stage-M1---UPV'
     
-sys.path.append(path+r'Software\OT_NN')
-sys.path.append(path+r'Software\OT_Software')
-sys.path.append(path+r'Software\OT_Functions')
+sys.path.append(path+r'\Software\OT_NN')
+sys.path.append(path+r'\Software\OT_Software')
+sys.path.append(path+r'\Software\OT_Functions')
 
-else:
-    assert user=='laptop' or user=='server', 'wrong selected machine'
-    
 
 
 
@@ -40,15 +37,9 @@ NGPpL = 2   # number of integration points 1D
 NGPpS = 9   # number of integration points 2D
 
 
-#%% Load model
-model = UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
-
-model.load_state_dict(state_dict)
-model.eval()
-
 #%% Load dataset
 
-load_mat(path+r'HeavyFiles\data\dataset_macro.mat')
+data=load_mat(path+r'\HeavyFiles\data\dataset_macro.mat')
 
 
 ds_base  = Dataset_TopOpt(data)
@@ -62,25 +53,26 @@ sample = IterationSample(ds_iter, IDX)
 
 # ── Start MATLAB engine ────────────────────────────────────────────
 eng = matlab.engine.start_matlab()
-if user=='laptop':
-    eng.addpath(path+r'Software\OT_Functions')
-    eng.addpath(path+r'Software\OT_Software')
+
+eng.addpath(path+r'\Software\OT_Functions')
+eng.addpath(path+r'\Software\OT_Software')
 
 # ── Load mesh and material matrix ──────────────────────────────────
-eng.eval("MeshData = ReadGMSH(path+r'Software\OT_Software\Square.msh');", nargout=0)
+eng.eval("MeshData = ReadGMSH(path+r'\Software\OT_Software\Square.msh');", nargout=0)
 eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # ── Load U-Net model ───────────────────────────────────────────────
 model = UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
 state_dict = torch.load(
-    path+r'Software\OT_NN\U-net\results\unet_topo_best.pth',
+    path+r'\Software\OT_NN\U-net\results\unet_topo_best.pth',
     map_location='cpu'
 )
+
 model.load_state_dict(state_dict)
 model.eval()
 
 # ── Load dataset and select initial sample ─────────────────────────
-data    = load_mat(path+r'HeavyFiles\data\dataset_test.mat')
+data    = load_mat(path+r'\HeavyFiles\data\dataset_test.mat')
 ds_base = Dataset_TopOpt(data)
 ds_iter = IterationDataset(ds_base)
 sample  = IterationSample(ds_iter, idx=IDX)  # first iteration of first sample
