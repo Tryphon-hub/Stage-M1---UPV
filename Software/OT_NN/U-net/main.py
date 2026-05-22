@@ -15,7 +15,7 @@ from evaluate import evaluate, visualize, visualize_error
 # ═══════════════════════════════════════════════════════════════════════════════
 
 NETWORK   = 'U-net'  # 'U-net' ou 'BE_Unet'
-user      = 'laptop'   # 'laptop' ou 'server'
+user      = 'server'   # 'laptop' ou 'server'
 name_file = 'dataset_macro'
 
 if user == 'laptop':
@@ -40,7 +40,7 @@ LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
 RESUME = False
-EPOCHS = 1
+EPOCHS = 300
 
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
 #   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER

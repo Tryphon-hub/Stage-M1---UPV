@@ -3,9 +3,14 @@ import sys
 import matlab.engine
 from pathlib import Path
 
-user      = 'laptop'
+user      = 'server'
 name_file = 'dataset_macro'
 NETWORK   = 'BE_Unet'
+
+if NETWORK=='BE_Unet':
+    N_in=1
+else:
+    N_in=3
 
 if user == 'laptop':
     BASE = Path(r'C:\Users\maxen\Documents\Stage')
@@ -32,11 +37,20 @@ E        = 1000
 NU       = 0.3
 
 #%% Load model
-model = BE_UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
-state_dict = torch.load(
-    BASE / 'Software' / 'OT_NN' / NETWORK / 'results' / name_file / 'unet_topo_best.pth',
-    map_location='cpu'
-)
+
+if NETWORK=='BE_Unet':
+    model = BE_UNetTopo(nif=32, n_in=N_in, n_out=3, use_cbam=True,embed_n1=32, embed_out=64)
+    state_dict = torch.load(
+        BASE / 'Software' / 'OT_NN' / NETWORK / 'results' / name_file / ('unet_'+name_file+'_best.pth'),
+        map_location='cpu'
+    )
+else:
+    model = UNetTopo(nif=32, n_in=N_in, n_out=3, use_cbam=True)
+    state_dict = torch.load(
+        BASE / 'Software' / 'OT_NN' / NETWORK / 'results' / name_file / ('unet_'+name_file+'_best.pth'),
+        map_location='cpu'
+    )
+
 model.load_state_dict(state_dict)
 model.eval()
 
