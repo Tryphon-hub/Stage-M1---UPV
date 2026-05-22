@@ -1,14 +1,27 @@
 #%% Import libraries
 import sys
-sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net')
-sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Software')
-sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
+from pathlib import Path
+
+user      = 'server'   # 'laptop' ou 'server'
+name_file = 'dataset_macro'
+NETWORK='U-Net'
+
+
+
+if user == 'laptop':
+    BASE = Path(r'C:\Users\maxen\Documents\Stage')
+elif user == 'server':
+    BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+
+
+sys.path.append(BASE / 'Software' / 'OT_NN' /NETWORK)
+sys.path.append(BASE / 'Software' / 'OT_Functions')
+sys.path.append(BASE / 'Software' / 'OT_Software')
 
 import torch
 import numpy as np
-from model import UNetTopo
-from dataset import Dataset_TopOpt, IterationDataset, IterationSample, load_mat
-from pathlib import Path
+from model import *
+from dataset import *
 import scipy.io
 from topology_utils import *
 
@@ -27,14 +40,14 @@ NGPpS = 9   # number of integration points 2D
 #%% Load model
 model = UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
 state_dict = torch.load(
-    r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net\results\unet_topo_best.pth',
+    BASE/'Stage'/'Software'/'OT_NN'/NETWORK/'results'/'unet_topo_best.pth',
     map_location='cpu'
 )
 model.load_state_dict(state_dict)
 model.eval()
 
 #%% Load dataset
-data     = load_mat(r'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset.mat')
+data     = load_mat(BASE/'HeavyFiles'/'data'/(name_file+'.mat'))
 ds_base  = Dataset_TopOpt(data)
 ds_iter  = IterationDataset(ds_base)
 
@@ -46,24 +59,24 @@ sample = IterationSample(ds_iter, IDX)
 
 # ── Start MATLAB engine ────────────────────────────────────────────
 eng = matlab.engine.start_matlab()
-eng.addpath(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
-eng.addpath(r'C:\Users\maxen\Documents\Stage\Software\OT_Software')
+eng.addpath(BASE/'Software'/'OT_Functions')
+eng.addpath(BASE/'Software'/'OT_Software')
 
 # ── Load mesh and material matrix ──────────────────────────────────
-eng.eval("MeshData = ReadGMSH('C:\\Users\\maxen\\Documents\\Stage\\Software\\OT_Software\\Square.msh');", nargout=0)
+eng.eval("MeshData = ReadGMSH(BASE/'Software'/'OT_Software'/'Square.msh');", nargout=0)
 eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # ── Load U-Net model ───────────────────────────────────────────────
 model = UNetTopo(nif=32, n_in=3, n_out=3, use_cbam=True)
 state_dict = torch.load(
-    r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net\results\unet_topo_best.pth',
+    BASE/'Software'/'OT_NN'/'U-net'/'results'/'unet_topo_best.pth',
     map_location='cpu'
 )
 model.load_state_dict(state_dict)
 model.eval()
 
 # ── Load dataset and select initial sample ─────────────────────────
-data    = load_mat(r'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_test.mat')
+data    = load_mat(BASE/'HeavyFiles'/'data'/(name_file+'.mat'))
 ds_base = Dataset_TopOpt(data)
 ds_iter = IterationDataset(ds_base)
 sample  = IterationSample(ds_iter, idx=IDX)  # first iteration of first sample

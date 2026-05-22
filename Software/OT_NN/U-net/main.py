@@ -14,7 +14,7 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-user = 'laptop'  # 'laptop' ou 'server'
+user = 'server'  # 'laptop' ou 'server'
 
 name_file = 'dataset_macro'
 
@@ -23,6 +23,9 @@ if user == 'laptop':
     BASE = Path(r'C:\Users\maxen\Documents\Stage')
 elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+else :
+    assert user==('laptop' or 'server'), 'unkown selected machine'
+
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file+'.mat')
 RESULTS_DIR     = BASE / 'HeavyFiles' / 'U-net' / 'results'
@@ -40,8 +43,8 @@ USE_CBAM    = True
 LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
-RESUME = True
-EPOCHS = 0
+RESUME = False
+EPOCHS = 500
 
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
 #   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
