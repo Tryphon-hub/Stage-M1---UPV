@@ -228,7 +228,7 @@ def train(model, train_loader, val_loader=None,
     plt.tight_layout()
 
     if BASE is not None and name_file is not None:
-        save_dir = BASE / 'HeavyFiles' / 'BE_Unet' / 'results' / name_file
+        save_dir = BASE / 'Software' / 'OT_NN' / 'BE_Unet' / 'illustrations' / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "loss_curve.png", dpi=150)
 

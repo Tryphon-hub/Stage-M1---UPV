@@ -99,7 +99,7 @@ def visualize(model, loader, device=None, n: int = 3,
     plt.tight_layout()
 
     if BASE is not None and name_file is not None:
-        save_dir = BASE / 'HeavyFiles' / 'BE_Unet' / 'results' / name_file
+        save_dir = BASE / 'Software' / 'OT_NN' / 'BE_Unet' / 'illustrations' / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "visualisation_contraintes.png", dpi=150)
 
@@ -140,7 +140,7 @@ def visualize_error(model, loader, device=None, n: int = 3,
     plt.tight_layout()
 
     if BASE is not None and name_file is not None:
-        save_dir = BASE / 'HeavyFiles' / 'BE_Unet' / 'results' / name_file
+        save_dir = BASE / 'Software' / 'OT_NN' / 'BE_Unet' / 'illustrations' / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "erreur_contraintes.png", dpi=150)
 

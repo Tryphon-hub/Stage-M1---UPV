@@ -15,7 +15,7 @@ sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
 import torch
 import numpy as np
 import matlab.engine
-from model import UNetTopo
+from model import *
 from pathlib import Path
 from dataset import Dataset_TopOpt, IterationDataset, IterationSample, load_mat
 import scipy.io

@@ -13,7 +13,9 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-user      = 'server'   # 'laptop' ou 'server'
+
+NETWORK   = 'BE_Unet'  # 'U-net' ou 'BE_Unet'
+user      = 'laptop'   # 'laptop' ou 'server'
 name_file = 'dataset_macro'
 
 if user == 'laptop':
@@ -22,7 +24,7 @@ elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
-RESULTS_DIR     = BASE / 'HeavyFiles' / 'BE_Unet' / 'results'
+RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / NETWORK / 'results' / name_file
 CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
 BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
 TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -42,7 +44,7 @@ LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
 RESUME = False
-EPOCHS = 500
+EPOCHS = 1
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  Device
