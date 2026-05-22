@@ -14,24 +14,20 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-user = 'server'  # 'laptop' ou 'server'
-
+NETWORK   = 'U-net'  # 'U-net' ou 'BE_Unet'
+user      = 'laptop'   # 'laptop' ou 'server'
 name_file = 'dataset_macro'
-
 
 if user == 'laptop':
     BASE = Path(r'C:\Users\maxen\Documents\Stage')
 elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
-else :
-    assert user==('laptop' or 'server'), 'unkown selected machine'
 
-
-DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file+'.mat')
-RESULTS_DIR     = BASE / 'HeavyFiles' / 'U-net' / 'results'
-CHECKPOINT_PATH = RESULTS_DIR / ("unet_" + name_file + "_checkpoint.pth")
-BEST_PATH       = RESULTS_DIR / ("unet_" + name_file + "_best.pth")
-TB_LOG_DIR      = RESULTS_DIR / ("runs_" + name_file + "_") / ("unet_" + name_file)
+DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
+RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / NETWORK / 'results' / name_file
+CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
 
 BATCH_SIZE  = 16
 VAL_SPLIT   = 0.15
@@ -44,7 +40,7 @@ LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
 RESUME = False
-EPOCHS = 500
+EPOCHS = 1
 
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
 #   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
