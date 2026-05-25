@@ -1,6 +1,7 @@
-# main.py  —  BE_Unet
+#%% main.py
 import torch
 import time
+import scipy.io
 from datetime import datetime
 from pathlib import Path
 
@@ -13,7 +14,7 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-NETWORK   = 'BE_Unet'  # 'U-net' ou 'BE_Unet'
+NETWORK   = 'U-net'  # 'U-net' ou 'BE_Unet'
 user      = 'server'   # 'laptop' ou 'server'
 name_file = 'dataset_macro'
 
@@ -28,22 +29,26 @@ CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
 BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
 TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
 
-RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
 BATCH_SIZE  = 16
 VAL_SPLIT   = 0.15
 NUM_WORKERS = 0
 
 NIF         = 32
 USE_CBAM    = True
-EMBED_N1    = 32     # taille couche cachée 1 du BoundaryEmbedding
-EMBED_OUT   = 64     # dimension de l'embedding
 
 LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
 RESUME = False
 EPOCHS = 300
+
+#   Premier lancement   →  RESUME = False  /  EPOCHS = 50
+#   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
+#
+#   Exemple : après 50 epochs, si la convergence n'est pas atteinte :
+#       RESUME = True
+#       EPOCHS = 500       ← 500 epochs supplémentaires
+#
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  Device
@@ -53,7 +58,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device : {device}")
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#%%  1. Données
+#  1. Données
 # ═══════════════════════════════════════════════════════════════════════════════
 
 print("\nChargement du dataset...")
@@ -68,7 +73,7 @@ n_val   = int(len(ds_iter) * VAL_SPLIT)
 n_train = len(ds_iter) - n_val
 train_ds, val_ds = torch.utils.data.random_split(
     ds_iter, [n_train, n_val],
-    generator=torch.Generator().manual_seed(42)
+    generator=torch.Generator().manual_seed(42)   # split identique à chaque run
 )
 
 train_loader = torch.utils.data.DataLoader(
@@ -82,8 +87,13 @@ print(f"  Val   : {n_val}   samples  ({len(val_loader)} batches)")
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  2. Modèle
 # ═══════════════════════════════════════════════════════════════════════════════
+if NETWORK=='U-net':
+    model = UNetTopo(nif=NIF, n_in=3, n_out=3, use_cbam=USE_CBAM).to(device)
+elif NETWORK=='BE_UNet':
+    EMBED_N1    = 32     # taille couche cachée 1 du BoundaryEmbedding
+    EMBED_OUT   = 64     # dimension de l'embedding
 
-model = BE_UNetTopo(
+    model = BE_UNetTopo(
     nif           = NIF,
     n_in          = 1,          # ρ seul — tractions via BoundaryEmbedding
     n_out         = 3,
@@ -93,9 +103,8 @@ model = BE_UNetTopo(
 ).to(device)
 
 n_params = sum(p.numel() for p in model.parameters())
-print(f"\nModèle : BE_UNetTopo(nif={NIF}, cbam={USE_CBAM}, embedding=True)")
-print(f"  embed_n1={EMBED_N1}, embed_out={EMBED_OUT}")
-print(f"  Paramètres : {n_params:,}")
+print(f"\nModèle : UNetTopo(nif={NIF}, cbam={USE_CBAM})")
+print(f"Paramètres : {n_params:,}")
 
 if RESUME:
     print(f"\nMode reprise — chargement de {CHECKPOINT_PATH}")
@@ -139,15 +148,12 @@ print(f"\nChargement du meilleur modèle ({BEST_PATH})...")
 model.load_state_dict(torch.load(BEST_PATH, map_location=device))
 
 print("\n── Métriques sur le jeu de validation ──")
-evaluate(model, val_loader, device=device, eps=EPS_SMAPE,
-         BASE=BASE, name_file=name_file)
+evaluate(model, val_loader, device=device, eps=EPS_SMAPE)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  5. Visualisation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-visualize(model, val_loader, device=device, n=3,
-          BASE=BASE, name_file=name_file)
-
-visualize_error(model, val_loader, device=device, n=3,
-                BASE=BASE, name_file=name_file)
+visualize(model, val_loader, device=device, n=3, BASE=BASE, name_file=name_file)
+visualize_error(model, val_loader, device=device, n=3, BASE=BASE, name_file=name_file)
+# %%
