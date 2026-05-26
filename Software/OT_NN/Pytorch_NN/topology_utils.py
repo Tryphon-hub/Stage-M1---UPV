@@ -18,7 +18,7 @@ import numpy as np
 import matlab.engine
 from model import *
 from pathlib import Path
-from dataset import Dataset_TopOpt, IterationDataset, IterationSample, load_mat
+from dataset import *
 import scipy.io
 import matplotlib.pyplot as plt
 
@@ -471,9 +471,60 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM):
     plt.title('Compliance Convergence: FEM vs U-Net', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
-    plt.xticks(fontsize=f_text*12)
+
+    # Set x-axis ticks: integers only, step of 5
+    max_iter = max(FEM_c[-1, 0], UNet_c[-1, 0])
+    plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=f_text*12)
     plt.yticks(fontsize=f_text*12)
     plt.tight_layout()
     plt.show()
 
     return FEM_c, UNet_c
+
+
+def statistical_convergence(List_List_Iterations_Unet, IterData_FEM:IterationDataset):
+    '''
+    Returns the mean evolution of the compliance.
+    '''
+    
+    
+    f_text=1.25 # text size multiplicator 
+
+    # Reconstruction of the UNet solution as a type IterationDataset
+    IterData_Unet=list_to_IterationDataset(List_List_Iterations_Unet[0])
+
+    for i in range(1, len(List_List_Iterations_Unet)):
+        IterData_Unet += list_to_IterationDataset(List_List_Iterations_Unet[0])
+
+    Variation_c=[]
+
+    for IterData in [IterData_FEM, IterData_Unet]:
+        N_max=max([
+            len(IterData.dataset.c[i]) 
+            for i in range(
+                len(IterData.last_iteration_index)
+                ) 
+            ])
+        
+        dict_c={i:[] for i in range(N_max)} # dictionnary that will hold the compliance list for each iteration 
+
+        for i,list_c in enumerate(IterData.dataset.c): # loop on force distributions
+            for j in range(len(list_c)):
+                c_i = list_c.flatten()
+                for j in range(len(c_i)):
+                    dict_c[j].append(float(c_i[j]))
+
+        tab_c=[] # will contain the tuple (mean, std) for each iteration
+        for key in dict_c.keys():
+            mean=np.mean(dict_c[key])
+            std=np.std(dict_c[key])
+            tab_c.append((mean, std))
+        
+        Variation_c.append(tab_c) 
+
+    FEM_c, UNet_c = Variation_c
+
+    return FEM_c, UNet_c
+
+
+#%%
