@@ -1,15 +1,18 @@
-# evaluate.py
+# evaluate.py  —  U-Net / BE_UNet
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from pathlib import Path
-from train import sMAPELoss, _batch_to_tensors
+from train import sMAPELoss, _batch_to_tensors, _forward
 
 
-def evaluate(model, loader, device=None, eps: float = 1e-6, BASE=None, name_file=None):
+def evaluate(model, loader, device=None, eps: float = 1e-6,
+             SAVE_DIR=None, name_file=None, NETWORK: str = 'U-Net'):
     """
-    Calcule la SMAPE moyenne et le MAE par composante (σx, σy, τxy).
-    Retourne un dict avec les métriques.
+    Calcule la sMAPE moyenne et le MAE par composante (σx, σy, τxy).
+
+    Parameters
+    ----------
+    NETWORK : 'U-Net' ou 'BE_UNet'
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -26,8 +29,8 @@ def evaluate(model, loader, device=None, eps: float = 1e-6, BASE=None, name_file
 
     with torch.no_grad():
         for batch in loader:
-            x, y = _batch_to_tensors(batch, device)
-            pred = model(x)
+            tensors    = _batch_to_tensors(batch, device, NETWORK)
+            pred, y    = _forward(model, tensors, NETWORK)
 
             total_smape += criterion(pred, y).item()
             mae_sum     += (pred - y).abs().mean(dim=(0, 2, 3)).cpu()
@@ -50,10 +53,14 @@ def evaluate(model, loader, device=None, eps: float = 1e-6, BASE=None, name_file
     }
 
 
-def visualize(model, loader, device=None, n: int = 3, BASE=None, name_file=None):
+def visualize(model, loader, device=None, n: int = 3,
+              BASE=None, name_file=None, NETWORK: str = 'U-Net'):
     """
-    Affiche n exemples côte à côte : vérité terrain vs prédiction,
-    pour chacune des 3 composantes (σx, σy, τxy).
+    Affiche n exemples côte à côte : GT vs prédiction pour σx, σy, τxy.
+
+    Parameters
+    ----------
+    NETWORK : 'U-Net' ou 'BE_UNet'
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -62,10 +69,10 @@ def visualize(model, loader, device=None, n: int = 3, BASE=None, name_file=None)
     model.eval()
 
     batch = next(iter(loader))
-    x, y  = _batch_to_tensors(batch, device)
+    tensors = _batch_to_tensors(batch, device, NETWORK)
 
     with torch.no_grad():
-        pred = model(x)
+        pred, y = _forward(model, tensors, NETWORK)
 
     n      = min(n, y.shape[0])
     labels = ['σx', 'σy', 'τxy']
@@ -96,20 +103,25 @@ def visualize(model, loader, device=None, n: int = 3, BASE=None, name_file=None)
             axes[comp, col_pred].axis('off')
             fig.colorbar(im_pr, ax=axes[comp, col_pred], fraction=0.046)
 
-    plt.suptitle("Comparaison GT vs Prédiction — champs de contraintes", fontsize=14)
+    plt.suptitle(f"GT vs Prédiction — {NETWORK}", fontsize=14)
     plt.tight_layout()
 
     if BASE is not None and name_file is not None:
-        save_dir = BASE / 'Software' / 'OT_NN' / 'U-net' / 'illustrations' / name_file
+        save_dir = SAVE_DIR / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "visualisation_contraintes.png", dpi=150)
 
     plt.show()
 
 
-def visualize_error(model, loader, device=None, n: int = 3, BASE=None, name_file=None):
+def visualize_error(model, loader, device=None, n: int = 3,
+                    BASE=None, name_file=None, NETWORK: str = 'U-Net'):
     """
-    Affiche les cartes d'erreur absolue |GT - Pred| pour les 3 composantes.
+    Affiche les cartes d'erreur absolue |GT - Pred| pour σx, σy, τxy.
+
+    Parameters
+    ----------
+    NETWORK : 'U-Net' ou 'BE_UNet'
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -118,10 +130,10 @@ def visualize_error(model, loader, device=None, n: int = 3, BASE=None, name_file
     model.eval()
 
     batch = next(iter(loader))
-    x, y  = _batch_to_tensors(batch, device)
+    tensors = _batch_to_tensors(batch, device, NETWORK)
 
     with torch.no_grad():
-        pred = model(x)
+        pred, y = _forward(model, tensors, NETWORK)
 
     n      = min(n, y.shape[0])
     labels = ['σx', 'σy', 'τxy']
@@ -136,11 +148,11 @@ def visualize_error(model, loader, device=None, n: int = 3, BASE=None, name_file
             axes[comp, ex].axis('off')
             fig.colorbar(im, ax=axes[comp, ex], fraction=0.046)
 
-    plt.suptitle("Cartes d'erreur absolue |GT − Pred|", fontsize=14)
+    plt.suptitle(f"Erreur absolue |GT − Pred| — {NETWORK}", fontsize=14)
     plt.tight_layout()
 
     if BASE is not None and name_file is not None:
-        save_dir = BASE / 'Software' / 'OT_NN' / 'U-net' / 'illustrations' / name_file
+        save_dir = SAVE_DIR / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "erreur_contraintes.png", dpi=150)
 
