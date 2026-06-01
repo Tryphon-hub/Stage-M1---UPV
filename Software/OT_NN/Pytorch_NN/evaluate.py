@@ -54,7 +54,7 @@ def evaluate(model, loader, device=None, eps: float = 1e-6,
 
 
 def visualize(model, loader, device=None, n: int = 3,
-              BASE=None, name_file=None, NETWORK: str = 'U-Net'):
+              SAVE_DIR=None, name_file=None, NETWORK: str = 'U-Net'):
     """
     Affiche n exemples côte à côte : GT vs prédiction pour σx, σy, τxy.
 
@@ -78,7 +78,7 @@ def visualize(model, loader, device=None, n: int = 3,
     labels = ['σx', 'σy', 'τxy']
     n_cols = 2 * n
 
-    fig, axes = plt.subplots(3, n_cols, figsize=(4 * n_cols, 12))
+    fig, axes = plt.subplots(3, n_cols, figsize=(4 * n_cols, 12), squeeze=False)
 
     for comp in range(3):
         for ex in range(n):
@@ -106,16 +106,16 @@ def visualize(model, loader, device=None, n: int = 3,
     plt.suptitle(f"GT vs Prédiction — {NETWORK}", fontsize=14)
     plt.tight_layout()
 
-    if BASE is not None and name_file is not None:
+    if SAVE_DIR is not None and name_file is not None:
         save_dir = SAVE_DIR / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "visualisation_contraintes.png", dpi=150)
 
-    plt.show()
+
 
 
 def visualize_error(model, loader, device=None, n: int = 3,
-                    BASE=None, name_file=None, NETWORK: str = 'U-Net'):
+                    SAVE_DIR=None, name_file=None, NETWORK: str = 'U-Net'):
     """
     Affiche les cartes d'erreur absolue |GT - Pred| pour σx, σy, τxy.
 
@@ -138,7 +138,7 @@ def visualize_error(model, loader, device=None, n: int = 3,
     n      = min(n, y.shape[0])
     labels = ['σx', 'σy', 'τxy']
 
-    fig, axes = plt.subplots(3, n, figsize=(4 * n, 10))
+    fig, axes = plt.subplots(3, n, figsize=(4 * n, 10), squeeze=False)
 
     for comp in range(3):
         for ex in range(n):
@@ -151,9 +151,8 @@ def visualize_error(model, loader, device=None, n: int = 3,
     plt.suptitle(f"Erreur absolue |GT − Pred| — {NETWORK}", fontsize=14)
     plt.tight_layout()
 
-    if BASE is not None and name_file is not None:
+    if SAVE_DIR is not None and name_file is not None:
         save_dir = SAVE_DIR / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "erreur_contraintes.png", dpi=150)
 
-    plt.show()
