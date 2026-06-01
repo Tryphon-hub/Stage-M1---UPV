@@ -41,7 +41,10 @@ else
     Center = [0;0]*ones(1,NumSamples);
     Scale = 1*ones(1,NumSamples);
     List = 1:NumSamples;
-    Relative_Vol_Frac = 0.5*ones(1,NumSamples);
+
+    rho_min=0.15;
+    rho_max=0.85;
+    Relative_Vol_Frac = rho_min+(rho_max-rho_min)*rand(1,NumSamples);
 end
 
 %% TO conditions
