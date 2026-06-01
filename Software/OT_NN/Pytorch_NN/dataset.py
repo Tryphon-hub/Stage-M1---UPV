@@ -261,6 +261,15 @@ class Dataset_TopOpt(Dataset):
 
 #%% Dataset for all iterations
 
+def _to_object_array(arr):
+    """Force any array into an object array (N,) where each element is a sub-array."""
+    if arr.dtype == object:
+        return arr.flatten()
+    else:
+        # 3D array (NumEls, 6, n_iter) or 2D (NumEls, n_iter) — wrap in object array
+        wrapped = np.empty(1, dtype=object)
+        wrapped[0] = arr
+        return wrapped
 class IterationDataset(Dataset):
     """
     PyTorch Dataset that exposes each (i, j) pair as an independent sample,
@@ -357,6 +366,53 @@ class IterationDataset(Dataset):
         sample = IterationSample(self, idx)
         return sample.get_traction_distribution()
 
+    def __add__(self, IterData: 'IterationDataset') -> 'IterationDataset':
+        """
+        Merge two IterationDatasets with correct indexation.
+        The indices (i, j) of IterData are shifted by the number of distributions
+        in the current dataset.
+
+        Parameters:
+            IterData (IterationDataset): Dataset to merge with.
+
+        Returns:
+            IterationDataset: New merged dataset.
+        """
+        ds1 = self.dataset
+        ds2 = IterData.dataset
+
+        n_shift = len(ds1)  # offset to apply to i indices of IterData
+
+        # Merge base datasets
+        sub = {
+            'MeshData'          : ds1.mesh,
+            'Tractions'         : np.concatenate([ds1.Tractions, ds2.Tractions], axis=-1),
+            'Relative_Vol_Frac' : np.concatenate([np.atleast_1d(ds1.Relative_Vol_Frac), np.atleast_1d(ds2.Relative_Vol_Frac)]),
+            'Rel_Density'       : np.concatenate([ds1.Rel_Density, ds2.Rel_Density], axis=-1),
+            'NumIts'            : np.concatenate([np.atleast_1d(ds1.NumIts), np.atleast_1d(ds2.NumIts)]),
+            'ItsFull'           : np.concatenate([np.atleast_1d(ds1.ItsFull), np.atleast_1d(ds2.ItsFull)]),
+            'TEnd'              : ds1.TEnd,
+            'Stress'    : np.concatenate([_to_object_array(ds1.Stress),    _to_object_array(ds2.Stress)]),
+            'Densities' : np.concatenate([_to_object_array(ds1.Densities), _to_object_array(ds2.Densities)]),
+            'c'         : np.concatenate([_to_object_array(ds1.c),         _to_object_array(ds2.c)]),
+            'FEMc'      : np.concatenate([_to_object_array(ds1.FEMc),      _to_object_array(ds2.FEMc)]),
+        }
+
+        merged_base = Dataset_TopOpt(sub)
+        merged_iter = IterationDataset.__new__(IterationDataset)
+        merged_iter.dataset = merged_base
+        merged_iter.extra_samples = []
+
+        # Merge indices with shift
+        merged_iter.index = self.index + [(i + n_shift, j) for i, j in IterData.index]
+
+        # Merge last_iteration_index with shift
+        merged_iter.last_iteration_index = (
+            self.last_iteration_index +
+            [idx + len(self.index) for idx in IterData.last_iteration_index]
+        )
+
+        return merged_iter
 
 #%% In case we want to access one specific iteration sample directly
 
@@ -669,6 +725,46 @@ def get_traction_distribution(Tractions, img_size=32):
     return tx, ty
 
 
+
+#%% List to IterationSample
+
+def list_to_IterationDataset(list_samples: list[IterationSample]) -> IterationDataset:
+    """
+    Convert a list of IterationSample into an IterationDataset.
+    Samples are assumed to be successive iterations of one topology optimization.
+
+    Parameters:
+        list_samples (list[IterationSample]): List of successive iteration samples.
+
+    Returns:
+        IterationDataset: Dataset containing all samples as iteration (0, j).
+    """
+    n_iter = len(list_samples)
+
+    sub = {
+        'MeshData'          : None,
+        'Tractions'         : list_samples[0].Tractions.squeeze().numpy()[:, :, np.newaxis],  # (2, 8, 1)
+        'Relative_Vol_Frac' : np.array([list_samples[0].Relative_Vol_Frac.item()]),
+        'Rel_Density'       : list_samples[-1].Densities.squeeze().numpy()[:, np.newaxis],    # (NumEls, 1)
+        'Stress'            : np.array([np.stack(
+                                [s.FEM_Stress.numpy() for s in list_samples], axis=-1         # (NumEls, 6, n_iter)
+                            )], dtype=object),
+        'Densities'         : np.stack(
+                                [s.Densities.squeeze().numpy() for s in list_samples], axis=-1 # (NumEls, n_iter)
+                            ),
+        'c'                 : np.array([[s.c.item() for s in list_samples]]),                  # (1, n_iter)
+        'NumIts'            : np.array([n_iter]),
+        'ItsFull'           : np.array([list_samples[0].ItsFull.item()]),
+        'FEMc'              : np.array([[s.FEMc.item() for s in list_samples]]),               # (1, n_iter)
+        'TEnd'              : list_samples[0].TEnd.item(),
+    }
+
+    ds_base = Dataset_TopOpt(sub)
+    return IterationDataset(ds_base)
+
+
+
+
 #%% Test
 
 if __name__ == '__main__':
@@ -681,11 +777,21 @@ if __name__ == '__main__':
     data_iter = IterationDataset(dataset)
 
     data0    = dataset.get_series(0)
+    data1    = dataset.get_series(1)
+
     ds0_iter = IterationDataset(data0)
+    ds1_iter  = IterationDataset(data1)
 
     sample = IterationSample(ds0_iter, idx=10)
     print(ds0_iter)
+    print(ds1_iter)
+
+    ds_sum=ds0_iter+ds1_iter
+    print(ds_sum)
+
 
     # sample.plot()
     # sample.plot_inputs()
     # sample.plot_outputs('FEM')
+
+#%% 
