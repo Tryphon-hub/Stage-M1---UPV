@@ -14,9 +14,10 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-NETWORK   = 'U-net'  # 'U-net' ou 'BE_Unet'
+# NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
+NETWORK   = 'BE_UNet'
 user      = 'server'   # 'laptop' ou 'server'
-name_file = 'dataset_macro'
+name_file = 'dataset'
 
 if user == 'laptop':
     BASE = Path(r'C:\Users\maxen\Documents\Stage')
@@ -24,7 +25,8 @@ elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
-RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / NETWORK / 'results' / name_file
+RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / name_file
+ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / name_file
 CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
 BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
 TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -39,8 +41,8 @@ USE_CBAM    = True
 LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
-RESUME = False
-EPOCHS = 300
+RESUME = True
+EPOCHS = 0
 
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
 #   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
@@ -87,15 +89,17 @@ print(f"  Val   : {n_val}   samples  ({len(val_loader)} batches)")
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  2. Modèle
 # ═══════════════════════════════════════════════════════════════════════════════
-if NETWORK=='U-net':
-    model = UNetTopo(nif=NIF, n_in=3, n_out=3, use_cbam=USE_CBAM).to(device)
+if NETWORK=='U-Net':
+    N_in=3
+    model = UNetTopo(nif=NIF, n_in=N_in, n_out=N_in, use_cbam=USE_CBAM).to(device)
 elif NETWORK=='BE_UNet':
     EMBED_N1    = 32     # taille couche cachée 1 du BoundaryEmbedding
     EMBED_OUT   = 64     # dimension de l'embedding
+    N_in=1
 
     model = BE_UNetTopo(
     nif           = NIF,
-    n_in          = 1,          # ρ seul — tractions via BoundaryEmbedding
+    n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
     n_out         = 3,
     use_cbam      = USE_CBAM,
     embed_n1      = EMBED_N1,
@@ -133,6 +137,7 @@ train_losses, val_losses = train(
     tb_log_dir      = TB_LOG_DIR,
     BASE            = BASE,
     name_file       = name_file,
+    NETWORK         = NETWORK,
 )
 
 elapsed = time.time() - start
@@ -147,13 +152,13 @@ print(f"Durée : {h:02d}h {m:02d}m {s:02d}s")
 print(f"\nChargement du meilleur modèle ({BEST_PATH})...")
 model.load_state_dict(torch.load(BEST_PATH, map_location=device))
 
-print("\n── Métriques sur le jeu de validation ──")
-evaluate(model, val_loader, device=device, eps=EPS_SMAPE)
+print("\n── Validation error ──")
+evaluate(model, val_loader, device=device, eps=EPS_SMAPE, NETWORK=NETWORK)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  5. Visualisation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-visualize(model, val_loader, device=device, n=3, BASE=BASE, name_file=name_file)
-visualize_error(model, val_loader, device=device, n=3, BASE=BASE, name_file=name_file)
+visualize(model, val_loader, device=device, n=N_in, SAVE_DIR=ILLUSTRATIONS_DIR, name_file=name_file, NETWORK=NETWORK)
+visualize_error(model, val_loader, device=device, n=N_in, SAVE_DIR=ILLUSTRATIONS_DIR, name_file=name_file, NETWORK=NETWORK)
 # %%

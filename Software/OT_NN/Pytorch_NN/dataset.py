@@ -161,7 +161,6 @@ class Dataset_TopOpt(Dataset):
         vf     = np.atleast_1d(self.Relative_Vol_Frac)
         return {
             'Tractions'         : torch.from_numpy(self.Tractions[:, :, i]).float().unsqueeze(0),
-            'MeshData'          : None,
             'Densities'         : torch.from_numpy(density_ij).float().unsqueeze(0),
             'Relative_Vol_Frac' : torch.tensor(float(vf[i])).float(),
             'Stress'            : torch.from_numpy(self.Stress[i][:, :, j]).float(),
