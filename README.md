@@ -22,7 +22,9 @@ My contributions to this work are implemented in Pytorch_NN/.
 │   ├── train.py              # Training loop (shared U-Net / BE_UNet)
 │   ├── evaluate.py           # Evaluation and visualisation
 │   ├── dataset.py            # Dataset classes
-│   └── main.py               # Entry point
+│   ├── main.py               # Entry point
+│   ├── topology_utils.py         # Topology optimisation utilities
+│   └── TopOpt_process.py         # Main topology optimisation script
 │
 ├── results/
 │   ├── U-Net/
@@ -34,14 +36,13 @@ My contributions to this work are implemented in Pytorch_NN/.
 │           ├── unet_{name_dataset}_best.pth
 │           └── unet_{name_dataset}_checkpoint.pth
 │
-├── illustrations/
-│   ├── U-Net/
-│       └── {name_dataset}/
-│   └── BE_Unet/
-│       └── {name_dataset}/
-│
-├── topology_utils.py         # Topology optimisation utilities
-└── TopOpt_process.py         # Main topology optimisation script
+└── illustrations/
+    ├── U-Net/
+    │   └── {name_dataset}/
+    └── BE_Unet/
+        └── {name_dataset}/
+
+
 ```
 
 ---
