@@ -9,14 +9,18 @@ This repository contains the implementation of a U-Net-based neural network for 
 
 Both models are trained on FEM-generated datasets and integrated into a topology optimisation loop as surrogates for finite-element stress computation.
 
+This work uses I2MB MATLAB codes from OT_Functions/ and OT_Software/, which are called by Python files in OT_NN/.
+
+My contributions to this work are implemented in Pytorch_NN/.
+
 ---
 
 ## Repository Structure
 ```text
-├── Pytorch_NN/
+├── Software/OT_NN/Pytorch_NN/
 │   ├── model.py              # UNetTopo and BE_UNetTopo architectures
 │   ├── train.py              # Training loop (shared U-Net / BE_UNet)
-│   ├── evaluate.py           # Evaluation and visualization
+│   ├── evaluate.py           # Evaluation and visualisation
 │   ├── dataset.py            # Dataset classes
 │   └── main.py               # Entry point
 │
@@ -86,7 +90,7 @@ tensorboard --logdir results/runs
 
 ---
 
-## Loss
+## Loss function
 
 Symmetric Mean Absolute Percentage Error (sMAPE):
 
@@ -100,3 +104,17 @@ $$\mathcal{L} = \frac{1}{N} \sum_i \frac{2|\sigma_i - \hat{\sigma}_i|}{|\sigma_i
 - PyTorch
 - MATLAB Engine for Python (for topology optimisation loop)
 - SciPy, NumPy, Matplotlib
+
+
+## Acknowledgements
+
+The MATLAB codes used for finite element computation and topology optimisation
+were provided by the [I2MB laboratory](https://i2mb.upv.es/).
+
+### AI & Tools Assistance
+
+Portions of this codebase were developed with the assistance of the following tools:
+
+- **Claude Sonnet** (Anthropic) — used for generating portions of PyTorch code,
+  harmonising comments and docstrings across files, and resolving Git issues
+- **Grammarly** — used for spelling and grammar correction in documentation
