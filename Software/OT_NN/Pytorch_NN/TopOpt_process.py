@@ -4,11 +4,10 @@ import matlab.engine
 from pathlib import Path
 
 user      = 'laptop'
-name_file = 'dataset_macro'
+name_file = 'dataset'
+name_data = 'dataset_test'
 NETWORK   = 'BE_Unet'
 # NETWORK   = 'U-net'
-
-
 
 
 if NETWORK=='BE_Unet':
@@ -21,13 +20,9 @@ if user == 'laptop':
 elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
-
-
-DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
+DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
 RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results'/ NETWORK 
 BEST_PATH       = RESULTS_DIR / name_file / ('unet_' + name_file + '_best.pth')
-
-
 
 sys.path.append(str(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN'))
 sys.path.append(str(BASE / 'Software' / 'OT_Functions'))
@@ -122,11 +117,11 @@ for ID_distrib in range(10):
     List_List_iterations.append(List_iterations)
 
 #%% Visualize results
-# List_iterations[-1].plot_inputs()
+List_iterations[-1].plot_inputs()
 
-# idx_FEM_sol = ds_iter.last_iteration_index[IDX]
-# FEM_sample  = IterationSample(ds_iter, idx_FEM_sol)
-# FEM_sample.plot_inputs()
+idx_FEM_sol = ds_iter.last_iteration_index[IDX]
+FEM_sample  = IterationSample(ds_iter, idx_FEM_sol)
+FEM_sample.plot_inputs()
 
 
 #%% Mean density evolution
@@ -147,87 +142,18 @@ for ID_distrib in range(10):
 
 
 # Reconstruction of the UNet solution as a type IterationDataset
-IterData_Unet=list_to_IterationDataset(List_List_iterations[0])
-
-for i in range(1, len(List_List_iterations)):
-    IterData_Unet += list_to_IterationDataset(List_List_iterations[i])
-
-
-Variation_c = []
-
-for IterData in [IterData_FEM, IterData_Unet]: 
-    c_array = IterData.dataset.c  # object array (N,), each element is (1, n_iter)
-
-    N_max = max(c_array[i].flatten().shape[0] for i in range(len(c_array)))
-
-    dict_c = {j: [] for j in range(N_max)}
-
-    for i in range(len(c_array)):
-        c_i = c_array[i].flatten()
-        c0  = c_i.max()  # compliance at index 1
-        for j in range(len(c_i)):
-            dict_c[j].append(float(c_i[j]/c0))
-
-    tab_c = []
-    for key in dict_c.keys():
-        mean = np.mean(dict_c[key])
-        std  = np.std(dict_c[key])
-        tab_c.append((mean, std))
-
-    Variation_c.append(tab_c)
-
-FEM_c, UNet_c = Variation_c
 
 
 #%% Plot
-#%% Plot
 
-fig, ax = plt.subplots(figsize=(10, 5))
-
-labels = ['U-Net', 'FEM']
-colors = ['tab:blue', 'tab:orange']
-
-for k, (tab_c, label, color) in enumerate(zip(Variation_c, labels, colors)):
-    means = [mean for mean, std in tab_c[2:]]
-    stds  = [std  for mean, std in tab_c[2:]]
-
-    ax.plot(means, label=label, color=color)
-    ax.fill_between(range(len(means)),
-                    [m - s for m, s in zip(means, stds)],
-                    [m + s for m, s in zip(means, stds)],
-                    alpha=0.3, color=color)
-
-ax.set_xlabel('Iteration')
-ax.set_ylabel('c / c_max')
-ax.set_title('Compliance convergence')
-ax.legend()
-ax.grid()
-ax.set_xlim(0, 100)
-plt.tight_layout()
-plt.show()
+FEM_c, UNet_c = statistical_convergence(
+    List_List_iterations, 
+    IterData_FEM, 
+    NETWORK=NETWORK, 
+    PLOT=True, 
+    TYPE='std'
+    )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#%% Compliance convergence
-
-# FEM_c,UNet_c=statistical_convergence(List_List_iterations, IterData_FEM)
 
 #%%
