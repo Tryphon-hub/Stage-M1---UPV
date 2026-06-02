@@ -9,6 +9,8 @@ and return the density image for the next topology optimization iteration.
 
 import sys
 
+from zmq import TYPE
+
 sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net')
 sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Software')
 sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
@@ -446,7 +448,7 @@ def ErrorMetrics_Kernel(y_true, y_pred, kernel_size:int, pad:bool, strides:(int,
 
 
 # %% Convergence study
-def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM):
+def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, NETWORK:str, plot=True,):
     f_text=1.25 # text size multiplicator 
 
 
@@ -482,49 +484,78 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM):
     return FEM_c, UNet_c
 
 
-def statistical_convergence(List_List_Iterations_Unet, IterData_FEM:IterationDataset):
+def statistical_convergence(List_List_Iterations_UNet, IterData_FEM:IterationDataset, NETWORK='U-Net', PLOT=True, TYPE='std'):
     '''
     Returns the mean evolution of the compliance.
     '''
-    
-    
-    f_text=1.25 # text size multiplicator 
+    IterData_Unet=list_to_IterationDataset(List_List_Iterations_UNet[0])
 
-    # Reconstruction of the UNet solution as a type IterationDataset
-    IterData_Unet=list_to_IterationDataset(List_List_Iterations_Unet[0])
+    for i in range(1, len(List_List_Iterations_UNet)):
+        IterData_Unet += list_to_IterationDataset(List_List_Iterations_UNet[i])
 
-    for i in range(1, len(List_List_Iterations_Unet)):
-        IterData_Unet += list_to_IterationDataset(List_List_Iterations_Unet[0])
 
-    Variation_c=[]
+    Variation_c = []
 
-    for IterData in [IterData_FEM, IterData_Unet]:
-        N_max=max([
-            len(IterData.dataset.c[i]) 
-            for i in range(
-                len(IterData.last_iteration_index)
-                ) 
-            ])
-        
-        dict_c={i:[] for i in range(N_max)} # dictionnary that will hold the compliance list for each iteration 
+    for IterData in [IterData_FEM, IterData_Unet]: 
+        c_array = IterData.dataset.c  # object array (N,), each element is (1, n_iter)
 
-        for i,list_c in enumerate(IterData.dataset.c): # loop on force distributions
-            for j in range(len(list_c)):
-                c_i = list_c.flatten()
-                for j in range(len(c_i)):
-                    dict_c[j].append(float(c_i[j]))
+        N_max = max(c_array[i].flatten().shape[0] for i in range(len(c_array)))
 
-        tab_c=[] # will contain the tuple (mean, std) for each iteration
+        dict_c = {j: [] for j in range(N_max)}
+
+        for i in range(len(c_array)):
+            c_i = c_array[i].flatten()
+            c0  = c_i.max()  # compliance at index 1
+            for j in range(len(c_i)):
+                dict_c[j].append(float(c_i[j]/c0))
+
+        tab_c = []
         for key in dict_c.keys():
-            mean=np.mean(dict_c[key])
-            std=np.std(dict_c[key])
-            tab_c.append((mean, std))
-        
-        Variation_c.append(tab_c) 
+            mean = np.mean(dict_c[key])
+            std  = np.std(dict_c[key])
+            number = len(dict_c[key])
+            tab_c.append((mean, std, number))
+
+        Variation_c.append(tab_c)
 
     FEM_c, UNet_c = Variation_c
 
-    return FEM_c, UNet_c
+    if PLOT:
+        fig, ax = plt.subplots(figsize=(10, 5))
 
+        labels = [NETWORK, 'FEM']
+        colors = ['tab:blue', 'tab:orange']
+
+        for k, (tab_c, label, color) in enumerate(zip(Variation_c, labels, colors)):
+            means = [mean for mean, std, number in tab_c[2:]]
+            stds  = [std  for mean, std, number in tab_c[2:]]
+            LENS = [number for mean, std, number in tab_c[2:]]
+
+            LENS = [n / max(LENS) for n in LENS]
+
+            ax.plot(means, label=label, color=color)
+
+            if TYPE == 'std':
+                ax.fill_between(range(len(means)),
+                                [m - s for m, s in zip(means, stds)],
+                                [m + s for m, s in zip(means, stds)],
+                                alpha=0.3, color=color)
+            elif TYPE == 'lenght':
+                ax.fill_between(range(len(means)),
+                                [m - l/len(Variation_c) for m, l in zip(means, LENS)],
+                                [m + l/len(Variation_c) for m, l in zip(means, LENS)],
+                                alpha=0.3, color=color)
+
+
+        ax.set_xlabel('Iteration')
+        ax.set_ylabel('c / c_max')
+        ax.set_title(f'Compliance convergence - mean and {TYPE} across distributions')
+        ax.legend()
+        ax.grid()
+        ax.set_xlim(0, 100)
+        plt.tight_layout()
+        plt.show()
+
+    return FEM_c, UNet_c
 
 #%%
