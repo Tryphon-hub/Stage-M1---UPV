@@ -23,26 +23,28 @@ My contributions to this work are implemented in Pytorch_NN/.
 │   ├── evaluate.py           # Evaluation and visualisation
 │   ├── dataset.py            # Dataset classes
 │   ├── main.py               # Entry point
-│   ├── topology_utils.py         # Topology optimisation utilities
-│   └── TopOpt_process.py         # Main topology optimisation script
+│   ├── topology_utils.py     # Topology optimisation utilities
+│   ├── TopOpt_process.py     # Main topology optimisation script
+│   │
+│   ├── results/
+│   │   ├── U-Net/
+│   │   │   └── {name_dataset}/
+│   │   │       ├── unet_{name_dataset}_best.pth
+│   │   │       └── unet_{name_dataset}_checkpoint.pth
+│   │   └── BE_Unet/
+│   │       └── {name_dataset}/
+│   │           ├── unet_{name_dataset}_best.pth
+│   │           └── unet_{name_dataset}_checkpoint.pth
+│   │
+│   └── illustrations/
+│       ├── U-Net/
+│       │   └── {name_dataset}/
+│       └── BE_Unet/
+│           └── {name_dataset}/
+│   
+├── PlotNeuralNet/            # PDF representation of the U-Nets
 │
-├── results/
-│   ├── U-Net/
-│   │   └── {name_dataset}/
-│   │       ├── unet_{name_dataset}_best.pth
-│   │       └── unet_{name_dataset}_checkpoint.pth
-│   └── BE_Unet/
-│       └── {name_dataset}/
-│           ├── unet_{name_dataset}_best.pth
-│           └── unet_{name_dataset}_checkpoint.pth
-│
-└── illustrations/
-    ├── U-Net/
-    │   └── {name_dataset}/
-    └── BE_Unet/
-        └── {name_dataset}/
-
-
+└── Bibliography/             # Documents used for the bibliography
 ```
 
 ---
