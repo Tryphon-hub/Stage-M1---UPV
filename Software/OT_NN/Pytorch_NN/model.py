@@ -124,7 +124,7 @@ class UNetTopo(nn.Module):
     Niveau 1  : 16x16,  nifx2  = 64  filtres
     Niveau 2  :  8x8,   nifx4  = 128 filtres
     Niveau 3  :  4x4,   nifx8  = 256 filtres
-    Bottleneck:  2x2,   nifx16 = 512 filtres  ← CBAM ici
+    Bottleneck:  2x2,   nifx16 = 512 filtres  ← CBAM 
     """
     def __init__(self, nif=32, n_in=4, n_out=3, use_cbam=True):
         super().__init__()

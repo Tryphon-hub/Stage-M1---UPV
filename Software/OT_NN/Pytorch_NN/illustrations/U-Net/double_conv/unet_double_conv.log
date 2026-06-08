@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.18)  1 JUN 2026 00:04
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.18)  2 JUN 2026 19:01
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -450,8 +450,7 @@ File: tikzlibrary3d.code.tex 2025-08-29 v3.1.11a (3.1.11a)
 tex.def
 File: l3backend-pdftex.def 2025-10-09 L3 backend support: PDF output (pdfTeX)
 \l__color_backend_stack_int=\count307
-)
-No file unet_double_conv.aux.
+) (unet_double_conv.aux)
 \openout1 = `unet_double_conv.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 23.
@@ -494,26 +493,22 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 fg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
-Overfull \hbox (24.33351pt too wide) in paragraph at lines 39--39
- [][][]\OT1/cmr/bx/n/14.4 Input 
- []
-
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <14.4> on input line 39.
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <7> on input line 39.
 
-Overfull \hbox (33.39912pt too wide) in paragraph at lines 39--39
+Overfull \hbox (3.39958pt too wide) in paragraph at lines 39--39
  []$\OT1/cmr/m/n/14.4 (\OML/cmm/m/it/14.4 ^^Z t[] t[]\OT1/cmr/m/n/14.4 )$[] 
  []
 
 
-Overfull \hbox (36.7668pt too wide) in paragraph at lines 288--288
+Overfull \hbox (6.76726pt too wide) in paragraph at lines 288--288
  [][][]\OT1/cmr/bx/n/14.4 Output 
  []
 
 
-Overfull \hbox (59.00496pt too wide) in paragraph at lines 288--288
+Overfull \hbox (29.00542pt too wide) in paragraph at lines 288--288
  []$\OT1/cmr/m/n/14.4 (\OML/cmm/m/it/14.4 ^^[[];  ^^[[];  ^^\[]\OT1/cmr/m/n/14.
 4 )$[] 
  []
@@ -522,7 +517,7 @@ Overfull \hbox (59.00496pt too wide) in paragraph at lines 288--288
 
 
 Non-PDF special ignored!
-<special> papersize=1282.35223pt,614.07846pt
+<special> papersize=1313.06383pt,614.07846pt
 {C:/Users/maxen/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
 (unet_double_conv.aux)
  ***********
@@ -531,10 +526,10 @@ L3 programming layer <2025-12-24>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 17447 strings out of 467871
- 393468 string characters out of 5418376
- 1041098 words of memory out of 5000000
- 46103 multiletter control sequences out of 15000+600000
+ 17454 strings out of 467871
+ 393708 string characters out of 5418376
+ 1041160 words of memory out of 5000000
+ 46108 multiletter control sequences out of 15000+600000
  629538 words of font info for 46 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  117i,14n,121p,422b,1723s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -544,7 +539,7 @@ fonts/cm/cmmi10.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/fonts/type1/p
 ublic/amsfonts/cm/cmmi12.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/font
 s/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/maxen/AppData/Local/Programs/MiK
 TeX/fonts/type1/public/amsfonts/cm/cmr17.pfb>
-Output written on unet_double_conv.pdf (1 page, 59251 bytes).
+Output written on unet_double_conv.pdf (1 page, 59256 bytes).
 PDF statistics:
  34 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)

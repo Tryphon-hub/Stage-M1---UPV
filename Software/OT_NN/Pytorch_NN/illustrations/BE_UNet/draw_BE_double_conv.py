@@ -145,7 +145,7 @@ arch = [
     # Output
     to_Output("output", " ", " ",
             offset=f"({off_dec},0,0)", to="(dec0-east)",
-            height=u1, depth=u1, width=1,
+            height=u1, depth=u1, width=3,
             caption=r"Output\\$(\sigma_{x},\,\sigma_{y},\,\tau_{xy})$"),
 
     # Connections
