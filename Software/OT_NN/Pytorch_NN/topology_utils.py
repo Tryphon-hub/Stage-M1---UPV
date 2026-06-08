@@ -8,6 +8,7 @@ and return the density image for the next topology optimization iteration.
 #%% Libraries
 
 import sys
+import re
 
 from zmq import TYPE
 
@@ -28,6 +29,10 @@ import matplotlib.pyplot as plt
 IMG_SIZE = 32
 PENAL    = 3
 RMIN     = 1.5
+NGPpS = 9   # number of 2D integration points
+NGPpL = 2   # number of 1D integration points
+PENAL = 3
+RMIN  = 1.5
 
 #%% Functions
 
@@ -149,6 +154,8 @@ def GenTopology(sample: IterationSample, eng, model, TYPE, N_in=3) -> IterationS
     InfVol = np.array(eng.workspace['InfVol']).flatten()
     Vol    = float(np.sum(InfVol))
 
+    sample.c = torch.tensor(float(c)).float() # sample compliance update
+
     # ── Sensitivity filtering ──────────────────────────────────────────
     CharSize = (Vol / IMG_SIZE**2) ** 0.5
     Rmin_aux = RMIN * CharSize
@@ -185,11 +192,19 @@ def GenTopology(sample: IterationSample, eng, model, TYPE, N_in=3) -> IterationS
     next_sample.Relative_Vol_Frac = sample.Relative_Vol_Frac
     next_sample.FEM_Stress        = torch.tensor(Stress).float()
     next_sample.UNet_Stress       = None # will be computed in the next iteration
-    next_sample.c                 = torch.tensor(float(c)).float()
+    next_sample.c                 = torch.tensor(1.0).float() # will be updated in the next iteration
     next_sample.FEMc              = torch.tensor(0.0).float()
     next_sample.NumIts            = sample.NumIts
     next_sample.ItsFull           = sample.ItsFull
     next_sample.TEnd              = sample.TEnd
+
+
+    print(f"TYPE={TYPE}  "
+      f"c={c:.6e}  "
+      f"rho_in_mean={Rel_Density.mean():.4f}  "
+      f"rho_out_mean={New_Rel_Density.mean():.4f}  "
+      f"Vol={Vol:.4f}")
+
 
     return next_sample
 
@@ -447,8 +462,91 @@ def ErrorMetrics_Kernel(y_true, y_pred, kernel_size:int, pad:bool, strides:(int,
     return np.mean(err_sx_k), np.mean(err_sy_k), np.mean(err_txy_k)   
 
 
+#%% TopOpt process
+
+def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_iterations = 100, RULE=' ', TYPE_FIRST='FEM'):
+    
+    count_FEM=0
+
+    # compliance at last iteration of the FEM solution
+    final_compliance = ds_filtre.c[ID_distrib][ds_filtre.NumIts[ID_distrib] - 1] 
+
+    # Rule to alternate between U-Net and FEM iterations
+    match_Periodic = re.match(r'(\d+) Unet - (\d+) FEM', RULE) # after n Unet iterations, do m FEM iterations
+    if match_Periodic:
+        n_unet = int(match_Periodic.group(1))
+        m_fem  = int(match_Periodic.group(2))
+        
+    match_Unet = re.match('Only Unet', RULE) # only Unet iterations
+    match_FEM = re.match('Only FEM', RULE) # only FEM iterations
+    match_decreasing = re.match('Decreasing compliance', RULE) # do FEM iterations when compliance increases
+
+    ds_iter = IterationDataset(ds_filtre.get_series(ID_distrib))
+    sample = IterationSample(ds_iter, 0)
+
+    #% Run topology optimization
+    List_Relative_Vol_Frac=[sample.Relative_Vol_Frac]
+    List_mean_densities = [sample.Densities.numpy().mean()]
+
+    next_sample      = GenTopology(sample, eng, model, TYPE=TYPE_FIRST,N_in=N_in)
+
+    List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
+    List_mean_densities.append(next_sample.Densities.numpy().mean())
+
+    List_iterations  = [sample, next_sample]
+    i                = 1
+    
+    print(f"i=0 — c={next_sample.c.item():.6f}  final_compliance={final_compliance:.6f}")
+    print(f"converged={is_converged(sample, next_sample, tol=1e-4)}")
+    print(f"c <= final: {next_sample.c.item() <= final_compliance}")
+
+    while (i < N_max_iterations 
+           and next_sample.c.item() > final_compliance
+           and not is_converged(sample, next_sample, tol=1e-4)
+           ): 
+        
+        print(f"i={i} — c={next_sample.c.item():.6f}  final_compliance={final_compliance:.6f}")
+        print(f"converged={is_converged(sample, next_sample, tol=1e-4)}")
+        print(f"c <= final: {next_sample.c.item() <= final_compliance}")           
+        
+        sample      = next_sample
+
+        if match_FEM:
+            NEXT_TYPE='FEM'
+
+        elif match_Periodic and (i-count_FEM) % n_unet == 0:
+            for j in range(m_fem):
+                next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)
+                List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
+                List_mean_densities.append(next_sample.Densities.numpy().mean())
+                List_iterations.append(next_sample)
+                i += 1
+                count_FEM += 1
+
+        elif match_decreasing and i>2:
+            if List_iterations[-2].c.item() > List_iterations[-3].c.item():
+                NEXT_TYPE='FEM'
+            else:
+                NEXT_TYPE='UNet'
+    
+        else:
+            NEXT_TYPE='UNet'
+
+        next_sample = GenTopology(sample, eng, model, TYPE=NEXT_TYPE,N_in=N_in)    
+        List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
+        List_mean_densities.append(next_sample.Densities.numpy().mean())
+        List_iterations.append(next_sample)
+        i += 1
+
+
+    return List_iterations, count_FEM 
+
+
+
+
+
 # %% Convergence study
-def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, NETWORK:str, plot=True,):
+def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, NETWORK:str, PLOT=True,):
     f_text=1.25 # text size multiplicator 
 
 
@@ -523,7 +621,7 @@ def statistical_convergence(List_List_Iterations_UNet, IterData_FEM:IterationDat
     if PLOT:
         fig, ax = plt.subplots(figsize=(10, 5))
 
-        labels = [NETWORK, 'FEM']
+        labels = ['FEM', NETWORK]
         colors = ['tab:blue', 'tab:orange']
 
         for k, (tab_c, label, color) in enumerate(zip(Variation_c, labels, colors)):
