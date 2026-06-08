@@ -7,8 +7,8 @@ import re
 user      = 'laptop'
 name_file = 'dataset'
 name_data = 'dataset_test'
-NETWORK   = 'BE_Unet'
-# NETWORK   = 'U-net'
+# NETWORK   = 'BE_Unet'
+NETWORK   = 'U-net'
 
 
 if NETWORK=='BE_Unet':
@@ -95,7 +95,8 @@ List_iterations, count_FEM = run_topology_optimization(
     eng, model, 
     N_in=N_in,
     N_max_iterations = 100, 
-    RULE=' ', 
+    RULE='Decreasing compliance', 
+    TYPE_FIRST='FEM',
     )
 
 
@@ -128,6 +129,7 @@ plt.ylabel('Value')
 plt.title('Evolution of Relative Volume Fraction and Mean Density')
 plt.legend()
 plt.grid()
+plt.ylim(0, 1) 
 plt.show()
 
 
@@ -156,7 +158,7 @@ ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
 
 FEM_c, UNet_c = visualize_convergence(
-    List_iterations, 
+    List_iterations[:-1], 
     ds_iter, 
     NETWORK=NETWORK, 
     )

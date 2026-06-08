@@ -154,6 +154,8 @@ def GenTopology(sample: IterationSample, eng, model, TYPE, N_in=3) -> IterationS
     InfVol = np.array(eng.workspace['InfVol']).flatten()
     Vol    = float(np.sum(InfVol))
 
+    sample.c = torch.tensor(float(c)).float() # sample compliance update
+
     # ── Sensitivity filtering ──────────────────────────────────────────
     CharSize = (Vol / IMG_SIZE**2) ** 0.5
     Rmin_aux = RMIN * CharSize
@@ -190,7 +192,7 @@ def GenTopology(sample: IterationSample, eng, model, TYPE, N_in=3) -> IterationS
     next_sample.Relative_Vol_Frac = sample.Relative_Vol_Frac
     next_sample.FEM_Stress        = torch.tensor(Stress).float()
     next_sample.UNet_Stress       = None # will be computed in the next iteration
-    next_sample.c                 = torch.tensor(float(c)).float()
+    next_sample.c                 = torch.tensor(1.0).float() # will be updated in the next iteration
     next_sample.FEMc              = torch.tensor(0.0).float()
     next_sample.NumIts            = sample.NumIts
     next_sample.ItsFull           = sample.ItsFull
@@ -462,7 +464,7 @@ def ErrorMetrics_Kernel(y_true, y_pred, kernel_size:int, pad:bool, strides:(int,
 
 #%% TopOpt process
 
-def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_iterations = 100, RULE=' '):
+def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_iterations = 100, RULE=' ', TYPE_FIRST='FEM'):
     
     count_FEM=0
 
@@ -486,7 +488,7 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
     List_Relative_Vol_Frac=[sample.Relative_Vol_Frac]
     List_mean_densities = [sample.Densities.numpy().mean()]
 
-    next_sample      = GenTopology(sample, eng, model, TYPE='UNet',N_in=N_in)
+    next_sample      = GenTopology(sample, eng, model, TYPE=TYPE_FIRST,N_in=N_in)
 
     List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
     List_mean_densities.append(next_sample.Densities.numpy().mean())
@@ -505,46 +507,36 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
         
         print(f"i={i} — c={next_sample.c.item():.6f}  final_compliance={final_compliance:.6f}")
         print(f"converged={is_converged(sample, next_sample, tol=1e-4)}")
-        print(f"c <= final: {next_sample.c.item() <= final_compliance}")
-
-            
+        print(f"c <= final: {next_sample.c.item() <= final_compliance}")           
         
         sample      = next_sample
 
-        next_sample = GenTopology(sample, eng, model, TYPE='UNet',N_in=N_in)
+        if match_FEM:
+            NEXT_TYPE='FEM'
+
+        elif match_Periodic and (i-count_FEM) % n_unet == 0:
+            for j in range(m_fem):
+                next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)
+                List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
+                List_mean_densities.append(next_sample.Densities.numpy().mean())
+                List_iterations.append(next_sample)
+                i += 1
+                count_FEM += 1
+
+        elif match_decreasing and i>2:
+            if List_iterations[-2].c.item() > List_iterations[-3].c.item():
+                NEXT_TYPE='FEM'
+            else:
+                NEXT_TYPE='UNet'
+    
+        else:
+            NEXT_TYPE='UNet'
+
+        next_sample = GenTopology(sample, eng, model, TYPE=NEXT_TYPE,N_in=N_in)    
         List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
         List_mean_densities.append(next_sample.Densities.numpy().mean())
         List_iterations.append(next_sample)
         i += 1
-
-
-        # if match_Periodic and (i-count_FEM) % n_unet == 0:
-        #     for j in range(m_fem):
-        #         next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)
-        #         List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
-        #         List_mean_densities.append(next_sample.Densities.numpy().mean())
-        #         List_iterations.append(next_sample)
-        #         i += 1
-        #         count_FEM += 1
-
-        # elif match_FEM:
-        #     print("FEM iteration: ", i)
-        #     next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)
-        #     List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
-        #     List_mean_densities.append(next_sample.Densities.numpy().mean())
-        #     List_iterations.append(next_sample)
-        #     i += 1
-        #     count_FEM += 1
-
-        # elif (match_decreasing and next_sample.c.item() > sample.c.item()):
-        #     next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)
-        #     List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
-        #     List_mean_densities.append(next_sample.Densities.numpy().mean())
-        #     List_iterations.append(next_sample)
-        #     i += 1
-        #     count_FEM += 1
-
-        # else:
 
 
     return List_iterations, count_FEM 
