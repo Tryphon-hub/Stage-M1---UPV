@@ -19,7 +19,7 @@ arch = [
     # Input
     to_Input("input", " ", " ",
             offset="(0,0,0)", to="(0,0,0)",
-            height=40, depth=40, width=1,
+            height=40, depth=40, width=3,
             caption=r"Input\\{$(\rho\;t_{x}\;t_{y})$}"),
 
     # Encoder
@@ -101,7 +101,7 @@ arch = [
     # Output
     to_Output("output", " ", " ",
             offset="(2,0,0)", to="(dec0-east)",
-            height=40, depth=40, width=1,
+            height=40, depth=40, width=3,
             caption=r"Output\\$(\sigma_{x},\,\sigma_{y},\,\tau_{xy})$"),
 
     # Connections
