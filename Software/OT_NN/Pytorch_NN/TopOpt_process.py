@@ -2,6 +2,7 @@
 import sys
 import matlab.engine
 from pathlib import Path
+import re
 
 user      = 'laptop'
 name_file = 'dataset'
@@ -63,9 +64,8 @@ model.eval()
 #%% Load dataset
 data    = load_mat(DATA_PATH)
 ds_base = Dataset_TopOpt(data)
-IterData_FEM=IterationDataset(ds_base)
-
 ds_filtre = ds_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
+IterData_FEM = IterationDataset(ds_filtre)
 
 List_List_iterations=[]
 
@@ -81,79 +81,84 @@ eng.eval(f"MeshData = ReadGMSH('{mesh_path}');", nargout=0)
 eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 
-for ID_distrib in range(10):
+#%% Topology optimization loop
 
-    ds_iter = IterationDataset(ds_filtre.get_series(ID_distrib))
+List_count_FEM = []
 
-
-    #% Select one sample
-    IDX=0
-
-    sample = IterationSample(ds_iter, IDX)
+ID_distrib = 0
 
 
+# Only Unet, Only FEM, Decreasing compliance, n Unet - m FEM
+List_iterations, count_FEM = run_topology_optimization(
+    ds_filtre, 
+    ID_distrib, 
+    eng, model, 
+    N_in=N_in,
+    N_max_iterations = 100, 
+    RULE=' ', 
+    )
 
-    #% Run topology optimization
-    List_Relative_Vol_Frac=[sample.Relative_Vol_Frac]
-    List_mean_densities = [sample.Densities.numpy().mean()]
 
-    next_sample      = GenTopology(sample, eng, model, TYPE='UNet',N_in=N_in)
-
-    List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
-    List_mean_densities.append(next_sample.Densities.numpy().mean())
-
-    List_iterations  = [sample, next_sample]
-    i                = 1
-    N_max_iterations = 100
-
-    while i < N_max_iterations and not is_converged(sample, next_sample, tol=1e-4):
-        sample      = next_sample
-        next_sample = GenTopology(sample, eng, model, TYPE='UNet',N_in=N_in)
-        List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
-        List_mean_densities.append(next_sample.Densities.numpy().mean())
-        List_iterations.append(next_sample)
-        i += 1
-
-    List_List_iterations.append(List_iterations)
+List_List_iterations.append(List_iterations)
+List_count_FEM.append(count_FEM)
 
 #%% Visualize results
-List_iterations[-1].plot_inputs()
 
-idx_FEM_sol = ds_iter.last_iteration_index[IDX]
-FEM_sample  = IterationSample(ds_iter, idx_FEM_sol)
+
+idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+
+
+List_iterations[-1].plot_inputs()
 FEM_sample.plot_inputs()
 
 
 #%% Mean density evolution
+List_Relative_Vol_Frac=[]
+List_mean_densities=[]
+for sample in List_iterations:
+    List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
+    List_mean_densities.append(sample.Densities.numpy().mean())
 
-# plt.figure()
-# plt.plot(List_Relative_Vol_Frac, label='Relative Volume Fraction')
-# plt.plot(List_mean_densities, label='Mean Density')
-# plt.xlabel('Iteration')
-# plt.ylabel('Value')
-# plt.title('Evolution of Relative Volume Fraction and Mean Density')
-# plt.legend()
-# plt.grid()
-# plt.show()
+plt.figure()
+plt.plot(List_Relative_Vol_Frac, label='Relative Volume Fraction')
+plt.plot(List_mean_densities, label='Mean Density')
+plt.xlabel('Iteration')
+plt.ylabel('Value')
+plt.title('Evolution of Relative Volume Fraction and Mean Density')
+plt.legend()
+plt.grid()
+plt.show()
 
 
-#%% Debug function
-
-
-
-# Reconstruction of the UNet solution as a type IterationDataset
 
 
 #%% Plot
 
-FEM_c, UNet_c = statistical_convergence(
-    List_List_iterations, 
-    IterData_FEM, 
+# FEM_c, UNet_c = statistical_convergence(
+#     List_List_iterations, 
+#     IterData_FEM, 
+#     NETWORK=NETWORK, 
+#     PLOT=True, 
+#     TYPE='std'
+#     )
+
+
+
+
+ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+
+# for i in range(len(ds_iter)):
+#     sample=IterationSample(ds_iter,i)
+#     print('sample ',i)
+#     sample.plot_inputs()
+
+
+
+FEM_c, UNet_c = visualize_convergence(
+    List_iterations, 
+    ds_iter, 
     NETWORK=NETWORK, 
-    PLOT=True, 
-    TYPE='std'
     )
-
-
 
 #%%
