@@ -83,25 +83,29 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Topology optimization loop
 
-List_count_FEM = []
+List_List_count_FEM = []
 
 ID_distrib = 0
 
 
 # Only Unet, Only FEM, Decreasing compliance, n Unet - m FEM
-List_iterations, count_FEM = run_topology_optimization(
+List_iterations, List_count_FEM = run_topology_optimization(
     ds_filtre, 
     ID_distrib, 
     eng, model, 
-    N_in=N_in,
+    N_in = N_in,
     N_max_iterations = 100, 
-    RULE='Decreasing compliance', 
-    TYPE_FIRST='FEM',
+    RULE = '15 Unet - 5 FEM',
+    # RULE = 'Decreasing compliance', 
+    # RULE = 'Only Unet',
+    TYPE_FIRST = 'FEM',
+    threshold = 0.02,
+    N_end_FEM_iterations = 1
     )
 
 
 List_List_iterations.append(List_iterations)
-List_count_FEM.append(count_FEM)
+List_List_count_FEM.append(List_count_FEM)
 
 #%% Visualize results
 
@@ -115,22 +119,23 @@ FEM_sample.plot_inputs()
 
 
 #%% Mean density evolution
-List_Relative_Vol_Frac=[]
-List_mean_densities=[]
-for sample in List_iterations:
-    List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
-    List_mean_densities.append(sample.Densities.numpy().mean())
 
-plt.figure()
-plt.plot(List_Relative_Vol_Frac, label='Relative Volume Fraction')
-plt.plot(List_mean_densities, label='Mean Density')
-plt.xlabel('Iteration')
-plt.ylabel('Value')
-plt.title('Evolution of Relative Volume Fraction and Mean Density')
-plt.legend()
-plt.grid()
-plt.ylim(0, 1) 
-plt.show()
+# List_Relative_Vol_Frac=[]
+# List_mean_densities=[]
+# for sample in List_iterations:
+#     List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
+#     List_mean_densities.append(sample.Densities.numpy().mean())
+
+# plt.figure()
+# plt.plot(List_Relative_Vol_Frac, label='Relative Volume Fraction')
+# plt.plot(List_mean_densities, label='Mean Density')
+# plt.xlabel('Iteration')
+# plt.ylabel('Value')
+# plt.title('Evolution of Relative Volume Fraction and Mean Density')
+# plt.legend()
+# plt.grid()
+# plt.ylim(0, 1) 
+# plt.show()
 
 
 
@@ -155,12 +160,17 @@ ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 #     print('sample ',i)
 #     sample.plot_inputs()
 
+# for i,sample_i in enumerate(List_iterations):
+#     print('sample :', i)
+#     sample_i.plot_inputs()
 
 
 FEM_c, UNet_c = visualize_convergence(
     List_iterations[:-1], 
     ds_iter, 
-    NETWORK=NETWORK, 
+    List_count_FEM,
+    NETWORK=NETWORK,
+    PLOT=True,
     )
 
 #%%
