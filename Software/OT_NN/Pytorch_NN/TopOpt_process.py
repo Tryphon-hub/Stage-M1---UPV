@@ -85,37 +85,48 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 List_List_count_FEM = []
 
-ID_distrib = 0
 
 
 # Only Unet, Only FEM, Decreasing compliance, n Unet - m FEM
-List_iterations, List_count_FEM = run_topology_optimization(
-    ds_filtre, 
-    ID_distrib, 
-    eng, model, 
-    N_in = N_in,
-    N_max_iterations = 100, 
-    RULE = '15 Unet - 5 FEM',
-    # RULE = 'Decreasing compliance', 
-    # RULE = 'Only Unet',
-    TYPE_FIRST = 'FEM',
-    threshold = 0.02,
-    N_end_FEM_iterations = 1
-    )
+for ID_distrib in range(10):
+    print(f"\n\nStarting topology optimization for distribution ID: {ID_distrib}")
+    List_iterations, List_count_FEM = run_topology_optimization(
+        ds_filtre, 
+        ID_distrib, 
+        eng, model, 
+        N_in = N_in,
+        N_max_iterations = 100, 
+        # RULE = '15 Unet - 5 FEM',
+        RULE = 'Decreasing compliance', 
+        # RULE = 'Only Unet',
+        TYPE_FIRST = 'FEM',
+        threshold = 0.02,
+        N_end_FEM_iterations = 1
+        )
+
+    List_List_iterations.append(List_iterations)
+    List_List_count_FEM.append(List_count_FEM)
+
+    idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+    FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
 
-List_List_iterations.append(List_iterations)
-List_List_count_FEM.append(List_count_FEM)
+    List_iterations[-1].plot_inputs()
+    FEM_sample.plot_inputs()
+
+    ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+
+    FEM_c, UNet_c = visualize_convergence(
+        List_iterations[:-1], 
+        ds_iter, 
+        List_count_FEM,
+        NETWORK=NETWORK,
+        PLOT=True,
+        )
 
 #%% Visualize results
 
 
-idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
-FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
-
-
-List_iterations[-1].plot_inputs()
-FEM_sample.plot_inputs()
 
 
 #%% Mean density evolution
@@ -165,6 +176,33 @@ ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 #     sample_i.plot_inputs()
 
 
+
+
+#%% One sample
+
+ID_distrib=0
+idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+
+ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+
+List_iterations, List_count_FEM = run_topology_optimization(
+        ds_filtre, 
+        ID_distrib, 
+        eng, model, 
+        N_in = N_in,
+        N_max_iterations = 100, 
+        # RULE = '10 Unet - 3 FEM',
+        RULE = 'Decreasing compliance', 
+        # RULE = 'Only UNet',
+        # TYPE_FIRST = 'UNet',
+        TYPE_FIRST = 'FEM',
+        threshold = 0.01,
+        N_end_FEM_iterations = 0,
+        )
+
+
+#%%
 FEM_c, UNet_c = visualize_convergence(
     List_iterations[:-1], 
     ds_iter, 
@@ -173,4 +211,6 @@ FEM_c, UNet_c = visualize_convergence(
     PLOT=True,
     )
 
-#%%
+
+#%% 
+compare_NN_FEM(List_iterations[-1], FEM_sample)
