@@ -414,7 +414,8 @@ class IterationDataset(Dataset):
 
         return merged_iter
 
-#%% In case we want to access one specific iteration sample directly
+#%% IterSample class for visualization and attribute access of a single (i, j) sample
+#In case we want to access one specific iteration sample directly
 
 class IterationSample:
     """
@@ -794,4 +795,5 @@ if __name__ == '__main__':
     # sample.plot_inputs()
     # sample.plot_outputs('FEM')
 
-#%% 
+
+#%%

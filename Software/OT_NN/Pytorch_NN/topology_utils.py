@@ -458,6 +458,7 @@ def ErrorMetrics_Kernel(y_true, y_pred, kernel_size:int, pad:bool, strides:(int,
 def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_iterations = 100, RULE=' ', TYPE_FIRST='FEM', threshold=0.05, N_end_FEM_iterations=0):
     
     List_count_FEM=[]
+    count_unet = 0
 
     # compliance at last iteration of the FEM solution
     final_compliance = ds_filtre.c[ID_distrib][ds_filtre.NumIts[ID_distrib] - 1] 
@@ -494,8 +495,6 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
  
     if TYPE_FIRST == 'FEM':
         List_count_FEM.append(0)
-    else:
-        count_unet = 0
 
     if match_FEM:
         NEXT_TYPE='FEM'
@@ -525,13 +524,13 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
             
             sample = next_sample
             for j in range(m_fem-1):
-                next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)
+                next_sample = GenTopology(next_sample, eng, model, TYPE='FEM',N_in=N_in)
                 List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
                 List_mean_densities.append(next_sample.Densities.numpy().mean())
                 List_iterations.append(next_sample)
                 List_count_FEM.append(i)
                 i += 1
-                sample = next_sample
+            sample=next_sample
             NEXT_TYPE = 'FEM' # for last iteration of the periodic rule
             List_count_FEM.append(i)
             count_unet = 0 # reset UNet counter after FEM iterations
@@ -541,8 +540,8 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
         elif (match_decreasing 
             and i>2
             ):
-            c_prev = List_iterations[-2].c.item()  # actualisé
-            c_pprev = List_iterations[-3].c.item() # actualisé
+            c_prev = List_iterations[-2].c.item()  # actualised
+            c_pprev = List_iterations[-3].c.item() # actualised
             if c_prev > c_pprev * (1 + threshold):
            
                 NEXT_TYPE='FEM'
@@ -559,12 +558,9 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
                         del List_Relative_Vol_Frac[-1]
                         del List_mean_densities[-1]
                         List_count_FEM.append(i-1) # add the FEM iteration at the same index as the UNet iteration that is being replaced
-                        
+                        i -= 1
                         sample = List_iterations[-1] # update sample to the last iteration
-                        next_sample = GenTopology(sample, eng, model, TYPE='FEM',N_in=N_in)    
-                        List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
-                        List_mean_densities.append(next_sample.Densities.numpy().mean())
-                        List_iterations.append(next_sample)
+                        
                 else:
                     # if no FEM iteration has been done yet, just do a FEM iteration without checking the last iteration type
                     List_count_FEM.append(i)
@@ -585,15 +581,23 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3,N_max_it
         i += 1
         NEXT_TYPE='UNet' # default type for next iteration if no rule is matched
 
-    # Final FEM iterations
+
+    # Delete non computed iteration
+    del List_iterations[-1]
+    del List_Relative_Vol_Frac[-1]
+    del List_mean_densities[-1]
+    i -= 1
+
+    # Final FEM iteration
+    sample = List_iterations[-1]
     for j in range(N_end_FEM_iterations):
-        sample = next_sample
         next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
         List_Relative_Vol_Frac.append(next_sample.Relative_Vol_Frac)
         List_mean_densities.append(next_sample.Densities.numpy().mean())
         List_iterations.append(next_sample)
         List_count_FEM.append(i)
         i += 1
+        sample = next_sample
 
 
     return List_iterations, List_count_FEM 
@@ -622,19 +626,25 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
             FEM_step_c.append((i, sample.c.item()))
 
     FEM_c=np.array(FEM_c)
-    UNet_c=np.array(UNet_c)
+    FEM_c[:, 1] = FEM_c[:, 1] / FEM_c[0, 1] # normalize by initial compliance
 
+    c0_Unet = UNet_c[0][1]
+    UNet_c=np.array(UNet_c)
+    UNet_c[:, 1] = UNet_c[:, 1] / UNet_c[0, 1] # normalize by initial compliance
+
+    
     plt.figure(figsize=(10, 6))
     plt.plot(FEM_c[:, 0], FEM_c[:, 1], 'o-', linewidth=2.5, markersize=7, label='FEM')
     plt.plot(UNet_c[:, 0], UNet_c[:, 1], 's-', linewidth=2.5, markersize=7, label=f'{NETWORK}')
     
-    FEM_step_c=np.array(FEM_step_c)
-
-    plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=7, label = 'FEM steps')
-    
+    if len(FEM_step_c)>0:
+        FEM_step_c=np.array(FEM_step_c)
+        FEM_step_c[:, 1] = FEM_step_c[:, 1] / c0_Unet # normalize by initial compliance
+        plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=7, label = 'FEM steps')
+        
     plt.xlabel('Iterations', fontsize=f_text*14,)
-    plt.ylabel('Compliance', fontsize=f_text*14, )
-    plt.title(f'Compliance Convergence: FEM vs {NETWORK}', fontsize=f_text*16, )
+    plt.ylabel(f'$c/c_0$', fontsize=f_text*14, )
+    plt.title(f'Compliance convergence: FEM vs {NETWORK}', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
 
@@ -722,4 +732,67 @@ def statistical_convergence(List_List_Iterations_UNet, IterData_FEM:IterationDat
 
     return FEM_c, UNet_c
 
-#%%
+#%% Compare NN and FEM results for a given force distribution
+def compare_NN_FEM(sample_NN, sample_FEM):
+    
+    fig, axes = plt.subplots(1, 2, figsize=(12, 6))
+
+    scale_force = 10
+    cadre       = int(scale_force)
+
+    def plot_density(ax, sample, title):
+        topo     = sample.Densities.squeeze().numpy()
+        img_size = int(np.sqrt(len(topo)))
+        img      = topo.reshape(img_size, img_size)
+
+        im = ax.imshow(img, cmap='gray_r', origin='lower',
+                       extent=[0, img_size, 0, img_size], vmin=0, vmax=1)
+        ax.set_xlim(-cadre, img_size + cadre)
+        ax.set_ylim(-cadre, img_size + cadre)
+        ax.set_aspect('equal')
+        ax.axis('off')
+        ax.set_title(title, fontsize=24)
+
+        T_scale = sample.Tractions.squeeze().numpy() * scale_force
+        T_scale = T_scale.T
+
+        Points = np.array([
+            [0,        img_size],
+            [img_size, img_size],
+            [img_size, img_size],
+            [img_size, 0       ],
+            [img_size, 0       ],
+            [0,        0       ],
+            [0,        0       ],
+            [0,        img_size],
+        ], dtype=float)
+
+        for k in range(8):
+            sx, sy = Points[k]
+            tx, ty = T_scale[k]
+            ax.quiver(sx, sy, tx, ty, angles='xy', scale_units='xy', scale=1,
+                      color='r', linewidth=1, headwidth=2)
+
+        return im
+
+    im = plot_density(axes[0], sample_NN,  'U-Net density')
+    plot_density(axes[1], sample_FEM, 'FEM density')
+
+    # Common reference arrow on axes[0]
+    pos_x=40
+    pos_y=0
+    axes[0].quiver(-cadre + 1 + pos_x, -cadre + 2 + pos_y, scale_force, 0,
+                   angles='xy', scale_units='xy', scale=1,
+                   color='r', linewidth=1, headwidth=2)
+    axes[0].text(-cadre - 2 + pos_x, -cadre + 4 + pos_y, '1 force unit', fontsize=20, color='r')
+
+
+    # Common colorbar
+    fig.subplots_adjust(right=0.88)
+    cbar_ax = fig.add_axes([0.48, 0.2, 0.02, 0.6])  # [left, bottom, width, height]
+    cb = fig.colorbar(im, cax=cbar_ax, ticks=np.arange(0, 1.2, 0.2))
+    cb.mappable.set_clim(0, 1)
+    cb.ax.tick_params(labelsize=16)
+
+    plt.tight_layout()
+    plt.show()
