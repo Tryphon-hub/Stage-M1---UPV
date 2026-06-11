@@ -5,32 +5,32 @@ import torch.nn as nn
 
 # ─── Blocs de base ───────────────────────────────────────────────────────────
 
-class TripleConv(nn.Module):
-    """3 conv par niveau"""
-    def __init__(self, in_channels, out_channels):
+class MultipleConv(nn.Module):
+    """N_conv conv par niveau"""
+    def __init__(self, in_channels, out_channels, N_conv=3):
         super().__init__()
-        self.block = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
+
+        layers = []
+        for k in range(N_conv):
+            c_in = in_channels if k == 0 else out_channels   # 1ère conv : in→out, suivantes : out→out
+            layers += [
+                nn.Conv2d(c_in, out_channels, kernel_size=3, padding=1),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU(inplace=True),
+            ]
+
+        self.block = nn.Sequential(*layers)
 
     def forward(self, x):
         return self.block(x)
 
 
 class Down(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, N_conv=3):
         super().__init__()
         self.block = nn.Sequential(
             nn.MaxPool2d(2),
-            TripleConv(in_channels, out_channels)
+            MultipleConv(in_channels, out_channels, N_conv=N_conv)
         )
 
     def forward(self, x):
@@ -38,10 +38,10 @@ class Down(nn.Module):
 
 
 class Up(nn.Module):
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, N_conv=3):
         super().__init__()
         self.up   = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
-        self.conv = TripleConv(in_channels, out_channels)
+        self.conv = MultipleConv(in_channels, out_channels, N_conv=N_conv)
 
     def forward(self, x, skip):
         x = self.up(x)
@@ -126,28 +126,28 @@ class UNetTopo(nn.Module):
     Niveau 3  :  4x4,   nifx8  = 256 filtres
     Bottleneck:  2x2,   nifx16 = 512 filtres  ← CBAM 
     """
-    def __init__(self, nif=32, n_in=4, n_out=3, use_cbam=True):
+    def __init__(self, nif=32, n_in=4, n_out=3, use_cbam=True, N_conv=3):
         super().__init__()
         self.use_cbam = use_cbam
 
         f = nif  # alias court
 
         # Encodeur — 4 niveaux comme dans l'article
-        self.inc   = TripleConv(n_in, f)          # 32x32 → f
-        self.down1 = Down(f,     f * 2)           # 16x16 → fx2
-        self.down2 = Down(f * 2, f * 4)           #  8x8  → fx4
-        self.down3 = Down(f * 4, f * 8)           #  4x4  → fx8
+        self.inc   = MultipleConv(n_in, f, N_conv=N_conv)          # 32x32 → f
+        self.down1 = Down(f,     f * 2, N_conv=N_conv)           # 16x16 → fx2
+        self.down2 = Down(f * 2, f * 4, N_conv=N_conv)           #  8x8  → fx4
+        self.down3 = Down(f * 4, f * 8, N_conv=N_conv)           #  4x4  → fx8
 
         # Bottleneck
-        self.bottleneck = Down(f * 8, f * 16)     #  2x2  → fx16
+        self.bottleneck = Down(f * 8, f * 16, N_conv=N_conv)     #  2x2  → fx16
         if use_cbam:
             self.cbam = CBAM(f * 16)
 
         # Décodeur — symétrique
-        self.up1 = Up(f * 16, f * 8)             #  4x4  → fx8
-        self.up2 = Up(f * 8,  f * 4)             #  8x8  → fx4
-        self.up3 = Up(f * 4,  f * 2)             # 16x16 → fx2
-        self.up4 = Up(f * 2,  f)                 # 32x32 → f
+        self.up1 = Up(f * 16, f * 8, N_conv=N_conv)             #  4x4  → fx8
+        self.up2 = Up(f * 8,  f * 4, N_conv=N_conv)             #  8x8  → fx4
+        self.up3 = Up(f * 4,  f * 2, N_conv=N_conv)             # 16x16 → fx2
+        self.up4 = Up(f * 2,  f, N_conv=N_conv)                 # 32x32 → f
 
         # Tête de sortie — linéaire (pas d'activation : contraintes non bornées)
         self.outc = nn.Conv2d(f, n_out, kernel_size=1)
@@ -191,29 +191,60 @@ class BoundaryEmbedding(nn.Module):
     - n1 : taille du premier layer du MLP (ex: 32)
     - out_channels : taille du second layer du MLP (ex: 64)
     """
-    def __init__(self, in_channels, n1=32, out_channels=64):
+import torch
+import torch.nn as nn
+
+class BoundaryEmbedding(nn.Module):
+    """
+    Embedding des tractions de bordure dans l'espace latent du U-Net.
+
+    Parameters
+    ----------
+    in_channels : int
+        Dimension de l'entrée (ex: 16).
+    hidden_layers : list[int]
+        Tailles des couches cachées du MLP (ex: [32, 64]).
+    out_channels : int
+        Dimension de sortie du MLP, correspondant typiquement
+        au nombre de canaux du bottleneck du U-Net.
+    """
+
+    def __init__(self,
+                 in_channels: int,
+                 hidden_layers: list[int],
+                 out_channels: int):
         super().__init__()
 
-        self.fclayers = nn.Sequential(
-            nn.Linear(in_channels, n1),
-            nn.ReLU(inplace=True),
-            nn.Linear(n1, out_channels),
-            nn.ReLU(inplace=True),
-            nn.Linear(out_channels, out_channels) # pas de Relu à la sortie, on veut des valeurs non bornées
-            )
-        
-        # upscale 2x2 pour correspondre à la taille du bottleneck (2x2)
-        self.upsample=nn.ConvTranspose2d(out_channels, out_channels, kernel_size=2, stride=2) 
-        
+        layers = []
+        prev_dim = in_channels
 
-    def forward(self, x):              # x : [B, 16]
+        # Couches cachées
+        for hidden_dim in hidden_layers:
+            layers.append(nn.Linear(prev_dim, hidden_dim))
+            layers.append(nn.ReLU(inplace=True))
+            prev_dim = hidden_dim
+
+        # Couche de sortie (sans ReLU)
+        layers.append(nn.Linear(prev_dim, out_channels))
+
+        self.fclayers = nn.Sequential(*layers)
+
+        # Passage de [B, C, 1, 1] -> [B, C, 2, 2]
+        self.upsample = nn.ConvTranspose2d(
+            out_channels,
+            out_channels,
+            kernel_size=2,
+            stride=2
+        )
+
+    def forward(self, x):
+        """
+        x : [B, in_channels]
+        """
         e = self.fclayers(x)                # [B, out_channels]
         e = e.unsqueeze(-1).unsqueeze(-1)   # [B, out_channels, 1, 1]
-        e = self.upsample(e)           # [B, out_channels, 2, 2]
+        e = self.upsample(e)                # [B, out_channels, 2, 2]
         return e
-
-
-
 
 # ─── BE-UNet principal ─────────────────────────────────────────────────────────
 
@@ -237,28 +268,32 @@ class BE_UNetTopo(nn.Module):
     Niveau 2   :  8x8,   nif×4  = 128 filtres
     Niveau 3   :  4x4,   nif×8  = 256 filtres
     Bottleneck :  2x2,   nif×16 = 512 filtres
-                  + embed_out   = 64  filtres  ← BoundaryEmbedding concat ici
-                  → total       = 576 filtres  ← CBAM ici
+                  + embed_out   = 64  filtres  ← BoundaryEmbedding concat 
+                  → total       = 576 filtres  ← CBAM
     """
     def __init__(self, nif=32, n_in=3, n_out=3,
-                use_cbam=True, embed_n1=32, embed_out=64):
+                use_cbam=True, 
+                hidden_layers_MLP = [32,64,128], 
+                embed_out=128, 
+                N_conv=3):
+        
         super().__init__()
         self.use_cbam = use_cbam
         f = nif
 
         # Encodeur
-        self.inc   = TripleConv(n_in, f)
-        self.down1 = Down(f,     f * 2)
-        self.down2 = Down(f * 2, f * 4)
-        self.down3 = Down(f * 4, f * 8)
+        self.inc   = MultipleConv(n_in, f, N_conv=N_conv)
+        self.down1 = Down(f,     f * 2, N_conv=N_conv)
+        self.down2 = Down(f * 2, f * 4, N_conv=N_conv)
+        self.down3 = Down(f * 4, f * 8, N_conv=N_conv)
 
         # Bottleneck
-        self.bottleneck = Down(f * 8, f * 16)
+        self.bottleneck = Down(f * 8, f * 16, N_conv=N_conv)
 
         # BoundaryEmbedding
         self.boundary_embedding = BoundaryEmbedding(
             in_channels  = 16,
-            n1           = embed_n1,
+            hidden_layers = hidden_layers_MLP,
             out_channels = embed_out
         )
 
@@ -273,10 +308,10 @@ class BE_UNetTopo(nn.Module):
         self.bottleneck_proj = nn.Conv2d(bottleneck_out, f * 16, kernel_size=1)
 
         # Décodeur — symétrique, up1 reçoit f*16=512 après projection
-        self.up1 = Up(f * 16, f * 8)
-        self.up2 = Up(f * 8,  f * 4)
-        self.up3 = Up(f * 4,  f * 2)
-        self.up4 = Up(f * 2,  f)
+        self.up1 = Up(f * 16, f * 8, N_conv=N_conv)
+        self.up2 = Up(f * 8,  f * 4, N_conv=N_conv)
+        self.up3 = Up(f * 4,  f * 2, N_conv=N_conv)
+        self.up4 = Up(f * 2,  f, N_conv=N_conv)
 
         # Tête de sortie
         self.outc = nn.Conv2d(f, n_out, kernel_size=1)
