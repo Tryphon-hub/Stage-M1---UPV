@@ -24,9 +24,11 @@ if user == 'laptop':
 elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
+N_CONV=3
+
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
-RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / name_file
-ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / name_file
+RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
+ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
 CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
 BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
 TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -34,6 +36,7 @@ TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
 BATCH_SIZE  = 16
 VAL_SPLIT   = 0.15
 NUM_WORKERS = 0
+
 
 NIF         = 32
 USE_CBAM    = True
@@ -91,20 +94,29 @@ print(f"  Val   : {n_val}   samples  ({len(val_loader)} batches)")
 # ═══════════════════════════════════════════════════════════════════════════════
 if NETWORK=='U-Net':
     N_in=3
-    model = UNetTopo(nif=NIF, n_in=N_in, n_out=N_in, use_cbam=USE_CBAM).to(device)
+    model = UNetTopo(
+        nif=NIF, 
+        n_in=N_in, 
+        n_out=N_in, 
+        use_cbam=USE_CBAM,
+        N_conv=N_CONV,
+        ).to(device)
+    
+
 elif NETWORK=='BE_UNet':
     EMBED_N1    = 32     # taille couche cachée 1 du BoundaryEmbedding
     EMBED_OUT   = 64     # dimension de l'embedding
     N_in=1
 
     model = BE_UNetTopo(
-    nif           = NIF,
-    n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
-    n_out         = 3,
-    use_cbam      = USE_CBAM,
-    embed_n1      = EMBED_N1,
-    embed_out     = EMBED_OUT,
-).to(device)
+        nif           = NIF,
+        n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
+        n_out         = 3,
+        use_cbam      = USE_CBAM,
+        hidden_layers_MLP = [32,64,128],
+        embed_out     = EMBED_OUT,
+        N_conv=N_CONV,
+    ).to(device)
 
 n_params = sum(p.numel() for p in model.parameters())
 print(f"\nModèle : UNetTopo(nif={NIF}, cbam={USE_CBAM})")

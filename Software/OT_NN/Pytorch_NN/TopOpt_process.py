@@ -7,8 +7,8 @@ import re
 user      = 'laptop'
 name_file = 'dataset'
 name_data = 'dataset_test'
-# NETWORK   = 'BE_Unet'
-NETWORK   = 'U-net'
+NETWORK   = 'BE_Unet'
+# NETWORK   = 'U-net'
 
 
 if NETWORK=='BE_Unet':
@@ -60,6 +60,16 @@ state_dict = torch.load(
 
 model.load_state_dict(state_dict)
 model.eval()
+n_params = sum(p.numel() for p in model.parameters())
+print(f"Number of {NETWORK} parameters : {n_params:_}".replace('_',' '))
+
+# n_total = sum(p.numel() for p in model.parameters())
+# n_embed = sum(p.numel() for p in model.boundary_embedding.parameters())
+
+# print(f"Total           : {n_total:_}".replace('_', ' '))
+# print(f"dont embedding  : {n_embed:_}".replace('_', ' '))
+# print(f"reste U-Net     : {n_total - n_embed:_}".replace('_', ' '))
+
 
 #%% Load dataset
 data    = load_mat(DATA_PATH)
@@ -97,11 +107,11 @@ for ID_distrib in range(10):
         N_in = N_in,
         N_max_iterations = 100, 
         # RULE = '15 Unet - 5 FEM',
-        RULE = 'Decreasing compliance', 
-        # RULE = 'Only Unet',
+        # RULE = 'Decreasing compliance', 
+        RULE = 'Only Unet',
         TYPE_FIRST = 'FEM',
         threshold = 0.02,
-        N_end_FEM_iterations = 1
+        N_end_FEM_iterations = 0
         )
 
     List_List_iterations.append(List_iterations)
@@ -195,7 +205,7 @@ List_iterations, List_count_FEM = run_topology_optimization(
         # RULE = '10 Unet - 3 FEM',
         RULE = 'Decreasing compliance', 
         # RULE = 'Only UNet',
-        # TYPE_FIRST = 'UNet',
+        TYPE_FIRST = 'UNet',
         TYPE_FIRST = 'FEM',
         threshold = 0.01,
         N_end_FEM_iterations = 0,
