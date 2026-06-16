@@ -14,8 +14,8 @@ from evaluate import evaluate, visualize, visualize_error
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
-NETWORK   = 'BE_UNet'
+NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
+# NETWORK   = 'BE_UNet'
 user      = 'server'   # 'laptop' ou 'server'
 name_file = 'dataset'
 
@@ -24,14 +24,29 @@ if user == 'laptop':
 elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
-N_CONV=3
+N_CONV=2
+HIDDEN_LAYERS_MLP=[32,64]
+EMBED_OUT   = 128     # dimension de l'embedding
+
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
-RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
-ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
-CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+if NETWORK == 'U-Net':
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
+    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+    BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+
+
+
+else:
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
+    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}' + '_checkpoint.pth')
+    BEST_PATH       = RESULTS_DIR / ('unet_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}' + '_best.pth')
+    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}') / ('unet_' + name_file)
+
+
 
 BATCH_SIZE  = 16
 VAL_SPLIT   = 0.15
@@ -44,8 +59,8 @@ USE_CBAM    = True
 LR          = 1e-3
 EPS_SMAPE   = 1e-6
 
-RESUME = True
-EPOCHS = 0
+RESUME = False
+EPOCHS = 150
 
 #   Premier lancement   →  RESUME = False  /  EPOCHS = 50
 #   Reprendre           →  RESUME = True   /  EPOCHS = nombre d'epochs à AJOUTER
@@ -104,8 +119,6 @@ if NETWORK=='U-Net':
     
 
 elif NETWORK=='BE_UNet':
-    EMBED_N1    = 32     # taille couche cachée 1 du BoundaryEmbedding
-    EMBED_OUT   = 64     # dimension de l'embedding
     N_in=1
 
     model = BE_UNetTopo(
@@ -113,7 +126,7 @@ elif NETWORK=='BE_UNet':
         n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
         n_out         = 3,
         use_cbam      = USE_CBAM,
-        hidden_layers_MLP = [32,64,128],
+        hidden_layers_MLP = HIDDEN_LAYERS_MLP,
         embed_out     = EMBED_OUT,
         N_conv=N_CONV,
     ).to(device)
@@ -147,7 +160,7 @@ train_losses, val_losses = train(
     best_path       = BEST_PATH,
     resume          = RESUME,
     tb_log_dir      = TB_LOG_DIR,
-    BASE            = BASE,
+    illustation_dir = ILLUSTRATIONS_DIR,
     name_file       = name_file,
     NETWORK         = NETWORK,
 )

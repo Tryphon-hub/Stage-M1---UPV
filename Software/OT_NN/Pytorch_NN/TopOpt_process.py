@@ -4,11 +4,22 @@ import matlab.engine
 from pathlib import Path
 import re
 
-user      = 'laptop'
+# user      = 'laptop'
+user      = 'server'
+
 name_file = 'dataset'
 name_data = 'dataset_test'
-NETWORK   = 'BE_Unet'
-# NETWORK   = 'U-net'
+# NETWORK   = 'BE_Unet'
+NETWORK   = 'U-net'
+
+
+
+NIF = 32
+N_CONV = 2
+HIDDEN_LAYERS_MLP = [32,64]
+USE_CBAM    = True
+EMBED_OUT   = 128
+
 
 
 if NETWORK=='BE_Unet':
@@ -21,9 +32,24 @@ if user == 'laptop':
 elif user == 'server':
     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
-DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
-RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results'/ NETWORK 
-BEST_PATH       = RESULTS_DIR / name_file / ('unet_' + name_file + '_best.pth')
+DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
+if NETWORK == 'U-net':
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
+    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+    BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+
+
+
+else:
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
+    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}' + '_checkpoint.pth')
+    BEST_PATH       = RESULTS_DIR / ('unet_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}' + '_best.pth')
+    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}') / ('unet_' + name_file)
+
+
 
 sys.path.append(str(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN'))
 sys.path.append(str(BASE / 'Software' / 'OT_Functions'))
@@ -44,12 +70,31 @@ NGPpS    = 9
 E        = 1000
 NU       = 0.3
 
+
+
+
 #%% Load model
 
 if NETWORK=='BE_Unet':
-    model = BE_UNetTopo(nif=32, n_in=N_in, n_out=3, use_cbam=True,embed_n1=32, embed_out=64)
+    model = BE_UNetTopo(
+        nif           = NIF,
+        n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
+        n_out         = 3,
+        use_cbam      = USE_CBAM,
+        hidden_layers_MLP = HIDDEN_LAYERS_MLP,
+        embed_out     = EMBED_OUT,
+        N_conv=N_CONV,
+    )
+    
 elif NETWORK=='U-net':
-    model = UNetTopo(nif=32, n_in=N_in, n_out=3, use_cbam=True)
+    model = UNetTopo(
+        nif=32, 
+        n_in=N_in, 
+        n_out=3, 
+        use_cbam=True,
+        N_conv=N_CONV,
+        )
+
 else:
     raise ValueError("Invalid NETWORK value. Choose 'U-net' or 'BE_Unet'.")
 
@@ -93,50 +138,46 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Topology optimization loop
 
-List_List_count_FEM = []
+# List_List_count_FEM = []
 
 
 
-# Only Unet, Only FEM, Decreasing compliance, n Unet - m FEM
-for ID_distrib in range(10):
-    print(f"\n\nStarting topology optimization for distribution ID: {ID_distrib}")
-    List_iterations, List_count_FEM = run_topology_optimization(
-        ds_filtre, 
-        ID_distrib, 
-        eng, model, 
-        N_in = N_in,
-        N_max_iterations = 100, 
-        # RULE = '15 Unet - 5 FEM',
-        # RULE = 'Decreasing compliance', 
-        RULE = 'Only Unet',
-        TYPE_FIRST = 'FEM',
-        threshold = 0.02,
-        N_end_FEM_iterations = 0
-        )
+# # Only Unet, Only FEM, Decreasing compliance, n Unet - m FEM
+# for ID_distrib in range(10):
+#     print(f"\n\nStarting topology optimization for distribution ID: {ID_distrib}")
+#     List_iterations, List_count_FEM = run_topology_optimization(
+#         ds_filtre, 
+#         ID_distrib, 
+#         eng, model, 
+#         N_in = N_in,
+#         N_max_iterations = 100, 
+#         # RULE = '15 Unet - 5 FEM',
+#         # RULE = 'Decreasing compliance', 
+#         RULE = 'Only Unet',
+#         TYPE_FIRST = 'FEM',
+#         threshold = 0.02,
+#         N_end_FEM_iterations = 0
+#         )
 
-    List_List_iterations.append(List_iterations)
-    List_List_count_FEM.append(List_count_FEM)
+#     List_List_iterations.append(List_iterations)
+#     List_List_count_FEM.append(List_count_FEM)
 
-    idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
-    FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
-
-
-    List_iterations[-1].plot_inputs()
-    FEM_sample.plot_inputs()
-
-    ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
-
-    FEM_c, UNet_c = visualize_convergence(
-        List_iterations[:-1], 
-        ds_iter, 
-        List_count_FEM,
-        NETWORK=NETWORK,
-        PLOT=True,
-        )
-
-#%% Visualize results
+#     idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+#     FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
 
+#     List_iterations[-1].plot_inputs()
+#     FEM_sample.plot_inputs()
+
+#     ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+
+#     FEM_c, UNet_c = visualize_convergence(
+#         List_iterations[:-1], 
+#         ds_iter, 
+#         List_count_FEM,
+#         NETWORK=NETWORK,
+#         PLOT=True,
+#         )
 
 
 #%% Mean density evolution
@@ -172,9 +213,7 @@ for ID_distrib in range(10):
 #     )
 
 
-
-
-ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+# ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
 # for i in range(len(ds_iter)):
 #     sample=IterationSample(ds_iter,i)
@@ -205,14 +244,14 @@ List_iterations, List_count_FEM = run_topology_optimization(
         # RULE = '10 Unet - 3 FEM',
         RULE = 'Decreasing compliance', 
         # RULE = 'Only UNet',
-        TYPE_FIRST = 'UNet',
+        # TYPE_FIRST = 'UNet',
         TYPE_FIRST = 'FEM',
-        threshold = 0.01,
-        N_end_FEM_iterations = 0,
+        threshold = 0.02,
+        N_end_FEM_iterations = 1,
         )
 
 
-#%%
+
 FEM_c, UNet_c = visualize_convergence(
     List_iterations[:-1], 
     ds_iter, 
@@ -222,5 +261,4 @@ FEM_c, UNet_c = visualize_convergence(
     )
 
 
-#%% 
 compare_NN_FEM(List_iterations[-1], FEM_sample)
