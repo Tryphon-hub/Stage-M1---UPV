@@ -159,7 +159,7 @@ def train(model, train_loader, val_loader=None,
           best_path               = "unet_best.pth",
           resume          : bool  = False,
           tb_log_dir              = "runs/unet",
-          BASE                    = None,
+          illustation_dir                    = None,
           name_file               = None,
           NETWORK         : str   = 'U-Net'):
     """
@@ -278,10 +278,9 @@ def train(model, train_loader, val_loader=None,
     plt.grid(True)
     plt.tight_layout()
 
-    if BASE is not None and name_file is not None:
-        save_dir = BASE / 'Software' / 'OT_NN' / NETWORK / 'illustrations' / name_file
-        save_dir.mkdir(parents=True, exist_ok=True)
-        plt.savefig(save_dir / "loss_curve.png", dpi=150)
+    if illustation_dir is not None and name_file is not None:
+        illustation_dir.mkdir(parents=True, exist_ok=True)
+        plt.savefig(illustation_dir / "loss_curve.png", dpi=150)
 
-    plt.show()
+    plt.close()
     return train_losses, val_losses
