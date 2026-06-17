@@ -17,7 +17,7 @@ NETWORK   = 'U-net'
 NIF = 32
 N_CONV = 2
 HIDDEN_LAYERS_MLP = [32,64]
-USE_CBAM    = True
+USE_CBAM    = False
 EMBED_OUT   = 128
 
 
@@ -34,8 +34,8 @@ elif user == 'server':
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
 if NETWORK == 'U-net':
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
     BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
     TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -45,9 +45,9 @@ if NETWORK == 'U-net':
 else:
     RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
     ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
-    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}' + '_checkpoint.pth')
-    BEST_PATH       = RESULTS_DIR / ('unet_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}' + '_best.pth')
-    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}') / ('unet_' + name_file)
+    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+    BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
 
 
 
