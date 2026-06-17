@@ -257,6 +257,82 @@ class Dataset_TopOpt(Dataset):
             'TEnd'              : self.TEnd,
         }
         return Dataset_TopOpt(sub)
+    
+    def plot_densities(self, iteration=-1):
+        """
+        Plot the density distribution of each case in the dataset.
+        By default shows the last iteration of each case.
+
+        Parameters:
+            iteration (int): iteration index to display for each case (default: -1, last).
+        """
+        N = len(self)
+        numits = np.atleast_1d(self.NumIts)
+
+        n_cols = int(np.ceil(np.sqrt(N)))
+        n_rows = int(np.ceil(N / n_cols))
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(2.5*n_cols, 2.5*n_rows))
+        axes = np.array(axes).reshape(-1)
+
+        for i in range(N):
+            ax = axes[i]
+
+            # resolve iteration index per case (handles negative indices)
+            j = iteration if iteration >= 0 else int(numits[i]) + iteration
+            topo = self.get_density(i, j)
+
+            img_size = int(np.sqrt(len(topo)))
+            img = topo.reshape(img_size, img_size)
+
+            ax.imshow(img, cmap='gray_r', origin='lower', vmin=0, vmax=1)
+            ax.set_aspect('equal')
+            ax.axis('off')
+            ax.set_title(f'#{i}', fontsize=12)
+
+        # hide unused subplots
+        for i in range(N, len(axes)):
+            axes[i].axis('off')
+
+        plt.tight_layout()
+        plt.show()
+
+    def plot_all_densities(self):
+        """
+        Plot every density distribution (all iterations of all samples) in the dataset.
+        Each subplot is titled 'sample {i}\niteration {j}'.
+        """
+        numits = np.atleast_1d(self.NumIts)
+        N = len(self)
+
+        # Build list of (i, j) pairs for every iteration of every sample
+        pairs = [(i, j) for i in range(N) for j in range(int(numits[i]))]
+        n_plots = len(pairs)
+
+        n_cols = int(np.ceil(np.sqrt(n_plots)))
+        n_rows = int(np.ceil(n_plots / n_cols))
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(2.2*n_cols, 2.4*n_rows))
+        axes = np.array(axes).reshape(-1)
+
+        for plot_idx, (i, j) in enumerate(pairs):
+            ax = axes[plot_idx]
+            topo = self.get_density(i, j)
+
+            img_size = int(np.sqrt(len(topo)))
+            img = topo.reshape(img_size, img_size)
+
+            ax.imshow(img, cmap='gray_r', origin='lower', vmin=0, vmax=1)
+            ax.set_aspect('equal')
+            ax.axis('off')
+            ax.set_title(f'sample {i}\niteration {j}', fontsize=8)
+
+        # Hide unused subplots
+        for plot_idx in range(n_plots, len(axes)):
+            axes[plot_idx].axis('off')
+
+        plt.tight_layout()
+        plt.show()
 
 
 #%% Dataset for all iterations
@@ -660,6 +736,9 @@ class IterationSample:
         plt.show()
 
 
+
+
+
 #%% Data loader
 
 def get_dataloader(dataset: IterationDataset, batch_size: int = 32,
@@ -777,18 +856,7 @@ if __name__ == '__main__':
 
     data_iter = IterationDataset(dataset)
 
-    data0    = dataset.get_series(0)
-    data1    = dataset.get_series(1)
-
-    ds0_iter = IterationDataset(data0)
-    ds1_iter  = IterationDataset(data1)
-
-    sample = IterationSample(ds0_iter, idx=10)
-    print(ds0_iter)
-    print(ds1_iter)
-
-    ds_sum=ds0_iter+ds1_iter
-    print(ds_sum)
+    
 
 
     # sample.plot()

@@ -80,11 +80,8 @@ pbar = waitbar(0, 'Iniciando Optimización Topológica...');
 for iSample = List
     waitbar(iSample/NumSamples, pbar, sprintf('Progreso: %d/%d', iSample, NumSamples));
 
-    if iSample == 1
-        IniDentsity = Relative_Vol_Frac(iSample) * ones(size(Rel_Density(:,iSample)));
-    else
-        IniDentsity = Rel_Density(:,iSample-1);
-    end
+    
+    IniDentsity = Relative_Vol_Frac(iSample) * ones(size(Rel_Density(:,iSample)));
 
     [Rel_Density(:,iSample),Stress{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...
         GenTopology(MeshData,Tractions(:,:,iSample),Relative_Vol_Frac(iSample),ProbInfo,IniDentsity);
