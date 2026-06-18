@@ -543,7 +543,6 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
         # Common actualisation for both UNet and FEM iterations
         
         next_sample = GenTopology(sample, eng, model, TYPE=NEXT_TYPE, N_in=N_in)   
-        print(NEXT_TYPE)
         
         List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
         List_mean_densities.append(sample.Densities.numpy().mean())
@@ -889,6 +888,7 @@ def density_evolution(List_iterations, List_count_FEM, step=5):
     plt.show()
 
 #%% Compare NN and FEM results for a given force distribution
+
 def compare_NN_FEM(sample_NN, sample_FEM):
     
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
@@ -952,3 +952,5 @@ def compare_NN_FEM(sample_NN, sample_FEM):
 
     plt.tight_layout()
     plt.show()
+
+
