@@ -7,9 +7,9 @@ from pathlib import Path
 
 from dataset  import *
 from model    import *
-from train    import train
-from evaluate import evaluate, visualize, visualize_error
-
+from train    import *
+from evaluate import *
+from topology_utils import *
 # ═══════════════════════════════════════════════════════════════════════════════
 #%%  Configuration
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -19,18 +19,19 @@ NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
 user      = 'server'   # 'laptop' ou 'server'
 name_file = 'dataset'
 
-if user == 'laptop':
-    BASE = Path(r'C:\Users\maxen\Documents\Stage')
-elif user == 'server':
-    BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+
 
 N_CONV=2
 HIDDEN_LAYERS_MLP=[32,64]
 EMBED_OUT   = 128     # dimension de l'embedding
 USE_CBAM = False
+USE_AUGMENTATION = True  # Data augmentation
+AUGMENTATION_P   = 0.2
+
+BASE = Path.cwd().parents[2]
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
-if NETWORK == 'U-net':
+if NETWORK == 'U-Net':
     RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}'
     ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
@@ -89,15 +90,25 @@ print(f"  Itérations totales      : {len(ds_iter)}")
 
 n_val   = int(len(ds_iter) * VAL_SPLIT)
 n_train = len(ds_iter) - n_val
+
+
+
 train_ds, val_ds = torch.utils.data.random_split(
     ds_iter, [n_train, n_val],
-    generator=torch.Generator().manual_seed(42)   # split identique à chaque run
+    generator=torch.Generator().manual_seed(42)
+)
+
+# Wrap ONLY the train split
+train_ds = AugmentedIterationDataset(
+    train_ds, p=AUGMENTATION_P,
+    rotation_90=rotation_90, symmetry_x=symmetry_x, symmetry_y=symmetry_y,
+    enabled=USE_AUGMENTATION,
 )
 
 train_loader = torch.utils.data.DataLoader(
-    train_ds, batch_size=BATCH_SIZE, shuffle=True,  num_workers=NUM_WORKERS)
-val_loader   = torch.utils.data.DataLoader(
-    val_ds,   batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
+    train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
+val_loader = torch.utils.data.DataLoader(
+    val_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
 
 print(f"  Train : {n_train} samples  ({len(train_loader)} batches)")
 print(f"  Val   : {n_val}   samples  ({len(val_loader)} batches)")

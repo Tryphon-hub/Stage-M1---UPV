@@ -27,15 +27,17 @@ if NETWORK=='BE_Unet':
 else:
     N_in=3
 
-if user == 'laptop':
-    BASE = Path(r'C:\Users\maxen\Documents\Stage')
-elif user == 'server':
-    BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+# if user == 'laptop':
+#     BASE = Path(r'C:\Users\maxen\Documents\Stage')
+# elif user == 'server':
+#     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+
+BASE = Path.cwd().parents[2]
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
 if NETWORK == 'U-net':
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}'
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
     BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
     TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -155,7 +157,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=1
+ID_distrib=2
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -192,3 +194,5 @@ FEM_c, UNet_c = visualize_convergence(
 compare_NN_FEM(List_iterations[-1], FEM_sample)
 
 density_evolution(List_iterations,List_count_FEM, 1)
+
+#%%
