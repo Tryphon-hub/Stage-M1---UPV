@@ -18,7 +18,7 @@ Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
 if isfile(Mesh_File)
     delete(Mesh_File)
 end
-CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 128 -o "' Mesh_File '" -'];
 
 % CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
@@ -42,9 +42,12 @@ else
     Scale = 1*ones(1,NumSamples);
     List = 1:NumSamples;
 
-    rho_min=0.15;
-    rho_max=0.85;
-    Relative_Vol_Frac = rho_min+(rho_max-rho_min)*rand(1,NumSamples);
+    % In case user wants to generate random relative volumic fractions, uncomment next lines
+    % rho_min=0.15;
+    % rho_max=0.85;
+    % Relative_Vol_Frac = rho_min+(rho_max-rho_min)*rand(1,NumSamples);
+
+    Relative_Vol_Frac = 0.5*ones(1, NumSamples);
 end
 
 %% TO conditions
@@ -80,7 +83,7 @@ pbar = waitbar(0, 'Iniciando Optimización Topológica...');
 for iSample = List
     waitbar(iSample/NumSamples, pbar, sprintf('Progreso: %d/%d', iSample, NumSamples));
 
-    
+    % Modified by Maxence Barberet-Pinto: a constant density field is generated for each traction distribution
     IniDentsity = Relative_Vol_Frac(iSample) * ones(size(Rel_Density(:,iSample)));
 
     [Rel_Density(:,iSample),Stress{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...

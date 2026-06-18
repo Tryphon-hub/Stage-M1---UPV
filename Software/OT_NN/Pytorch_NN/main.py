@@ -17,7 +17,7 @@ from topology_utils import *
 NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
 # NETWORK   = 'BE_UNet'
 user      = 'server'   # 'laptop' ou 'server'
-name_file = 'dataset'
+name_file = 'dataset_1k'
 
 
 
