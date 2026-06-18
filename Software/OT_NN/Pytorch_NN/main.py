@@ -17,7 +17,7 @@ from evaluate import evaluate, visualize, visualize_error
 NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
 # NETWORK   = 'BE_UNet'
 user      = 'server'   # 'laptop' ou 'server'
-name_file = 'dataset'
+name_file = 'dataset_1k'
 
 if user == 'laptop':
     BASE = Path(r'C:\Users\maxen\Documents\Stage')

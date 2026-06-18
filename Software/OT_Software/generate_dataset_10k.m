@@ -1,9 +1,9 @@
-Folder='D:\Maxence\Heavy files\data';
-FileName='dataset_10k';
-TractionFile='tractions_10k';
+Folder='D:\Maxence\Stage-M1---UPV\HeavyFiles\data';
+FileName='dataset_64';
+TractionFile='tractions_64';
 GenerateNewTractions=true;
 Net=[];
-NumSamples=10000;
+NumSamples=1000;
 
 
 GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples);
