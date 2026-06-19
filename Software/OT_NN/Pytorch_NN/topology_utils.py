@@ -272,7 +272,7 @@ def visualize_in_out(y_true, y_pred):
 
 #%%  Error maps
 
-def visualize_error(y_true, y_pred, TYPE):
+def plot_error(y_true, y_pred, TYPE):
 
     # Ground truth outputs
     sx_true, sy_true, txy_true = extract_stress_maps(y_true)
