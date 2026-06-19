@@ -15,8 +15,7 @@ from topology_utils import *
 # ═══════════════════════════════════════════════════════════════════════════════
 
 NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
-# NETWORK   = 'BE_UNet'
-user      = 'server'   # 'laptop' ou 'server'
+
 name_file = 'dataset_1k'
 
 
@@ -25,10 +24,10 @@ N_CONV=2
 HIDDEN_LAYERS_MLP=[32,64]
 EMBED_OUT   = 128     # dimension de l'embedding
 USE_CBAM = False
-USE_AUGMENTATION = True  # Data augmentation
+USE_AUGMENTATION = False  # Data augmentation
 AUGMENTATION_P   = 0.2
 
-BASE = Path.cwd().parents[2]
+BASE = Path(__file__).parents[3]
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
 if NETWORK == 'U-Net':
