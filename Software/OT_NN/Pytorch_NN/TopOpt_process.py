@@ -187,42 +187,42 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=8
-idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
-FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+# ID_distrib=8
+# idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+# FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
-ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+# ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
-List_iterations, List_count_FEM = run_topology_optimization(
-        ds_filtre, 
-        ID_distrib, 
-        eng, model, 
-        N_in = N_in,
-        N_max_iterations = 100, 
-        RULE = 'Only UNet',
-        # RULE = '10 Unet - 1 FEM',
-        # RULE = 'Decreasing compliance', 
-        # RULE = 'Only FEM',
-        TYPE_FIRST = 'UNet',
-        # TYPE_FIRST = 'FEM',
-        threshold = 0.0,
-        N_end_FEM_iterations = 0,
-        window_Unet = 3,
-        window_FEM = 1, 
-        tol_c=1e-3, 
-        tol_rho=0.1,
-        end_FEM=True
-        )
+# List_iterations, List_count_FEM = run_topology_optimization(
+#         ds_filtre, 
+#         ID_distrib, 
+#         eng, model, 
+#         N_in = N_in,
+#         N_max_iterations = 100, 
+#         RULE = 'Only UNet',
+#         # RULE = '10 Unet - 1 FEM',
+#         # RULE = 'Decreasing compliance', 
+#         # RULE = 'Only FEM',
+#         TYPE_FIRST = 'UNet',
+#         # TYPE_FIRST = 'FEM',
+#         threshold = 0.0,
+#         N_end_FEM_iterations = 0,
+#         window_Unet = 3,
+#         window_FEM = 1, 
+#         tol_c=1e-3, 
+#         tol_rho=0.1,
+#         end_FEM=True
+#         )
 
 
-FEM_c, UNet_c = visualize_convergence(
-    List_iterations, 
-    ds_iter, 
-    List_count_FEM,
-    NETWORK=NETWORK,
-    PLOT=True,
-    SCALE='linear'
-    )
+# FEM_c, UNet_c = visualize_convergence(
+#     List_iterations, 
+#     ds_iter, 
+#     List_count_FEM,
+#     NETWORK=NETWORK,
+#     PLOT=True,
+#     SCALE='linear'
+#     )
 
 
 # compare_NN_FEM(List_iterations[-1], FEM_sample)
@@ -231,7 +231,7 @@ FEM_c, UNet_c = visualize_convergence(
 
 #%% Main loop : evaluate method
 
-SIZE_LOOP = 1
+SIZE_LOOP = 5
 
 
 list_benchmark = [
@@ -252,7 +252,7 @@ Tab_err_rel_c = []
 for i in range(len(list_benchmark)):
     List_number_FEM = []
     List_err_rel_c = []
-    for ID in range(SIZE_LOOP):
+    for ID in range(20,SIZE_LOOP+20):
         List_iterations, List_count_FEM = run_topology_optimization(
             ds_filtre, 
             ID, 
