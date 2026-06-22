@@ -187,12 +187,19 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
+<<<<<<< HEAD
 # ID_distrib=8
 # idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 # FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+=======
+ID_distrib=7
+idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+>>>>>>> 9a7fe679fb7e5baa5d8dfc359b18a1c844d42559
 
 # ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
+<<<<<<< HEAD
 # List_iterations, List_count_FEM = run_topology_optimization(
 #         ds_filtre, 
 #         ID_distrib, 
@@ -213,6 +220,28 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 #         tol_rho=0.1,
 #         end_FEM=True
 #         )
+=======
+List_iterations, List_count_FEM = run_topology_optimization(
+        ds_filtre, 
+        ID_distrib, 
+        eng, model, 
+        N_in = N_in,
+        N_max_iterations = 100, 
+        RULE = 'Only UNet',
+        # RULE = '20 Unet - 1 FEM',
+        # RULE = 'Decreasing compliance', 
+        # RULE = 'Only FEM',
+        TYPE_FIRST = 'UNet',
+        # TYPE_FIRST = 'FEM',
+        threshold = 0.0,
+        N_end_FEM_iterations = 0,
+        window_Unet = 3,
+        window_FEM = 1, 
+        tol_c=1e-3, 
+        tol_rho=0.1,
+        end_FEM=True
+        )
+>>>>>>> 9a7fe679fb7e5baa5d8dfc359b18a1c844d42559
 
 
 # FEM_c, UNet_c = visualize_convergence(
@@ -246,6 +275,12 @@ list_benchmark = [
 ]
 
 
+total = len(list_benchmark) * SIZE_LOOP
+win = ProgressWindow(total)
+thread = threading.Thread(target=run_window, args=(win,), daemon=True)
+thread.start()
+
+
 Tab_number_FEM = []
 Tab_err_rel_c = []
 
@@ -270,6 +305,8 @@ for i in range(len(list_benchmark)):
             end_FEM=True
             )
         
+        win.increment()
+        
         idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
         FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -285,4 +322,5 @@ for i in range(len(list_benchmark)):
 Tab_number_FEM = np.array(Tab_number_FEM)
 Tab_err_rel_c  = np.array(Tab_err_rel_c)
 
+win.close()
 #%%
