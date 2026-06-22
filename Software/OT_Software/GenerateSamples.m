@@ -18,9 +18,9 @@ Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
 if isfile(Mesh_File)
     delete(Mesh_File)
 end
-CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 64 -o "' Mesh_File '" -'];
+% CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 64 -o "' Mesh_File '" -'];
 
-% CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
 
 system(CallString);

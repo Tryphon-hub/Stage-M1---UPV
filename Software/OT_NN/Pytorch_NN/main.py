@@ -15,9 +15,9 @@ from topology_utils import *
 # ═══════════════════════════════════════════════════════════════════════════════
 
 NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
+# NETWORK   = 'BE_UNet'
 
 name_file = 'dataset_1k'
-
 
 
 N_CONV=2

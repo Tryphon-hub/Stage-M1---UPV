@@ -7,22 +7,27 @@ import re
 user      = 'laptop'
 # user      = 'server'
 
-name_file = 'dataset'
+name_file = 'dataset_1k'
 name_data = 'dataset_test'
-# NETWORK   = 'BE_Unet'
-NETWORK   = 'U-net'
+
+# NETWORK   = 'BE_UNet'
+NETWORK   = 'U-Net'
 
 
 
 NIF = 32
-N_CONV = 3
-HIDDEN_LAYERS_MLP = [32,64]
-USE_CBAM    = False
-EMBED_OUT   = 128
+N_CONV=2
+HIDDEN_LAYERS_MLP=[32,64]
+EMBED_OUT   = 128     # dimension de l'embedding
+
+USE_CBAM = False
+USE_AUGMENTATION = False  # Data augmentation
+
+AUGMENTATION_P   = 0.2
 
 
 
-if NETWORK=='BE_Unet':
+if NETWORK=='BE_UNet':
     N_in=1
 else:
     N_in=3
@@ -32,12 +37,17 @@ else:
 # elif user == 'server':
 #     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
 
-BASE = Path.cwd().parents[2]
 
-DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
-if NETWORK == 'U-net':
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv'
+
+BASE = Path(__file__).parents[3]
+
+GMSH_EXE = Path(r'C:\Program Files\gmsh\gmsh.exe')
+
+
+DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
+if NETWORK == 'U-Net':
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
     BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
     TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -45,11 +55,12 @@ if NETWORK == 'U-net':
 
 
 else:
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}'
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
     BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
     TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+
 
 
 
@@ -77,7 +88,7 @@ NU       = 0.3
 
 #%% Load model
 
-if NETWORK=='BE_Unet':
+if NETWORK=='BE_UNet':
     model = BE_UNetTopo(
         nif           = NIF,
         n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
@@ -88,12 +99,12 @@ if NETWORK=='BE_Unet':
         N_conv=N_CONV,
     )
     
-elif NETWORK=='U-net':
+elif NETWORK=='U-Net':
     model = UNetTopo(
         nif=32, 
         n_in=N_in, 
         n_out=3, 
-        use_cbam=True,
+        use_cbam=USE_CBAM,
         N_conv=N_CONV,
         )
 
@@ -133,13 +144,32 @@ eng = matlab.engine.start_matlab()
 eng.addpath(str(BASE / 'Software' / 'OT_Functions'))
 eng.addpath(str(BASE / 'Software' / 'OT_Software'))
 
-mesh_path = str(BASE / 'Software' / 'OT_Software' / 'Square.msh')
-eng.eval(f"MeshData = ReadGMSH('{mesh_path}');", nargout=0)
+#%% Regenerate and load the mesh
+
+geo_file  = BASE / 'Software' / 'OT_Software' / 'Square.geo'
+mesh_file = BASE / 'Software' / 'OT_Software' / 'Square.msh'
+
+eng.workspace['GmshExe']     = str(GMSH_EXE)
+eng.workspace['GeoFileName'] = str(geo_file)
+eng.workspace['Mesh_File']   = str(mesh_file)
+
+print(f"GmshExe exists: {GMSH_EXE.exists()}")
+print(f"GeoFileName exists: {geo_file.exists()}")
+
+eng.eval(rf"""
+if isfile(Mesh_File)
+    delete(Mesh_File)
+end
+CallString = ['"' GmshExe '" "' GeoFileName '" -setnumber numLayers {IMG_SIZE} -o "' Mesh_File '" -'];
+disp(CallString)
+status = system(CallString);
+disp(['system() status: ' num2str(status)])
+[MeshData] = ReadGMSH(Mesh_File);
+""", nargout=0)
+
+print(f"NumEls after regen: {eng.eval('length(MeshData.Surf.Elements)')}")
+
 eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
-
-
-
-
 #%% Plot
 
 # FEM_c, UNet_c = statistical_convergence(
@@ -157,7 +187,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=2
+ID_distrib=3
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -170,15 +200,18 @@ List_iterations, List_count_FEM = run_topology_optimization(
         N_in = N_in,
         N_max_iterations = 100, 
         # RULE = 'Only UNet',
-        # RULE = '10 Unet - 3 FEM',
+        # RULE = '10 Unet - 1 FEM',
         RULE = 'Decreasing compliance', 
         # RULE = 'Only FEM',
         # TYPE_FIRST = 'UNet',
         TYPE_FIRST = 'FEM',
         threshold = 0.0,
         N_end_FEM_iterations = 0,
-        tol=2e-3,
-        end_FEM=True
+        window_Unet = 5,
+        window_FEM = 1, 
+        tol_c=1e-3, 
+        tol_rho=0.1,
+        end_FEM=False
         )
 
 FEM_c, UNet_c = visualize_convergence(
@@ -194,5 +227,61 @@ FEM_c, UNet_c = visualize_convergence(
 compare_NN_FEM(List_iterations[-1], FEM_sample)
 
 density_evolution(List_iterations,List_count_FEM, 1)
+
+#%% Main loop : evaluate method
+
+SIZE_LOOP = 1
+
+
+list_benchmark = [
+    ['Only UNet', 'UNet'],
+    ['Only UNet', 'FEM'],
+    ['10 Unet - 1 FEM', 'UNet'],
+    ['10 Unet - 1 FEM', 'FEM'],
+    ['10 Unet - 3 FEM', 'UNet'],
+    ['10 Unet - 3 FEM', 'FEM'],
+    ['Decreasing compliance', 'UNet'],
+    ['Decreasing compliance', 'FEM'],
+]
+
+
+Tab_number_FEM = []
+Tab_err_rel_c = []
+
+for i in range(len(list_benchmark)):
+    List_number_FEM = []
+    List_err_rel_c = []
+    for ID in range(SIZE_LOOP):
+        List_iterations, List_count_FEM = run_topology_optimization(
+            ds_filtre, 
+            ID, 
+            eng, model, 
+            N_in = N_in,
+            N_max_iterations = 100, 
+            RULE = list_benchmark[i][0],
+            TYPE_FIRST = list_benchmark[i][1],
+            threshold = 0.0,
+            N_end_FEM_iterations = 0,
+            window_Unet = 5,
+            window_FEM = 1, 
+            tol_c=1e-3, 
+            tol_rho=0.1,
+            end_FEM=True
+            )
+        
+        idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
+        FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+
+        c_FEM   = FEM_sample.c.item()
+        c_Unet  = List_iterations[-1].c.item()
+        
+        List_err_rel_c.append(abs(c_FEM - c_Unet)/c_FEM)
+        List_number_FEM.append(len(List_count_FEM))
+
+    Tab_number_FEM.append(List_number_FEM)
+    Tab_err_rel_c.append(List_err_rel_c)
+
+Tab_number_FEM = np.array(Tab_number_FEM)
+Tab_err_rel_c  = np.array(Tab_err_rel_c)
 
 #%%
