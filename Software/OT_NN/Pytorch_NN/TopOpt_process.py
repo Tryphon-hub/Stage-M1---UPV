@@ -187,7 +187,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=8
+ID_distrib=7
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -200,7 +200,7 @@ List_iterations, List_count_FEM = run_topology_optimization(
         N_in = N_in,
         N_max_iterations = 100, 
         RULE = 'Only UNet',
-        # RULE = '10 Unet - 1 FEM',
+        # RULE = '20 Unet - 1 FEM',
         # RULE = 'Decreasing compliance', 
         # RULE = 'Only FEM',
         TYPE_FIRST = 'UNet',
@@ -231,7 +231,7 @@ FEM_c, UNet_c = visualize_convergence(
 
 #%% Main loop : evaluate method
 
-SIZE_LOOP = 1
+SIZE_LOOP = 5
 
 
 list_benchmark = [
@@ -244,6 +244,12 @@ list_benchmark = [
     ['Decreasing compliance', 'UNet'],
     ['Decreasing compliance', 'FEM'],
 ]
+
+
+total = len(list_benchmark) * SIZE_LOOP
+win = ProgressWindow(total)
+thread = threading.Thread(target=run_window, args=(win,), daemon=True)
+thread.start()
 
 
 Tab_number_FEM = []
@@ -270,6 +276,8 @@ for i in range(len(list_benchmark)):
             end_FEM=True
             )
         
+        win.increment()
+        
         idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
         FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -285,4 +293,5 @@ for i in range(len(list_benchmark)):
 Tab_number_FEM = np.array(Tab_number_FEM)
 Tab_err_rel_c  = np.array(Tab_err_rel_c)
 
+win.close()
 #%%
