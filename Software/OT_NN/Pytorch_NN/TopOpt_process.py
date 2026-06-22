@@ -25,7 +25,6 @@ USE_AUGMENTATION = False  # Data augmentation
 
 AUGMENTATION_P   = 0.2
 
-PORTION_DATA = 1
 
 
 if NETWORK=='BE_UNet':
@@ -33,17 +32,22 @@ if NETWORK=='BE_UNet':
 else:
     N_in=3
 
+# if user == 'laptop':
+#     BASE = Path(r'C:\Users\maxen\Documents\Stage')
+# elif user == 'server':
+#     BASE = Path(r'D:\Maxence\Stage-M1---UPV')
+
+
 
 BASE = Path(__file__).parents[3]
 
-# GMSH_EXE = Path(r'C:\Program Files\gmsh\gmsh.exe')
-GMSH_EXE = Path(r'D:\Maxence\gmsh\gmsh.exe')
+GMSH_EXE = Path(r'C:\Program Files\gmsh\gmsh.exe')
 
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
 if NETWORK == 'U-Net':
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={PORTION_DATA*100:.0f}%'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={PORTION_DATA*100:.0f}%'
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
     BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
     TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
@@ -51,12 +55,11 @@ if NETWORK == 'U-Net':
 
 
 else:
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={PORTION_DATA*100:.0f}%'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={PORTION_DATA*100:.0f}%'
+    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
+    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}'
     CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
     BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
     TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
-
 
 
 
@@ -184,41 +187,42 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-# ID_distrib=3
-# idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
-# FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+ID_distrib=8
+idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
-# ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
-# List_iterations, List_count_FEM = run_topology_optimization(
-#         ds_filtre, 
-#         ID_distrib, 
-#         eng, model, 
-#         N_in = N_in,
-#         N_max_iterations = 100, 
-#         # RULE = 'Only UNet',
-#         # RULE = '10 Unet - 1 FEM',
-#         RULE = 'Decreasing compliance', 
-#         # RULE = 'Only FEM',
-#         # TYPE_FIRST = 'UNet',
-#         TYPE_FIRST = 'FEM',
-#         threshold = 0.0,
-#         N_end_FEM_iterations = 0,
-#         window_Unet = 5,
-#         window_FEM = 1, 
-#         tol_c=1e-3, 
-#         tol_rho=0.1,
-#         end_FEM=False
-#         )
+List_iterations, List_count_FEM = run_topology_optimization(
+        ds_filtre, 
+        ID_distrib, 
+        eng, model, 
+        N_in = N_in,
+        N_max_iterations = 100, 
+        RULE = 'Only UNet',
+        # RULE = '10 Unet - 1 FEM',
+        # RULE = 'Decreasing compliance', 
+        # RULE = 'Only FEM',
+        TYPE_FIRST = 'UNet',
+        # TYPE_FIRST = 'FEM',
+        threshold = 0.0,
+        N_end_FEM_iterations = 0,
+        window_Unet = 3,
+        window_FEM = 1, 
+        tol_c=1e-3, 
+        tol_rho=0.1,
+        end_FEM=True
+        )
 
-# FEM_c, UNet_c = visualize_convergence(
-#     List_iterations, 
-#     ds_iter, 
-#     List_count_FEM,
-#     NETWORK=NETWORK,
-#     PLOT=True,
-#     SCALE='linear'
-#     )
+
+FEM_c, UNet_c = visualize_convergence(
+    List_iterations, 
+    ds_iter, 
+    List_count_FEM,
+    NETWORK=NETWORK,
+    PLOT=True,
+    SCALE='linear'
+    )
 
 
 # compare_NN_FEM(List_iterations[-1], FEM_sample)
@@ -227,7 +231,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Main loop : evaluate method
 
-SIZE_LOOP = 10
+SIZE_LOOP = 1
 
 
 list_benchmark = [
@@ -245,19 +249,9 @@ list_benchmark = [
 Tab_number_FEM = []
 Tab_err_rel_c = []
 
-
-# window showing the avances of the process
-total = len(list_benchmark) * SIZE_LOOP
-win = ProgressWindow(total)
-thread = threading.Thread(target=run_window, args=(win,), daemon=True)
-thread.start()
-
-#main loop
 for i in range(len(list_benchmark)):
     List_number_FEM = []
     List_err_rel_c = []
-
-    # loop for each distribution ID
     for ID in range(SIZE_LOOP):
         List_iterations, List_count_FEM = run_topology_optimization(
             ds_filtre, 
@@ -285,18 +279,10 @@ for i in range(len(list_benchmark)):
         List_err_rel_c.append(abs(c_FEM - c_Unet)/c_FEM)
         List_number_FEM.append(len(List_count_FEM))
 
-        # window actualisation
-        win.increment()
-
     Tab_number_FEM.append(List_number_FEM)
     Tab_err_rel_c.append(List_err_rel_c)
 
 Tab_number_FEM = np.array(Tab_number_FEM)
 Tab_err_rel_c  = np.array(Tab_err_rel_c)
-
-win.close()
-
-plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c)
-
 
 #%%
