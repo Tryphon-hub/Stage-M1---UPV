@@ -116,6 +116,6 @@ if ~exist(Folder,'dir')
 end
 saveas(gcf,[Folder '\' FileName])
 
-save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Densities','TEnd','NumIts','ItsFull','c','FEMc')
+save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Densities','TEnd','NumIts','ItsFull','c','FEMc','-v7.3')
 
 end
