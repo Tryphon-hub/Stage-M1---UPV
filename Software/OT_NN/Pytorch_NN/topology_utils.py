@@ -237,10 +237,14 @@ def is_converged_density(sample_a, sample_b, tol=0.01):
     return change < tol
 
 
-def is_converged_combined(List_iterations, window=5, tol_c=1e-3, tol_rho=0.01):
+def is_converged_combined(List_iterations, window=5, tol_c=1e-3, tol_rho=0.01, enabled=True):
     conv_c = is_converged_window(List_iterations, window, tol_c)
     conv_rho = is_converged_density(List_iterations[-2], List_iterations[-1], tol_rho)
-    return conv_c and conv_rho
+    
+    if enabled:
+        return conv_c and conv_rho
+    else:
+        return is_converged_compliance(List_iterations[-1], List_iterations[-2], tol_c)
 
 
 def is_converged_trend(List_iterations, window=5, tol=1e-4):
@@ -527,8 +531,10 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
 
     window = window_Unet
 
+    enabled_rho_criteria = True
+
     while (i < N_max_iterations
-           and not is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho)
+           and not is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho, enabled=enabled_rho_criteria)
         ):
 
         NEXT_TYPE = 'UNet' # Default setting
@@ -675,7 +681,8 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
                 List_count_FEM.append(i)
 
                 # reduce window size : FEM convergence has less noise
-                window = window_FEM
+                window               =   window_FEM
+                enabled_rho_criteria =   False
 
                 NEXT_TYPE = 'FEM'
                 fem_mode = True
@@ -718,6 +725,7 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
             match_Periodic = False
             match_FEM = True
             window = window_FEM
+            enabled_rho_criteria = False
 
     # Final FEM iterations
     
@@ -853,18 +861,20 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
             FEM_step_c.append((i, sample.c.item()))
 
     FEM_c=np.array(FEM_c)
-    FEM_c[:, 1] = FEM_c[:, 1] / FEM_c[0, 1] # normalize by initial compliance
 
-    c0_Unet = UNet_c[0][1]
+    c0_FEM = FEM_c[0, 1]
+
+    FEM_c[:, 1] = FEM_c[:, 1] / c0_FEM # normalize by initial FEM compliance
+    
 
     UNet_c=np.array(UNet_c)
-    UNet_c[:, 1] = UNet_c[:, 1] / UNet_c[0, 1] # normalize by initial compliance
+    UNet_c[:, 1] = UNet_c[:, 1] / c0_FEM # normalize by initial compliance
 
     MARKERSIZE = 7
 
     plt.figure(figsize=(10, 6))
-    plt.plot(FEM_c[:, 0], FEM_c[:, 1], 'o-', linewidth=2.5, markersize=MARKERSIZE, label='FEM')
-    plt.plot(UNet_c[:, 0], UNet_c[:, 1], 's-', linewidth=2.5, markersize=MARKERSIZE, label=f'{NETWORK}')
+    plt.plot(FEM_c[:, 0], FEM_c[:, 1], 'o-', linewidth=2.5, markersize=MARKERSIZE, label=f'FEM: {len(IterationDataset_FEM)} steps')
+    plt.plot(UNet_c[:, 0], UNet_c[:, 1], 's-', linewidth=2.5, markersize=MARKERSIZE, label=f'{NETWORK}: {len(List_Iterations_Unet)-len(List_count_FEM)} steps')
     
     # last FEM compliance
     plt.plot( (0, FEM_c[-1,0]) , (FEM_c[-1,1], FEM_c[-1,1]), color='tab:blue', linestyle='-', linewidth=2, dashes=(3, 2) )
@@ -873,15 +883,15 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
 
     if len(FEM_step_c)>0:
         FEM_step_c=np.array(FEM_step_c)
-        FEM_step_c[:, 1] = FEM_step_c[:, 1] / c0_Unet # normalize by initial compliance
-        plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=MARKERSIZE, label = 'FEM steps')
+        FEM_step_c[:, 1] = FEM_step_c[:, 1] / c0_FEM # normalize by initial FEM compliance
+        plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=MARKERSIZE, label = f'Hybrid strategy: {len(List_count_FEM)} FEM steps')
         
     plt.xlabel('Iterations', fontsize=f_text*14,)
-    plt.ylabel(f'$c/c_0$', fontsize=f_text*14, )
+    plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
     
     plt.yscale(SCALE)
     plt.ylim(0,1.1)
-    plt.title(f'Compliance convergence: FEM vs {NETWORK}', fontsize=f_text*16, )
+    plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
 
