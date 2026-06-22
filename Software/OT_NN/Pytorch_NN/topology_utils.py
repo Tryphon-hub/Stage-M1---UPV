@@ -1139,7 +1139,7 @@ def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
     # Labels on bars
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
-                 f'{val:.1f}', ha='center', va='bottom', fontsize=9, color='tab:blue')
+                 f'{val:.0f}', ha='center', va='bottom', fontsize=9, color='tab:blue')
 
     for bar, val in zip(bars2, mean_err_pct):
         ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
