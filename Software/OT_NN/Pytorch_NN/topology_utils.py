@@ -10,6 +10,11 @@ and return the density image for the next topology optimization iteration.
 import sys
 import re
 
+import tkinter as tk
+import time
+import threading
+
+
 from zmq import TYPE
 
 sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net')
@@ -1155,6 +1160,10 @@ def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
         ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
                  f'{val:.2f}%', ha='center', va='bottom', fontsize=9, color='tab:orange')
 
+    # Align zeros: both quantities are ≥ 0, so force bottom=0 on both axes
+    ax1.set_ylim(bottom=0)
+    ax2.set_ylim(bottom=0)
+
     ax1.set_xticks(x)
     ax1.set_xticklabels(labels, fontsize=10, rotation=30, ha='right')
     ax1.set_xlabel('Configuration', fontsize=13)
@@ -1166,3 +1175,51 @@ def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
     plt.title('FEM iterations vs. relative compliance error per configuration', fontsize=14)
     plt.tight_layout()
     plt.show()
+
+
+#%% Window showing the progress of the process
+
+
+class ProgressWindow:
+    def __init__(self, total):
+        self.total = total
+        self.step  = 0
+        self.start = time.time()
+        self.running = True
+        self.root = None  # created inside the GUI thread by _setup()
+
+    def _setup(self):
+        self.root = tk.Tk()
+        self.root.title("Benchmark progress")
+        self.root.geometry("300x120")
+        self.root.resizable(False, False)
+
+        self.label_step = tk.Label(self.root, text=f"Step: 0 / {self.total}", font=("Arial", 14))
+        self.label_step.pack(pady=10)
+
+        self.label_time = tk.Label(self.root, text="Elapsed: 00:00:00", font=("Arial", 14))
+        self.label_time.pack(pady=5)
+
+        self._update()
+
+    def _update(self):
+        if not self.running:
+            self.root.destroy()
+            return
+        elapsed = int(time.time() - self.start)
+        h, rem = divmod(elapsed, 3600)
+        m, s   = divmod(rem, 60)
+        self.label_time.config(text=f"Elapsed: {h:02d}:{m:02d}:{s:02d}")
+        self.label_step.config(text=f"Step: {self.step} / {self.total}")
+        self.root.after(500, self._update)
+
+    def increment(self):
+        self.step += 1
+
+    def close(self):
+        # Signal the GUI thread to destroy the window; destruction happens in _update()
+        self.running = False
+
+def run_window(win):
+    win._setup()
+    win.root.mainloop()
