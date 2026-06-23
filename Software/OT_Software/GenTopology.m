@@ -1,4 +1,4 @@
-function [Rel_Density,Stress,Densities,it,CounterFull,c,FEMc] = GenTopology(MeshData,Tractions,Relative_Vol_Frac,ProbInfo,IniDentsity)
+function [Rel_Density,Stress,Strain,Densities,it,CounterFull,c,FEMc] = GenTopology(MeshData,Tractions,Relative_Vol_Frac,ProbInfo,IniDentsity)
 % close all
 tic
 %profile on

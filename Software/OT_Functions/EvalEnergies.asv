@@ -1,0 +1,13 @@
+% function Energy_map = EvalEnergies(MeshData,Tractions,Relative_Vol_Frac,ProbInfo,IniDentsity)
+
+addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
+addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
+addpath C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net
+
+Relative_Vol_Frac = 0.5*ones(1, NumSamples);
+
+
+
+[Rel_Density,Stress,Densities,it,CounterFull,c,FEMc] = GenTopology(MeshData,Tractions,Relative_Vol_Frac,ProbInfo,IniDentsity);
+
+
