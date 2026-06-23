@@ -3,6 +3,7 @@ import sys
 import matlab.engine
 from pathlib import Path
 import re
+import csv
 
 user      = 'laptop'
 # user      = 'server'
@@ -43,7 +44,8 @@ else:
 BASE = Path(__file__).parents[3]
 
 # GMSH_EXE = Path(r'C:\Program Files\gmsh\gmsh.exe')
-GMSH_EXE = Path(r'D:\Maxence\gmsh\gmsh.exe')
+# GMSH_EXE = Path(r'D:\Maxence\gmsh\gmsh.exe')
+GMSH_EXE = BASE.parent / 'gmsh' / 'gmsh.exe'
 
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
@@ -233,7 +235,20 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Main loop : evaluate method
 
-SIZE_LOOP = 100
+RESET_BENCHMARK = True # deletes old benchmark csv file
+
+if RESET_BENCHMARK:
+    TYPE_WRITE = 'w'
+else: 
+    TYPE_WRITE = 'a'
+
+
+
+SIZE_LOOP = 2
+
+benchmark_file = open(RESULTS_DIR / 'benchmark_results.csv', TYPE_WRITE, newline='') 
+writer = csv.writer(benchmark_file)
+writer.writerow(['Strategy', 'First step', 'Input ID', 'Number of FEM iterations', 'Relative compliance error'])
 
 
 list_benchmark = [
@@ -260,7 +275,7 @@ Tab_err_rel_c = []
 for i in range(len(list_benchmark)):
     List_number_FEM = []
     List_err_rel_c = []
-    for ID in range(20,SIZE_LOOP+20):
+    for ID in range(SIZE_LOOP):
         List_iterations, List_count_FEM = run_topology_optimization(
             ds_filtre, 
             ID, 
@@ -289,6 +304,9 @@ for i in range(len(list_benchmark)):
         List_err_rel_c.append(abs(c_FEM - c_Unet)/c_FEM)
         List_number_FEM.append(len(List_count_FEM))
 
+    writer.writerow([list_benchmark[i][0], list_benchmark[i][0], ID, str(List_number_FEM), str(List_err_rel_c)])
+
+
     Tab_number_FEM.append(List_number_FEM)
     Tab_err_rel_c.append(List_err_rel_c)
 
@@ -298,4 +316,9 @@ Tab_err_rel_c  = np.array(Tab_err_rel_c)
 win.close()
 
 plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c)
-#%%
+
+
+benchmark_file.close()
+#%% 
+
+
