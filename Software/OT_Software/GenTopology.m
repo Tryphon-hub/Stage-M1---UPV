@@ -104,6 +104,7 @@ if ~isempty(ProbInfo.Net)
 end
 
 Stress = zeros(NumEls,6,NumIt);
+Strain = zeros(NumEls,6,NumIt);
 Densities = zeros(NumEls,NumIt);
 KeepFull = 0;
 TrueCut = 0;
@@ -116,7 +117,7 @@ for it = 1:NumIt
         [Sol] = SolveFE(MeshData,Rel_Density.^Penal,NGPpS,NGPpL,D,Tractions,SquareEls,ElemTO);
 
         % Evaluate Finite Element Stress
-        [Stress(:,:,it), VMStress] = EvalStress(Top,XY,Rel_Density.^1,D,Sol,2,SquareEls,ElemTO,'Plane Stress',E,nu);
+        [Stress(:,:,it), VMStress, Strain(:,:,it)] = EvalStress(Top,XY,Rel_Density.^1,D,Sol,2,SquareEls,ElemTO,'Plane Stress',E,nu);
         StressFE = Stress;
         CounterFull = CounterFull + 1;
         disp('Full Orden Model evaluation')
@@ -131,7 +132,7 @@ for it = 1:NumIt
         [Sol] = SolveFE(MeshData,Rel_Density.^Penal,NGPpS,NGPpL,D,Tractions,SquareEls,ElemTO);
 
         % Evaluate Finite Element Stress
-        [StressFE(:,:,it), VMStress] = EvalStress(Top,XY,Rel_Density.^1,D,Sol,2,SquareEls,ElemTO,'Plane Stress',E,nu);
+        [StressFE(:,:,it), VMStress, Strain(:,:,it)] = EvalStress(Top,XY,Rel_Density.^1,D,Sol,2,SquareEls,ElemTO,'Plane Stress',E,nu);
     end
 
     % % Visualizar los 3 canales de Entrada (Tracciones y Densidad)

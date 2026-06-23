@@ -1117,9 +1117,9 @@ def compare_NN_FEM(sample_NN, sample_FEM):
 
 #%% Hybrid strategy comparison
 
-def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
+def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
     """
-    Tab_number_FEM : (n_configs, SIZE_LOOP)
+    Tab_ratio_FEM : (n_configs, SIZE_LOOP)
     Tab_err_rel_c  : (n_configs, SIZE_LOOP)
     """
     n = len(list_benchmark)
@@ -1129,8 +1129,8 @@ def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
     labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
 
     # Aggregate over SIZE_LOOP
-    mean_FEM     = Tab_number_FEM.mean(axis=1)
-    std_FEM      = Tab_number_FEM.std(axis=1)
+    mean_FEM     = Tab_ratio_FEM.mean(axis=1)
+    std_FEM      = Tab_ratio_FEM.std(axis=1)
     mean_err_pct = (Tab_err_rel_c * 100).mean(axis=1)
     std_err_pct  = (Tab_err_rel_c * 100).std(axis=1)
 
@@ -1138,9 +1138,9 @@ def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
 
     # FEM iterations — left axis
     bars1 = ax1.bar(x - width/2, mean_FEM, width, yerr=std_FEM,
-                     capsize=4, label='# FEM iterations', 
+                     capsize=4, label='# ratio of FEM iterations (Hybrid / full-FEM)', 
                      color='tab:blue', alpha=0.8)
-    ax1.set_ylabel('# FEM iterations', fontsize=13, color='tab:blue')
+    ax1.set_ylabel(f' Ratio of FEM iteration: $N_{{Hybrid}}/N_{{FEM}}$', fontsize=13, color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Relative error (%) — right axis
@@ -1169,10 +1169,10 @@ def plot_FEM_error_c(list_benchmark, Tab_number_FEM, Tab_err_rel_c):
     ax1.set_xlabel('Configuration', fontsize=13)
 
     lines = [bars1, bars2]
-    labs  = ['# FEM iterations', 'Relative error (%)']
+    labs  = ['Ratio of FEM iterations', 'Relative error (%)']
     ax1.legend(lines, labs, fontsize=11, loc='upper left')
-
-    plt.title('FEM iterations vs. relative compliance error per configuration', fontsize=14)
+#
+    plt.title(f'Hybrid strategies comparison — {len(Tab_ratio_FEM[0])} traction distributions', fontsize=14)
     plt.tight_layout()
     plt.show()
 
