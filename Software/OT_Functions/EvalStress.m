@@ -1,4 +1,4 @@
-function [Stress,VMStress] = EvalStress(Top,XY,Rel_Density,D,Sol,Dim,SquareElm,ElmTOP,StressHypo,E,nu)
+function [Stress,VMStress, Strain] = EvalStress(Top,XY,Rel_Density,D,Sol,Dim,SquareElm,ElmTOP,StressHypo,E,nu)
 
 % FE Discretization. SPACE
 NElem = size(Top,2);
@@ -16,6 +16,7 @@ end
 
 FEDegree = 1;
 Stress = zeros(NElem,6);
+Strain = zeros(NElem,6);
 if Dim == 3
     NFpE = 6;
 else
@@ -100,6 +101,7 @@ for iElm = 1:NElem
     if ElmTOP
         if Dim == 2
             Stress(iElm,[1 2 4]) = (Rel_Density(iElm)*D*B*Sol(DoF(:)))';
+            Strain(iElm,[1 2 4]) = (B*Sol(DoF(:)))';
         else
             Stress(iElm,:) = (Rel_Density(iElm)*D*B*Sol(DoF(:)))';
         end
