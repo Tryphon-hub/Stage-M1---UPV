@@ -14,13 +14,15 @@ Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
 % GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
 % Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
 
+% Strain energy per element per component
+Ener = cell(NumSamples, 1);
 
 if isfile(Mesh_File)
     delete(Mesh_File)
 end
-CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+% CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
-% CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
 
 system(CallString);
@@ -42,9 +44,12 @@ else
     Scale = 1*ones(1,NumSamples);
     List = 1:NumSamples;
 
-    rho_min=0.15;
-    rho_max=085;
-    Relative_Vol_Frac = 0.5*ones(1,NumSamples);
+    % In case user wants to generate random relative volumic fractions, uncomment next lines
+    % rho_min=0.15;
+    % rho_max=0.85;
+    % Relative_Vol_Frac = rho_min+(rho_max-rho_min)*rand(1,NumSamples);
+
+    Relative_Vol_Frac = 0.5*ones(1, NumSamples);
 end
 
 %% TO conditions
@@ -63,6 +68,7 @@ ProbInfo.Net = Net;
 NumEls = length(MeshData.Surf.Elements);
 Rel_Density = zeros(NumEls,NumSamples);
 Stress = cell(NumSamples,1);
+Strain = cell(NumSamples,1);
 Densities = cell(NumSamples,1);
 c = cell(NumSamples,1);
 FEMc = cell(NumSamples,1);
@@ -80,14 +86,15 @@ pbar = waitbar(0, 'Iniciando Optimización Topológica...');
 for iSample = List
     waitbar(iSample/NumSamples, pbar, sprintf('Progreso: %d/%d', iSample, NumSamples));
 
-    if iSample == 1
-        IniDentsity = Relative_Vol_Frac(iSample) * ones(size(Rel_Density(:,iSample)));
-    else
-        IniDentsity = Rel_Density(:,iSample-1);
-    end
+    % Modified by Maxence Barberet-Pinto: a constant density field is generated for each traction distribution
+    IniDentsity = Relative_Vol_Frac(iSample) * ones(size(Rel_Density(:,iSample)));
 
-    [Rel_Density(:,iSample),Stress{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...
+    [Rel_Density(:,iSample),Stress{iSample},Strain{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...
         GenTopology(MeshData,Tractions(:,:,iSample),Relative_Vol_Frac(iSample),ProbInfo,IniDentsity);
+
+    stress_first = Stress{iSample}(:, :, 1);  % (n_elem, 6)
+    strain_first = Strain{iSample}(:, :, 1);  % (n_elem, 6)
+    Ener{iSample} = stress_last .* strain_; % (n_elem, 6)
 
     Top = MeshData.Surf.Topology;
     XY = MeshData.XYZ;
@@ -116,6 +123,6 @@ if ~exist(Folder,'dir')
 end
 saveas(gcf,[Folder '\' FileName])
 
-save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Densities','TEnd','NumIts','ItsFull','c','FEMc')
+save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Densities','TEnd','NumIts','ItsFull','c','FEMc','-v7.3')
 
 end

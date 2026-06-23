@@ -1,19 +1,20 @@
 function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples)
 clc
-addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
-addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
+% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
+% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
 
-% addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
-% addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
-% addpath C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net
+addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
+addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 
 %% Generate Mesh
-GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
-Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
-% 
-% GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
-% Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
+% GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
+% Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
 
+GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
+Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
+
+% Strain energy per element per component
+Ener = cell(NumSamples, 1);
 
 if isfile(Mesh_File)
     delete(Mesh_File)
@@ -66,6 +67,7 @@ ProbInfo.Net = Net;
 NumEls = length(MeshData.Surf.Elements);
 Rel_Density = zeros(NumEls,NumSamples);
 Stress = cell(NumSamples,1);
+Strain = cell(NumSamples,1);
 Densities = cell(NumSamples,1);
 c = cell(NumSamples,1);
 FEMc = cell(NumSamples,1);
@@ -86,8 +88,12 @@ for iSample = List
     % Modified by Maxence Barberet-Pinto: a constant density field is generated for each traction distribution
     IniDentsity = Relative_Vol_Frac(iSample) * ones(size(Rel_Density(:,iSample)));
 
-    [Rel_Density(:,iSample),Stress{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...
+    [Rel_Density(:,iSample),Stress{iSample},Strain{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...
         GenTopology(MeshData,Tractions(:,:,iSample),Relative_Vol_Frac(iSample),ProbInfo,IniDentsity);
+
+    stress_first = Stress{iSample}(:, :, 1);  % (n_elem, 6)
+    strain_first = Strain{iSample}(:, :, 1);  % (n_elem, 6)
+    Ener{iSample} = stress_first .* strain_first; % (n_elem, 6)
 
     Top = MeshData.Surf.Topology;
     XY = MeshData.XYZ;
@@ -116,6 +122,6 @@ if ~exist(Folder,'dir')
 end
 saveas(gcf,[Folder '\' FileName])
 
-save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Densities','TEnd','NumIts','ItsFull','c','FEMc','-v7.3')
+save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Ener','Densities','TEnd','NumIts','ItsFull','c','FEMc','-v7.3')
 
 end
