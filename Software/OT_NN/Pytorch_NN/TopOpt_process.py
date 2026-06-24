@@ -6,6 +6,12 @@ import re
 import csv
 import pandas as pd
 
+import torch
+import numpy as np
+from model         import *
+from dataset       import *
+from topology_utils import *
+
 user      = 'laptop'
 # user      = 'server'
 
@@ -73,11 +79,7 @@ sys.path.append(str(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN'))
 sys.path.append(str(BASE / 'Software' / 'OT_Functions'))
 sys.path.append(str(BASE / 'Software' / 'OT_Software'))
 
-import torch
-import numpy as np
-from model         import *
-from dataset       import *
-from topology_utils import *
+
 
 #%% Constants
 IMG_SIZE = 32
@@ -236,114 +238,180 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Main loop : evaluate method
 
-RESET_BENCHMARK = True # deletes old benchmark csv file
+# RESET_BENCHMARK = True # deletes old benchmark csv file
 
-if RESET_BENCHMARK:
-    TYPE_WRITE = 'w'
-else: 
-    TYPE_WRITE = 'a'
-
-
-
-SIZE_LOOP = 100
-
-name_benchmark_file = 'benchmark_results.csv'
-
-benchmark_file = open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') 
-writer = csv.writer(benchmark_file)
-writer.writerow(['Strategy', 'First step', 'Input ID', 'Number of FEM iterations for the full-FEM strategy', 'Number of FEM iterations for the hybrid strategy', 'Ratio of FEM iterations (Hybrid / full-FEM)' ,'Relative compliance error'])
+# if RESET_BENCHMARK:
+#     TYPE_WRITE = 'w'
+# else: 
+#     TYPE_WRITE = 'a'
 
 
-list_benchmark = [
-    ['Only UNet', 'UNet'],
-    ['Only UNet', 'FEM'],
-    ['10 Unet - 1 FEM', 'UNet'],
-    ['10 Unet - 1 FEM', 'FEM'],
-    ['10 Unet - 3 FEM', 'UNet'],
-    ['10 Unet - 3 FEM', 'FEM'],
-    ['Decreasing compliance', 'UNet'],
-    ['Decreasing compliance', 'FEM'],
-]
+
+# SIZE_LOOP = 100
+
+# name_benchmark_file = 'benchmark_results.csv'
+
+# benchmark_file = open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') 
+# writer = csv.writer(benchmark_file)
+# writer.writerow(['Strategy', 'First step', 'Input ID', 'Number of FEM iterations for the full-FEM strategy', 'Number of FEM iterations for the hybrid strategy', 'Ratio of FEM iterations (Hybrid / full-FEM)' ,'Relative compliance error'])
 
 
-with open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
-    writer = csv.writer(benchmark_file)
-    writer.writerow(['Strategy', 'First step', 'Input ID', 
-                     'Number of FEM iterations for the full-FEM strategy', 
-                     'Number of FEM iterations for the hybrid strategy', 
-                     'Ratio of FEM iterations (Hybrid / full-FEM)', 
-                     'Relative compliance error'])
+# list_benchmark = [
+#     ['Only UNet', 'UNet'],
+#     ['Only UNet', 'FEM'],
+#     ['10 Unet - 1 FEM', 'UNet'],
+#     ['10 Unet - 1 FEM', 'FEM'],
+#     ['10 Unet - 3 FEM', 'UNet'],
+#     ['10 Unet - 3 FEM', 'FEM'],
+#     ['Decreasing compliance', 'UNet'],
+#     ['Decreasing compliance', 'FEM'],
+# ]
 
-    total = len(list_benchmark) * SIZE_LOOP
-    win = ProgressWindow(total)
-    thread = threading.Thread(target=run_window, args=(win,), daemon=True)
-    thread.start()
 
-    for i in range(len(list_benchmark)):
-        for ID in range(SIZE_LOOP):
-            List_iterations, List_count_FEM = run_topology_optimization(
-                ds_filtre, ID, eng, model,
-                N_in=N_in, N_max_iterations=100,
-                RULE=list_benchmark[i][0],
-                TYPE_FIRST=list_benchmark[i][1],
-                threshold=0.0, N_end_FEM_iterations=0,
-                window_Unet=5, window_FEM=1,
-                tol_c=1e-3, tol_rho=0.1, end_FEM=True
-            )
+# with open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
+#     writer = csv.writer(benchmark_file)
+#     writer.writerow(['Strategy', 'First step', 'Input ID', 
+#                      'Number of FEM iterations for the full-FEM strategy', 
+#                      'Number of FEM iterations for the hybrid strategy', 
+#                      'Ratio of FEM iterations (Hybrid / full-FEM)', 
+#                      'Relative compliance error'])
 
-            win.increment()
+#     total = len(list_benchmark) * SIZE_LOOP
+#     win = ProgressWindow(total)
+#     thread = threading.Thread(target=run_window, args=(win,), daemon=True)
+#     thread.start()
 
-            idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
-            FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+#     for i in range(len(list_benchmark)):
+#         for ID in range(SIZE_LOOP):
+#             List_iterations, List_count_FEM = run_topology_optimization(
+#                 ds_filtre, ID, eng, model,
+#                 N_in=N_in, N_max_iterations=100,
+#                 RULE=list_benchmark[i][0],
+#                 TYPE_FIRST=list_benchmark[i][1],
+#                 threshold=0.0, N_end_FEM_iterations=0,
+#                 window_Unet=5, window_FEM=1,
+#                 tol_c=1e-3, tol_rho=0.1, end_FEM=True
+#             )
 
-            c_FEM  = FEM_sample.c.item()
-            c_Unet = List_iterations[-1].c.item()
+#             win.increment()
 
-            err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
-            number_FEM = len(List_count_FEM)
-            ds_iter    = IterationDataset(ds_filtre.get_series(ID))
+#             idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
+#             FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
-            writer.writerow([
-                list_benchmark[i][0], list_benchmark[i][1], ID,
-                len(ds_iter), number_FEM,
-                number_FEM / len(ds_iter),
-                err_rel_c
-            ])
+#             c_FEM  = FEM_sample.c.item()
+#             c_Unet = List_iterations[-1].c.item()
 
-    win.close()
+#             err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
+#             number_FEM = len(List_count_FEM)
+#             ds_iter    = IterationDataset(ds_filtre.get_series(ID))
+
+#             writer.writerow([
+#                 list_benchmark[i][0], list_benchmark[i][1], ID,
+#                 len(ds_iter), number_FEM,
+#                 number_FEM / len(ds_iter),
+#                 err_rel_c
+#             ])
+
+#     win.close()
     
 
-#%% Read File Benchmark
+# #%% Read File Benchmark
 
-df = pd.read_csv(RESULTS_DIR / name_benchmark_file)
+# df = pd.read_csv(RESULTS_DIR / name_benchmark_file)
 
-# Agrégation par configuration
-summary = df.groupby(['Strategy', 'First step']).agg(
-    mean_full_FEM  = ('Number of FEM iterations for the full-FEM strategy', 'mean'),
-    mean_hybrid    = ('Number of FEM iterations for the hybrid strategy',   'mean'),
-    std_hybrid     = ('Number of FEM iterations for the hybrid strategy',   'std'),
-    mean_ratio     = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'mean'),
-    std_ratio      = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'std'),
-    mean_err       = ('Relative compliance error',                          'mean'),
-    std_err        = ('Relative compliance error',                          'std'),
-    n_samples      = ('Input ID',                                           'count')
-).reset_index()
+# # Agrégation par configuration
+# summary = df.groupby(['Strategy', 'First step']).agg(
+#     mean_full_FEM  = ('Number of FEM iterations for the full-FEM strategy', 'mean'),
+#     mean_hybrid    = ('Number of FEM iterations for the hybrid strategy',   'mean'),
+#     std_hybrid     = ('Number of FEM iterations for the hybrid strategy',   'std'),
+#     mean_ratio     = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'mean'),
+#     std_ratio      = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'std'),
+#     mean_err       = ('Relative compliance error',                          'mean'),
+#     std_err        = ('Relative compliance error',                          'std'),
+#     n_samples      = ('Input ID',                                           'count')
+# ).reset_index()
 
-print(summary.to_string())
+# print(summary.to_string())
 
 
-# Retrieve values in lists ordered as list_benchmark
-Tab_ratio_FEM = []
-Tab_err_rel_c = []
+# # Retrieve values in lists ordered as list_benchmark
+# Tab_ratio_FEM = []
+# Tab_err_rel_c = []
 
-for bench in list_benchmark:
-    strategy, first_step = bench
-    row = df[(df['Strategy'] == strategy) & (df['First step'] == first_step)]
+# for bench in list_benchmark:
+#     strategy, first_step = bench
+#     row = df[(df['Strategy'] == strategy) & (df['First step'] == first_step)]
     
-    Tab_ratio_FEM.append(row['Ratio of FEM iterations (Hybrid / full-FEM)'].values)
-    Tab_err_rel_c.append(row['Relative compliance error'].values)
+#     Tab_ratio_FEM.append(row['Ratio of FEM iterations (Hybrid / full-FEM)'].values)
+#     Tab_err_rel_c.append(row['Relative compliance error'].values)
 
-Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
-Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
+# Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
+# Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
+# plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
+
+
+#%% Load dataset for accelerated non-machine learning method
+
+data_big_base         = load_mat(DATA_PATH.parent / (name_file+'.mat'))
+ds_big_base           = Dataset_TopOpt(data_big_base)
+ds_filtre_big_base    = ds_big_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
+IterData_FEM_big_base = IterationDataset(ds_filtre_big_base)
+data_acc              = AcceleratedDataset(ds_filtre_big_base)
+
+
+#%% Run loop
+
+ID_distrib=50
+empty_sample = IterationSample(IterationDataset(ds_base.get_series(ID_distrib)), 0)
+
+# data augmentation
+data_acc_aug = data_acc.augment()
+
+# find closest sample
+idx_old, first_guess_sample = data_acc_aug.closest_point(empty_sample)
+
+
+
+idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
+FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+
+ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
+
+List_iterations, List_count_FEM = run_topology_optimization(
+        first_guess_sample,
+        eng, 
+        model, 
+        N_in = N_in,
+        N_max_iterations = 100, 
+        RULE = 'Only UNet',
+        # RULE = ' Unet - 2 FEM',
+        # RULE = 'Decreasing compliance', 
+        # RULE = 'Only FEM',
+        # TYPE_FIRST = 'UNet',
+        TYPE_FIRST = 'FEM',
+        threshold = 0.0,
+        N_end_FEM_iterations = 0,
+        window_Unet = 3,
+        window_FEM = 1, 
+        tol_c=1e-3, 
+        tol_rho=0.1,
+        end_FEM=True
+        )
+
+
+FEM_c, UNet_c = visualize_convergence(
+    List_iterations, 
+    ds_iter, 
+    List_count_FEM,
+    NETWORK=NETWORK,
+    PLOT=True,
+    SCALE='linear'
+    )
+
+
+compare_NN_FEM(List_iterations[-1], FEM_sample)
+
+density_evolution(List_iterations,List_count_FEM, 1)
+
+#%%

@@ -746,7 +746,7 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
 
 # Full process
 
-def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3, N_max_iterations=100, 
+def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100, 
                                RULE=' ', TYPE_FIRST='FEM', threshold=0.05, N_end_FEM_iterations=0,
                                window_Unet=5, window_FEM=2, tol_c=1e-3, tol_rho=0.01, 
                                end_FEM=False,):
@@ -766,10 +766,6 @@ def run_topology_optimization(ds_filtre, ID_distrib, eng, model, N_in=3, N_max_i
     match_FEM = re.match('Only FEM', RULE)
 
     match_decreasing = re.match('Decreasing compliance', RULE)
-
-    ds_iter = IterationDataset(ds_filtre.get_series(ID_distrib))
-    sample = IterationSample(ds_iter, 0)
-
 
     # sample updated with stress and compliance
     # next_sample density updated, but stress and compliance not computed yes
