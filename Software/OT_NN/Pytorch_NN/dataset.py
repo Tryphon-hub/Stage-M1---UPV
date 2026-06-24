@@ -110,6 +110,10 @@ class Dataset_TopOpt(Dataset):
         ItsFull (ndarray)           : number of full iterations per case, shape (N,).
         FEMc (ndarray)              : FEM compliance per iteration, object array (N,).
         TEnd (float)                : total computation time.
+        Ener (ndarray)              : pixel-wise energy (Stress .* Strain) of the
+                                      FIRST image of each traction distribution,
+                                      object array (N,) of (NumEls, 6).
+                                      Per-distribution only — independent of iteration j.
     """
 
     def __init__(self, dataset):
@@ -131,6 +135,7 @@ class Dataset_TopOpt(Dataset):
         self.ItsFull             = dataset['ItsFull']
         self.FEMc                = dataset['FEMc']
         self.TEnd                = dataset['TEnd']
+        self.Ener                = dataset['Ener']
 
     def __len__(self):
         """
@@ -157,6 +162,9 @@ class Dataset_TopOpt(Dataset):
         d = self.Densities
         density_ij = d[:, j] if d.ndim == 2 else d[i][:, j]
 
+        # Ener is per-distribution (first image only) — same for every iteration j.
+        ener_i = self.Ener if self.Ener.ndim == 2 else self.Ener[i]
+
         numits = np.atleast_1d(self.NumIts)
         vf     = np.atleast_1d(self.Relative_Vol_Frac)
         return {
@@ -164,6 +172,7 @@ class Dataset_TopOpt(Dataset):
             'Densities'         : torch.from_numpy(density_ij).float().unsqueeze(0),
             'Relative_Vol_Frac' : torch.tensor(float(vf[i])).float(),
             'Stress'            : torch.from_numpy(self.Stress[i][:, :, j]).float(),
+            'Ener'              : torch.from_numpy(ener_i).float(),
             'FEMc'              : torch.tensor(self.FEMc[i][j]).float(),
             'c'                 : torch.tensor(self.c[i][j]).float(),
             'NumIts'            : torch.tensor(float(numits[i])).float(),
@@ -192,6 +201,20 @@ class Dataset_TopOpt(Dataset):
         d = self.Densities
         return d[:, j] if d.ndim == 2 else d[i][:, j]
 
+    def get_energy(self, i):
+        """
+        Return the pixel-wise energy (NumEls, 6) of the first image for case i.
+        Handles both cases: N=1 (Ener is 2D) and N>1 (Ener is object array).
+
+        Parameters:
+            i (int): Traction distribution index.
+
+        Returns:
+            ndarray: Energy field (NumEls, 6).
+        """
+        e = self.Ener
+        return e if e.ndim == 2 else e[i]
+
     def get_series(self, i: int) -> 'Dataset_TopOpt':
         """
         Return a Dataset_TopOpt restricted to distribution i.
@@ -216,6 +239,7 @@ class Dataset_TopOpt(Dataset):
             'ItsFull'           : self.ItsFull[i:i+1],
             'FEMc'              : self.FEMc[i:i+1],
             'TEnd'              : self.TEnd,
+            'Ener'              : self.Ener[i:i+1],
         }
         return Dataset_TopOpt(sub)
 
@@ -255,9 +279,10 @@ class Dataset_TopOpt(Dataset):
             'ItsFull'           : self.ItsFull[valid],
             'FEMc'              : self.FEMc[valid],
             'TEnd'              : self.TEnd,
+            'Ener'              : self.Ener[valid],
         }
         return Dataset_TopOpt(sub)
-    
+
     def plot_densities(self, iteration=-1):
         """
         Plot the density distribution of each case in the dataset.
@@ -472,6 +497,7 @@ class IterationDataset(Dataset):
             'Densities' : np.concatenate([_to_object_array(ds1.Densities), _to_object_array(ds2.Densities)]),
             'c'         : np.concatenate([_to_object_array(ds1.c),         _to_object_array(ds2.c)]),
             'FEMc'      : np.concatenate([_to_object_array(ds1.FEMc),      _to_object_array(ds2.FEMc)]),
+            'Ener'      : np.concatenate([_to_object_array(ds1.Ener),      _to_object_array(ds2.Ener)]),
         }
 
         merged_base = Dataset_TopOpt(sub)
@@ -525,6 +551,7 @@ class IterationSample:
         self.Densities         = sample['Densities']
         self.Relative_Vol_Frac = sample['Relative_Vol_Frac']
         self.FEM_Stress        = sample['Stress']
+        self.Ener              = sample['Ener']
         self.FEMc              = sample['FEMc']
         self.c                 = sample['c']
         self.NumIts            = sample['NumIts']
@@ -537,6 +564,7 @@ class IterationSample:
                 f"  Tractions         : {tuple(self.Tractions.shape)}\n"
                 f"  Densities         : {tuple(self.Densities.shape)}\n"
                 f"  FEM_Stress        : {tuple(self.FEM_Stress.shape)}\n"
+                f"  Ener              : {tuple(self.Ener.shape)}\n"
                 f"  UNet_Stress       : {tuple(self.UNet_Stress.shape) if self.UNet_Stress is not None else 'Not computed'}\n"
                 f"  Relative_Vol_Frac : {self.Relative_Vol_Frac.item():.3f}\n"
                 f"  c                 : {self.c.item():.6f}\n"
@@ -744,6 +772,7 @@ class IterationSample:
         new.Densities         = self.Densities.clone()
         new.Relative_Vol_Frac = self.Relative_Vol_Frac.clone()
         new.FEM_Stress        = self.FEM_Stress.clone()
+        new.Ener              = self.Ener.clone()
         new.FEMc              = self.FEMc.clone()
         new.c                 = self.c.clone()
         new.NumIts            = self.NumIts.clone()
@@ -751,6 +780,146 @@ class IterationSample:
         new.TEnd              = self.TEnd.clone()
         new.UNet_Stress       = self.UNet_Stress.clone() if self.UNet_Stress is not None else None
         return new
+
+
+#%% Dataset for accelerated process
+class AcceleratedDataset(Dataset):
+
+    def __init__(self, dataset):
+        self.Ener = dataset.Ener
+        self.Tractions = dataset.Tractions
+        self.Densities = np.array([dataset.Densities[i][:, -1] for i in range(len(dataset))])  # (N, 1024)
+        self.size = len(dataset)
+
+    def __len__(self):
+        """
+        Return the number of traction distributions in the dataset.
+
+        Returns:
+            int: Number of cases N.
+        """
+        return self.size
+
+    def __repr__(self):
+        ener_shape = self.Ener[0].shape if len(self) else None
+        return (f"AcceleratedDataset\n"
+                f"  Num distributions : {len(self)}\n"
+                f"  Tractions         : {tuple(np.shape(self.Tractions))}\n"
+                f"  Densities         : {tuple(np.shape(self.Densities))}\n"
+                f"  Ener (per case)   : {tuple(ener_shape) if ener_shape is not None else 'empty'}")
+
+
+    def closest_point(self, sample:IterationSample):
+        '''
+        Find the closest sample in terms on energy
+        '''
+
+        Ener_dataset = self.Ener[0] # 1024 x 6
+        Ener_sample  = sample.Ener
+  
+        min_distance_ener = ((Ener_dataset - Ener_sample.numpy()) ** 2).sum()
+        index_min_ener    = 0
+
+        for i in range(1,len(self)):
+            Ener_dataset = self.Ener[i] # 1024 x 6
+
+            # computes distance between energies           
+            distance_ener = ((Ener_dataset - Ener_sample.numpy()) ** 2).sum()
+
+            if distance_ener<min_distance_ener:
+                min_distance_ener = distance_ener
+                index_min_ener    = i
+
+
+        # creates a new sample with closest optimised geometry
+        new_sample = sample.copy()
+
+        # Density actualisation
+        new_sample.Densities[0] = torch.from_numpy(
+            self.Densities[index_min_ener]
+        ).float()
+
+        return index_min_ener, new_sample
+
+    def _sample_from_index(self, i):
+        """
+        Build a minimal IterationSample for case i so the sample-level D4
+        transforms (symmetry_x, symmetry_y, rotation_90) can be applied.
+
+        Only the fields those transforms actually read are filled with real
+        data (Tractions, Densities, Ener). The remaining fields get harmless
+        dummy tensors so that IterationSample.copy() works and FEM_Stress can
+        be reshaped without crashing (its transformed value is discarded).
+
+        Parameters:
+            i (int): Case index.
+
+        Returns:
+            IterationSample: sample carrying the case-i tractions, density and energy.
+        """
+        s = IterationSample.__new__(IterationSample)
+        s.Tractions         = torch.from_numpy(self.Tractions[:, :, i]).float().unsqueeze(0)  # (1, 2, 8)
+        s.Densities         = torch.from_numpy(self.Densities[i]).float().reshape(1, -1)       # (1, NumEls)
+        s.Ener              = torch.from_numpy(self.Ener[i]).float()                            # (NumEls, 6)
+        s.FEM_Stress        = torch.zeros_like(s.Ener)   # dummy — transformed but unused
+        s.Relative_Vol_Frac = torch.tensor(0.0)
+        s.FEMc              = torch.tensor(0.0)
+        s.c                 = torch.tensor(0.0)
+        s.NumIts            = torch.tensor(0.0)
+        s.ItsFull           = torch.tensor(0.0)
+        s.TEnd              = torch.tensor(0.0)
+        s.UNet_Stress       = None
+        return s
+
+    def augment(self):
+        """
+        Build the full dihedral-group (D4) augmentation of the dataset.
+
+        Every case is replicated under all 8 square symmetries — the 4 rotations
+        (0/90/180/270 deg) each optionally preceded by a horizontal mirror.
+        Together {r^k} and {r^k . s_x} for k = 0..3 enumerate the 8 distinct
+        elements of D4, so this covers every possible configuration / combination.
+
+        Reuses the sample-level transforms symmetry_x and rotation_90
+        (rotation + symmetry), so Tractions, Densities and Ener are all
+        transformed consistently.
+
+        Returns:
+            AcceleratedDataset: new dataset of size 8*N, with two extra
+                provenance attributes:
+                  source_index (ndarray, 8N) : original case index of each entry.
+                  transforms   (list of (flip, k)) : the (mirror, n_rot90) applied.
+        """
+        Ener_aug, Tract_aug, Dens_aug = [], [], []
+        source_index, transforms = [], []
+
+        for i in range(len(self)):
+            base = self._sample_from_index(i)
+            for flip in (False, True):
+                for k in (0, 1, 2, 3):
+                    s = symmetry_x(base) if flip else base
+                    s = rotation_90(s, N_rot=k)   # also acts as identity for k=0
+
+                    Ener_aug.append(s.Ener.numpy())                  # (NumEls, 6)
+                    Tract_aug.append(s.Tractions.squeeze(0).numpy()) # (2, 8)
+                    Dens_aug.append(s.Densities.squeeze().numpy())   # (NumEls,)
+                    source_index.append(i)
+                    transforms.append((flip, k))
+
+        # Ener kept as a (8N,) object array of (NumEls, 6) blocks, matching
+        # the indexing used by closest_point (self.Ener[i] -> 2D array).
+        Ener_obj = np.empty(len(Ener_aug), dtype=object)
+        for idx, e in enumerate(Ener_aug):
+            Ener_obj[idx] = e
+
+        aug = AcceleratedDataset.__new__(AcceleratedDataset)
+        aug.Ener         = Ener_obj
+        aug.Tractions    = np.stack(Tract_aug, axis=-1)   # (2, 8, 8N)
+        aug.Densities    = np.array(Dens_aug)             # (8N, NumEls)
+        aug.size         = len(Ener_aug)
+        aug.source_index = np.array(source_index)
+        aug.transforms   = transforms
+        return aug
 
 
 
@@ -844,6 +1013,7 @@ def list_to_IterationDataset(list_samples: list[IterationSample]) -> IterationDa
         'Stress'            : np.array([np.stack(
                                 [s.FEM_Stress.numpy() for s in list_samples], axis=-1         # (NumEls, 6, n_iter)
                             )], dtype=object),
+        'Ener'              : np.array([list_samples[0].Ener.numpy()], dtype=object),          # (NumEls, 6) — first image only
         'Densities'         : np.stack(
                                 [s.Densities.squeeze().numpy() for s in list_samples], axis=-1 # (NumEls, n_iter)
                             ),
@@ -878,6 +1048,7 @@ def dict_to_sample(sample_dict):
     s.Densities         = sample_dict['Densities']
     s.Relative_Vol_Frac = sample_dict['Relative_Vol_Frac']
     s.FEM_Stress        = sample_dict['Stress']
+    s.Ener              = sample_dict['Ener']
     s.FEMc              = sample_dict['FEMc']
     s.c                 = sample_dict['c']
     s.NumIts            = sample_dict['NumIts']
@@ -898,6 +1069,7 @@ def sample_to_dict(sample):
         'Densities'         : sample.Densities,
         'Relative_Vol_Frac' : sample.Relative_Vol_Frac,
         'Stress'            : sample.FEM_Stress,
+        'Ener'              : sample.Ener,
         'FEMc'              : sample.FEMc,
         'c'                 : sample.c,
         'NumIts'            : sample.NumIts,
@@ -1000,6 +1172,14 @@ def symmetry_x(sample):
     new_sample.FEM_Stress[:, 3] = - new_sample.FEM_Stress[:, 3]
 
 
+    # Energy - image symmetry (no sign change: energy is quadratic in the fields,
+    # so the shear product E_xy = sigma_xy * eps_xy is invariant under reflection)
+    if getattr(new_sample, 'Ener', None) is not None:
+        for comp in (0, 1, 3):
+            e_2d = new_sample.Ener[:, comp].reshape(32, 32)
+            new_sample.Ener[:, comp] = torch.flip(e_2d, dims=(1,)).reshape(-1)
+
+
     # UNet Stress - image symmetry
     if new_sample.UNet_Stress is not None:
         sx_2d  = new_sample.UNet_Stress[:, 0].reshape(32, 32)
@@ -1061,6 +1241,14 @@ def symmetry_y(sample):
 
     # Stress - sign change: tau' = - tau'
     new_sample.FEM_Stress[:, 3] = - new_sample.FEM_Stress[:, 3]
+
+
+    # Energy - image symmetry (no sign change: energy is quadratic in the fields,
+    # so the shear product E_xy = sigma_xy * eps_xy is invariant under reflection)
+    if getattr(new_sample, 'Ener', None) is not None:
+        for comp in (0, 1, 3):
+            e_2d = new_sample.Ener[:, comp].reshape(32, 32)
+            new_sample.Ener[:, comp] = torch.flip(e_2d, dims=(0,)).reshape(-1)
 
 
     # UNet Stress - image symmetry
@@ -1133,6 +1321,25 @@ def rotation_90(sample, N_rot=1):
         new_sample.FEM_Stress[:, 1] = sy_rot.reshape(-1)
         new_sample.FEM_Stress[:, 3] = txy_rot.reshape(-1)
 
+    # ── Energy - image rotation (xx<->yy swap on odd k, NO shear sign change) ──
+    if getattr(new_sample, 'Ener', None) is not None:
+        ex_2d  = new_sample.Ener[:, 0].reshape(32, 32)
+        ey_2d  = new_sample.Ener[:, 1].reshape(32, 32)
+        exy_2d = new_sample.Ener[:, 3].reshape(32, 32)
+
+        ex_rot  = torch.rot90(ex_2d,  k_image, dims=(0, 1))
+        ey_rot  = torch.rot90(ey_2d,  k_image, dims=(0, 1))
+        exy_rot = torch.rot90(exy_2d, k_image, dims=(0, 1))
+
+        if k % 2 == 1:
+            new_sample.Ener[:, 0] = ey_rot.reshape(-1)
+            new_sample.Ener[:, 1] = ex_rot.reshape(-1)
+            new_sample.Ener[:, 3] = exy_rot.reshape(-1)
+        else:
+            new_sample.Ener[:, 0] = ex_rot.reshape(-1)
+            new_sample.Ener[:, 1] = ey_rot.reshape(-1)
+            new_sample.Ener[:, 3] = exy_rot.reshape(-1)
+
     if new_sample.UNet_Stress is not None:
         sx_2d  = new_sample.UNet_Stress[:, 0].reshape(32, 32)
         sy_2d  = new_sample.UNet_Stress[:, 1].reshape(32, 32)
@@ -1165,17 +1372,38 @@ def rotation_90(sample, N_rot=1):
 if __name__ == '__main__':
     os.chdir(r'C:\Users\maxen\Documents\Stage')
     print("Current working directory:", Path.cwd())
-    path = (Path.cwd() / 'HeavyFiles/data/dataset_test.mat').resolve()
+
+    # Reference Dataset
+    path = (Path.cwd() / 'HeavyFiles/data/dataset_1k.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
+    acc_data = AcceleratedDataset(dataset)
 
-    data_iter = IterationDataset(dataset)
+    # Test dataset
+    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_test.mat').resolve()
+    data_test = load_mat(path_test)
+    dataset_test = Dataset_TopOpt(data_test)
+    data_iter_test = IterationDataset(dataset_test)
 
-    
+    ID = 20
+    # unoptimised sample
+    sample = IterationSample(IterationDataset(dataset_test.get_series(ID)), 0)
+    idx_old, acc_starting_point = acc_data.closest_point(sample)
 
+    # compare with old sample
+    old_sample = IterationSample(IterationDataset(dataset.get_series(idx_old)), -1)
+
+    # plot empty -> old -> new samples
+    print(f'Empty sample \n {sample.Tractions}')
+    sample.plot()
+    print(f'Old sample (wrong tractions) \n {old_sample.Tractions}')
+    old_sample.plot()
+    print(f'New sample (actualised tractions) \n {acc_starting_point.Tractions}')
+    acc_starting_point.plot()
 
     # sample.plot()
     # sample.plot_inputs()
     # sample.plot_outputs('FEM')
 
 
+#%%
