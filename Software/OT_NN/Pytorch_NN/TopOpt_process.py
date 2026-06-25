@@ -236,22 +236,22 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Main loop : evaluate method
 
-RESET_BENCHMARK = True # deletes old benchmark csv file
+# RESET_BENCHMARK = True # deletes old benchmark csv file
 
-if RESET_BENCHMARK:
-    TYPE_WRITE = 'w'
-else: 
-    TYPE_WRITE = 'a'
+# if RESET_BENCHMARK:
+#     TYPE_WRITE = 'w'
+# else: 
+#     TYPE_WRITE = 'a'
 
 
 
-SIZE_LOOP = 100
+# SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_results.csv'
 
-benchmark_file = open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') 
-writer = csv.writer(benchmark_file)
-writer.writerow(['Strategy', 'First step', 'Input ID', 'Number of FEM iterations for the full-FEM strategy', 'Number of FEM iterations for the hybrid strategy', 'Ratio of FEM iterations (Hybrid / full-FEM)' ,'Relative compliance error'])
+# benchmark_file = open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') 
+# writer = csv.writer(benchmark_file)
+# writer.writerow(['Strategy', 'First step', 'Input ID', 'Number of FEM iterations for the full-FEM strategy', 'Number of FEM iterations for the hybrid strategy', 'Ratio of FEM iterations (Hybrid / full-FEM)' ,'Relative compliance error'])
 
 
 list_benchmark = [
@@ -266,51 +266,51 @@ list_benchmark = [
 ]
 
 
-with open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
-    writer = csv.writer(benchmark_file)
-    writer.writerow(['Strategy', 'First step', 'Input ID', 
-                     'Number of FEM iterations for the full-FEM strategy', 
-                     'Number of FEM iterations for the hybrid strategy', 
-                     'Ratio of FEM iterations (Hybrid / full-FEM)', 
-                     'Relative compliance error'])
+# with open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
+#     writer = csv.writer(benchmark_file)
+#     writer.writerow(['Strategy', 'First step', 'Input ID', 
+#                      'Number of FEM iterations for the full-FEM strategy', 
+#                      'Number of FEM iterations for the hybrid strategy', 
+#                      'Ratio of FEM iterations (Hybrid / full-FEM)', 
+#                      'Relative compliance error'])
 
-    total = len(list_benchmark) * SIZE_LOOP
-    win = ProgressWindow(total)
-    thread = threading.Thread(target=run_window, args=(win,), daemon=True)
-    thread.start()
+#     total = len(list_benchmark) * SIZE_LOOP
+#     win = ProgressWindow(total)
+#     thread = threading.Thread(target=run_window, args=(win,), daemon=True)
+#     thread.start()
 
-    for i in range(len(list_benchmark)):
-        for ID in range(SIZE_LOOP):
-            List_iterations, List_count_FEM = run_topology_optimization(
-                ds_filtre, ID, eng, model,
-                N_in=N_in, N_max_iterations=100,
-                RULE=list_benchmark[i][0],
-                TYPE_FIRST=list_benchmark[i][1],
-                threshold=0.0, N_end_FEM_iterations=0,
-                window_Unet=5, window_FEM=1,
-                tol_c=1e-3, tol_rho=0.1, end_FEM=True
-            )
+#     for i in range(len(list_benchmark)):
+#         for ID in range(SIZE_LOOP):
+#             List_iterations, List_count_FEM = run_topology_optimization(
+#                 ds_filtre, ID, eng, model,
+#                 N_in=N_in, N_max_iterations=100,
+#                 RULE=list_benchmark[i][0],
+#                 TYPE_FIRST=list_benchmark[i][1],
+#                 threshold=0.0, N_end_FEM_iterations=0,
+#                 window_Unet=5, window_FEM=1,
+#                 tol_c=1e-3, tol_rho=0.1, end_FEM=True
+#             )
 
-            win.increment()
+#             win.increment()
 
-            idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
-            FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
+#             idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
+#             FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
-            c_FEM  = FEM_sample.c.item()
-            c_Unet = List_iterations[-1].c.item()
+#             c_FEM  = FEM_sample.c.item()
+#             c_Unet = List_iterations[-1].c.item()
 
-            err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
-            number_FEM = len(List_count_FEM)
-            ds_iter    = IterationDataset(ds_filtre.get_series(ID))
+#             err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
+#             number_FEM = len(List_count_FEM)
+#             ds_iter    = IterationDataset(ds_filtre.get_series(ID))
 
-            writer.writerow([
-                list_benchmark[i][0], list_benchmark[i][1], ID,
-                len(ds_iter), number_FEM,
-                number_FEM / len(ds_iter),
-                err_rel_c
-            ])
+#             writer.writerow([
+#                 list_benchmark[i][0], list_benchmark[i][1], ID,
+#                 len(ds_iter), number_FEM,
+#                 number_FEM / len(ds_iter),
+#                 err_rel_c
+#             ])
 
-    win.close()
+#     win.close()
     
 
 #%% Read File Benchmark
@@ -347,3 +347,6 @@ Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
 plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
+
+
+#%%

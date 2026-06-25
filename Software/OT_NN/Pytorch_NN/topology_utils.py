@@ -1140,7 +1140,7 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
     bars1 = ax1.bar(x - width/2, mean_FEM, width, yerr=std_FEM,
                      capsize=4, label='# ratio of FEM iterations (Hybrid / full-FEM)', 
                      color='tab:blue', alpha=0.8)
-    ax1.set_ylabel(f' Ratio of FEM iteration: $N_{{Hybrid}}/N_{{FEM}}$', fontsize=13, color='tab:blue')
+    ax1.set_ylabel(f' Ratio of FEM iteration: $N_{{Hybrid}}/N_{{FEM}}$ (%)', fontsize=13, color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Relative error (%) — right axis
@@ -1153,12 +1153,12 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
 
     # Labels on bars
     for bar, val in zip(bars1, mean_FEM):
-        ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
-                 f'{val:.0f}', ha='center', va='bottom', fontsize=9, color='tab:blue')
+        ax1.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.01,
+                 f'{100*val:.1f}%', ha='left', va='bottom', fontsize=9, color='tab:blue')
 
     for bar, val in zip(bars2, mean_err_pct):
-        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
-                 f'{val:.2f}%', ha='center', va='bottom', fontsize=9, color='tab:orange')
+        ax2.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.001,
+                 f'{val:.2f}%', ha='left', va='bottom', fontsize=9, color='tab:orange')
 
     # Align zeros: both quantities are ≥ 0, so force bottom=0 on both axes
     ax1.set_ylim(bottom=0)
