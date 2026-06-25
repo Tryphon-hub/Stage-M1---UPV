@@ -255,7 +255,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 # SIZE_LOOP = 100
 # SIZE_LOOP = 100
 
-# name_benchmark_file = 'benchmark_results.csv'
+name_benchmark_file = 'benchmark_results.csv'
 
 # benchmark_file = open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') 
 # writer = csv.writer(benchmark_file)
@@ -265,16 +265,16 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 # writer.writerow(['Strategy', 'First step', 'Input ID', 'Number of FEM iterations for the full-FEM strategy', 'Number of FEM iterations for the hybrid strategy', 'Ratio of FEM iterations (Hybrid / full-FEM)' ,'Relative compliance error'])
 
 
-# list_benchmark = [
-#     ['Only UNet', 'UNet'],
-#     ['Only UNet', 'FEM'],
-#     ['10 Unet - 1 FEM', 'UNet'],
-#     ['10 Unet - 1 FEM', 'FEM'],
-#     ['10 Unet - 3 FEM', 'UNet'],
-#     ['10 Unet - 3 FEM', 'FEM'],
-#     ['Decreasing compliance', 'UNet'],
-#     ['Decreasing compliance', 'FEM'],
-# ]
+list_benchmark = [
+    ['Only UNet', 'UNet'],
+    ['Only UNet', 'FEM'],
+    ['10 Unet - 1 FEM', 'UNet'],
+    ['10 Unet - 1 FEM', 'FEM'],
+    ['10 Unet - 3 FEM', 'UNet'],
+    ['10 Unet - 3 FEM', 'FEM'],
+    ['Decreasing compliance', 'UNet'],
+    ['Decreasing compliance', 'FEM'],
+]
 
 
 # with open(RESULTS_DIR / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
@@ -355,40 +355,40 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 #     win.close()
     
 
-# #%% Read File Benchmark
+#%% Read File Benchmark
 
-# df = pd.read_csv(RESULTS_DIR / name_benchmark_file)
+df = pd.read_csv(RESULTS_DIR / name_benchmark_file)
 
-# # Agrégation par configuration
-# summary = df.groupby(['Strategy', 'First step']).agg(
-#     mean_full_FEM  = ('Number of FEM iterations for the full-FEM strategy', 'mean'),
-#     mean_hybrid    = ('Number of FEM iterations for the hybrid strategy',   'mean'),
-#     std_hybrid     = ('Number of FEM iterations for the hybrid strategy',   'std'),
-#     mean_ratio     = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'mean'),
-#     std_ratio      = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'std'),
-#     mean_err       = ('Relative compliance error',                          'mean'),
-#     std_err        = ('Relative compliance error',                          'std'),
-#     n_samples      = ('Input ID',                                           'count')
-# ).reset_index()
+# Agrégation par configuration
+summary = df.groupby(['Strategy', 'First step']).agg(
+    mean_full_FEM  = ('Number of FEM iterations for the full-FEM strategy', 'mean'),
+    mean_hybrid    = ('Number of FEM iterations for the hybrid strategy',   'mean'),
+    std_hybrid     = ('Number of FEM iterations for the hybrid strategy',   'std'),
+    mean_ratio     = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'mean'),
+    std_ratio      = ('Ratio of FEM iterations (Hybrid / full-FEM)',        'std'),
+    mean_err       = ('Relative compliance error',                          'mean'),
+    std_err        = ('Relative compliance error',                          'std'),
+    n_samples      = ('Input ID',                                           'count')
+).reset_index()
 
-# print(summary.to_string())
+print(summary.to_string())
 
 
-# # Retrieve values in lists ordered as list_benchmark
-# Tab_ratio_FEM = []
-# Tab_err_rel_c = []
+# Retrieve values in lists ordered as list_benchmark
+Tab_ratio_FEM = []
+Tab_err_rel_c = []
 
-# for bench in list_benchmark:
-#     strategy, first_step = bench
-#     row = df[(df['Strategy'] == strategy) & (df['First step'] == first_step)]
+for bench in list_benchmark:
+    strategy, first_step = bench
+    row = df[(df['Strategy'] == strategy) & (df['First step'] == first_step)]
     
-#     Tab_ratio_FEM.append(row['Ratio of FEM iterations (Hybrid / full-FEM)'].values)
-#     Tab_err_rel_c.append(row['Relative compliance error'].values)
+    Tab_ratio_FEM.append(row['Ratio of FEM iterations (Hybrid / full-FEM)'].values)
+    Tab_err_rel_c.append(row['Relative compliance error'].values)
 
-# Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
-# Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
+Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
+Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-# plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
 
 
 #%% Load dataset for accelerated non-machine learning method
@@ -424,10 +424,10 @@ List_iterations, List_count_FEM = run_topology_optimization(
         model, 
         N_in = N_in,
         N_max_iterations = 100, 
-        RULE = 'Only UNet',
+        # RULE = 'Only UNet',
         # RULE = ' Unet - 2 FEM',
         # RULE = 'Decreasing compliance', 
-        # RULE = 'Only FEM',
+        RULE = 'Only FEM',
         # TYPE_FIRST = 'UNet',
         TYPE_FIRST = 'FEM',
         threshold = 0.0,
