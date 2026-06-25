@@ -83,6 +83,8 @@ FEMc = cell(NumSamples,1);
 NumIts = zeros(NumSamples,1);
 ItsFull = zeros(NumSamples,1);
 
+D = DHooks2D(ProbInfo.E, ProbInfo.nu, 'Plane Stress');
+
 %% Generate topology
 TStart = tic;
 % figure
@@ -100,9 +102,9 @@ for iSample = List
     [Rel_Density(:,iSample),Stress{iSample},Strain{iSample},Densities{iSample},NumIts(iSample),ItsFull(iSample),c{iSample},FEMc{iSample}] = ...
         GenTopology(MeshData,Tractions(:,:,iSample),Relative_Vol_Frac(iSample),ProbInfo,IniDentsity);
 
-    stress_first = Stress{iSample}(:, :, 1);  % (n_elem, 6)
-    strain_first = Strain{iSample}(:, :, 1);  % (n_elem, 6)
-    Ener{iSample} = stress_first .* strain_first; % (n_elem, 6)
+    Sol_ini = SolveFE(MeshData, IniDentsity.^ProbInfo.Penal, ProbInfo.NGPpS, ProbInfo.NGPpL, D, Tractions(:,:,iSample), ProbInfo.SquareEls, ProbInfo.ElemTO);
+    [Stress_ini, ~, Strain_ini] = EvalStress(MeshData.Surf.Topology, MeshData.XYZ, IniDentsity, D, Sol_ini, 2, ProbInfo.SquareEls, ProbInfo.ElemTO, 'Plane Stress', ProbInfo.E, ProbInfo.nu);
+    Ener{iSample} = Stress_ini .* Strain_ini;
 
     if save_last_only
         Stress{iSample}    = Stress{iSample}(:, :, [1, end]);
@@ -137,6 +139,6 @@ if ~exist(Folder,'dir')
 end
 saveas(gcf,[Folder '\' FileName])
 
-save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Ener','Densities','TEnd','NumIts','ItsFull','c','FEMc','-v7.3')
+save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Ener','Densities','TEnd','NumIts','ItsFull','c','FEMc')
 
 end
