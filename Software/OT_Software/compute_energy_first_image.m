@@ -6,7 +6,7 @@
 addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
 addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 
-DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_test.mat';
+DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_macro_cantilever.mat';
 
 fprintf('Chargement du dataset...\n');
 data = load(DatasetFile, 'Rel_Density', 'Tractions', 'MeshData');
@@ -49,3 +49,5 @@ end
 
 save(DatasetFile, 'Ener', '-append');
 fprintf('Ener sauvegardé dans %s\n', DatasetFile);
+
+
