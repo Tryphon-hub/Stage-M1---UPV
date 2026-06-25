@@ -214,6 +214,25 @@ class Dataset_TopOpt(Dataset):
         d = self.Densities
         return d[:, j] if d.ndim == 2 else d[i][:, j]
 
+    def n_iter(self, i):
+        """
+        Number of iterations actually stored for case i, read from the
+        Densities array itself rather than NumIts.
+
+        NumIts records the full SIMP iteration count, but datasets generated
+        with save_last_only=true store only [first, last] (2 columns). Relying
+        on NumIts would walk past the stored columns. Densities.shape[1] is the
+        ground truth for how many iterations are available.
+
+        Parameters:
+            i (int): Traction distribution index.
+
+        Returns:
+            int: Number of stored iterations for case i.
+        """
+        d = self.Densities
+        return d.shape[1] if d.ndim == 2 else d[i].shape[1]
+
     def get_energy(self, i):
         """
         Return the pixel-wise energy (NumEls, 6) of the first image for case i.
@@ -276,7 +295,7 @@ class Dataset_TopOpt(Dataset):
             if rho_min <= float(vf[i]) <= rho_max
             and all(
                 rho_min <= self.get_density(i, j).mean() <= rho_max
-                for j in range(int(numits[i]))
+                for j in range(self.n_iter(i))
             )
         ]
 
@@ -305,7 +324,6 @@ class Dataset_TopOpt(Dataset):
             iteration (int): iteration index to display for each case (default: -1, last).
         """
         N = len(self)
-        numits = np.atleast_1d(self.NumIts)
 
         n_cols = int(np.ceil(np.sqrt(N)))
         n_rows = int(np.ceil(N / n_cols))
@@ -317,7 +335,7 @@ class Dataset_TopOpt(Dataset):
             ax = axes[i]
 
             # resolve iteration index per case (handles negative indices)
-            j = iteration if iteration >= 0 else int(numits[i]) + iteration
+            j = iteration if iteration >= 0 else self.n_iter(i) + iteration
             topo = self.get_density(i, j)
 
             img_size = int(np.sqrt(len(topo)))
@@ -340,11 +358,10 @@ class Dataset_TopOpt(Dataset):
         Plot every density distribution (all iterations of all samples) in the dataset.
         Each subplot is titled 'sample {i}\niteration {j}'.
         """
-        numits = np.atleast_1d(self.NumIts)
         N = len(self)
 
         # Build list of (i, j) pairs for every iteration of every sample
-        pairs = [(i, j) for i in range(N) for j in range(int(numits[i]))]
+        pairs = [(i, j) for i in range(N) for j in range(self.n_iter(i))]
         n_plots = len(pairs)
 
         n_cols = int(np.ceil(np.sqrt(n_plots)))
@@ -405,21 +422,20 @@ class IterationDataset(Dataset):
             dataset (Dataset_TopOpt): Base dataset containing all distributions.
         """
         self.dataset = dataset
-        numits = np.atleast_1d(dataset.NumIts)
         vf     = np.atleast_1d(dataset.Relative_Vol_Frac)
 
         self.index = [
             (i, j)
             for i in range(len(dataset))
-            for j in range(int(numits[i]))
+            for j in range(dataset.n_iter(i))
             if 0.15 <= self.get_density(dataset, i, j).mean() <= 0.85
             and 0.15 <= float(vf[i]) <= 0.85
         ]
 
         self.last_iteration_index = [
-            self.index.index((i, int(numits[i]) - 1))
+            self.index.index((i, dataset.n_iter(i) - 1))
             for i in range(len(dataset))
-            if (i, int(numits[i]) - 1) in self.index
+            if (i, dataset.n_iter(i) - 1) in self.index
         ]
 
     def get_density(self, dataset, i, j):
@@ -1383,8 +1399,8 @@ def rotation_90(sample, N_rot=1):
 #%% Test
 
 if __name__ == '__main__':
-    # os.chdir(r'C:\Users\maxen\Documents\Stage')
-    os.chdir(r'D:\Maxence\Stage-M1---UPV')
+    os.chdir(r'C:\Users\maxen\Documents\Stage')
+    # os.chdir(r'D:\Maxence\Stage-M1---UPV')
     print("Current working directory:", Path.cwd())
 
     # Reference Dataset
