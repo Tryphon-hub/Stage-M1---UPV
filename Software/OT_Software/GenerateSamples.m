@@ -1,4 +1,13 @@
-function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples)
+﻿function GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples,save_last_only)
+arguments
+    Folder
+    FileName
+    TractionFile
+    GenerateNewTractions
+    Net
+    NumSamples
+    save_last_only = false
+end
 clc
 addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
 addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
@@ -94,6 +103,12 @@ for iSample = List
     stress_first = Stress{iSample}(:, :, 1);  % (n_elem, 6)
     strain_first = Strain{iSample}(:, :, 1);  % (n_elem, 6)
     Ener{iSample} = stress_first .* strain_first; % (n_elem, 6)
+
+    if save_last_only
+        Stress{iSample}    = Stress{iSample}(:, :, [1, end]);
+        Strain{iSample}    = Strain{iSample}(:, :, [1, end]);
+        Densities{iSample} = Densities{iSample}(:, [1, end]);
+    end
 
     Top = MeshData.Surf.Topology;
     XY = MeshData.XYZ;
