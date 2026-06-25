@@ -49,19 +49,32 @@ import matplotlib.pyplot as plt
 #%% Useful functions
 
 def load_mat(filepath: str) -> dict:
-    """
-    Load a MATLAB .mat file into a Python dictionary.
-    Compatible with MATLAB < 7.3 (scipy) and >= 7.3 (HDF5) formats.
-    squeeze_me=True removes spurious dimensions added by MATLAB.
-
-    Parameters:
-        filepath (str): Path to the .mat file.
-
-    Returns:
-        dict: Dictionary {key: value} of the .mat file.
-    """
     import scipy.io
-    return scipy.io.loadmat(filepath, squeeze_me=True, struct_as_record=False)
+    import h5py
+
+    try:
+        return scipy.io.loadmat(filepath, squeeze_me=True, struct_as_record=False)
+    except NotImplementedError:
+        with h5py.File(filepath, 'r') as f:
+            def read(key):
+                return np.array(f[key]).squeeze()
+
+            # HDF5 transposes all arrays vs MATLAB
+            data = {
+                'MeshData'          : None,
+                'Tractions'         : read('Tractions'),          # (N, 8, 2) → transpose needed
+                'Relative_Vol_Frac' : read('Relative_Vol_Frac'),
+                'Rel_Density'       : read('Rel_Density'),
+                'NumIts'            : read('NumIts').astype(int),
+                'ItsFull'           : read('ItsFull').astype(int),
+                'TEnd'              : read('TEnd'),
+                'FEMc'              : read('FEMc'),
+                'Stress'            : read('Stress'),
+                'Densities'         : read('Densities'),
+                'c'                 : read('c'),
+            }
+        return data
+
 
 
 def inspect_mat(filepath: str) -> None:
@@ -1374,13 +1387,13 @@ if __name__ == '__main__':
     print("Current working directory:", Path.cwd())
 
     # Reference Dataset
-    path = (Path.cwd() / 'HeavyFiles/data/dataset_1k.mat').resolve()
+    path = (Path.cwd() / 'HeavyFiles/data/dataset_macro.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
     acc_data = AcceleratedDataset(dataset)
 
     # Test dataset
-    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_test.mat').resolve()
+    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
     data_test = load_mat(path_test)
     dataset_test = Dataset_TopOpt(data_test)
     data_iter_test = IterationDataset(dataset_test)
