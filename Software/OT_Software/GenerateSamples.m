@@ -11,16 +11,16 @@ end
 clc
 addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
 addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
-% 
-% addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
-% addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
+
+addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
+addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 
 %% Generate Mesh
-GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
-Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
-% 
-% GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
-% Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
+% GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
+% Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
+
+GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
+Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
 
 % Strain energy per element per component
 Ener = cell(NumSamples, 1);
@@ -28,9 +28,9 @@ Ener = cell(NumSamples, 1);
 if isfile(Mesh_File)
     delete(Mesh_File)
 end
-CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+% CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
-% CallString = ['"C:\Program Files\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+CallString = ['"C:\Users\maxen\Documents\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
 
 system(CallString);
