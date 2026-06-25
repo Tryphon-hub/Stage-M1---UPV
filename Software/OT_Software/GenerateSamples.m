@@ -35,7 +35,7 @@ end
 %% Cell information
 if NumSamples == -1
     AutoEquilibrate = 0;
-    [Tractions,Center,Scale,List,Relative_Vol_Frac] = LoadMacroProblemData('Beam_MacroTO_Info.mat',AutoEquilibrate);
+    [Tractions,Center,Scale,List,Relative_Vol_Frac] = LoadMacroProblemData('Cantilever_MacroTO_Info.mat',AutoEquilibrate);
     NumSamples = size(Tractions,3);
 else
     Tractions = GenerateTractions(NumSamples,[Folder '\' TractionFile],GenerateNewTractions);
