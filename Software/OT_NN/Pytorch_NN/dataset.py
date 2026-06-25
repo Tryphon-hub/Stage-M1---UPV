@@ -1407,13 +1407,21 @@ if __name__ == '__main__':
     path = (Path.cwd() / 'HeavyFiles/data/dataset_10k.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
+    data_iter = IterationDataset(dataset)
     acc_data = AcceleratedDataset(dataset)
 
-    # # Test dataset
-    # path_test = (Path.cwd() / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
-    # data_test = load_mat(path_test)
-    # dataset_test = Dataset_TopOpt(data_test)
-    # data_iter_test = IterationDataset(dataset_test)
+    # Test dataset
+    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_10k_05.mat').resolve()
+    data_test = load_mat(path_test)
+    dataset_test = Dataset_TopOpt(data_test)
+    data_iter_test = IterationDataset(dataset_test)
+
+    s0=IterationSample(data_iter,0)
+    s1=IterationSample(data_iter_test,0)
+
+    s0.plot()
+    s1.plot()
+
 
     # ID = 20
     # # unoptimised sample
