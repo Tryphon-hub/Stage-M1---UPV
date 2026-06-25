@@ -11,11 +11,12 @@ if ~isfolder(Folder)
 end
 
 
-FileName='dataset_macro_cantilever';
-TractionFile='tractions_macro_cantilever';
+FileName='dataset_10k';
+TractionFile='tractions_10k';
 GenerateNewTractions=true;
 Net=[];
-NumSamples=-1;
+NumSamples=3;
+save_last_only = true;
 
 
-GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples);
+GenerateSamples(Folder,FileName,TractionFile,GenerateNewTractions,Net,NumSamples, save_last_only);
