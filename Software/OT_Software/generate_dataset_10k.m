@@ -15,7 +15,7 @@ FileName='dataset_10k';
 TractionFile='tractions_10k';
 GenerateNewTractions=true;
 Net=[];
-NumSamples=3;
+NumSamples=10;
 save_last_only = true;
 
 

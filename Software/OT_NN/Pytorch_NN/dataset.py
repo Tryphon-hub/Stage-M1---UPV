@@ -1383,37 +1383,37 @@ def rotation_90(sample, N_rot=1):
 #%% Test
 
 if __name__ == '__main__':
-    os.chdir(r'C:\Users\maxen\Documents\Stage')
-    # os.chdir(r'D:\Maxence\Stage-M1---UPV')
+    # os.chdir(r'C:\Users\maxen\Documents\Stage')
+    os.chdir(r'D:\Maxence\Stage-M1---UPV')
     print("Current working directory:", Path.cwd())
 
     # Reference Dataset
-    path = (Path.cwd() / 'HeavyFiles/data/dataset_macro.mat').resolve()
+    path = (Path.cwd() / 'HeavyFiles/data/dataset_10k.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
     acc_data = AcceleratedDataset(dataset)
 
-    # Test dataset
-    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
-    data_test = load_mat(path_test)
-    dataset_test = Dataset_TopOpt(data_test)
-    data_iter_test = IterationDataset(dataset_test)
+    # # Test dataset
+    # path_test = (Path.cwd() / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
+    # data_test = load_mat(path_test)
+    # dataset_test = Dataset_TopOpt(data_test)
+    # data_iter_test = IterationDataset(dataset_test)
 
-    ID = 20
-    # unoptimised sample
-    sample = IterationSample(IterationDataset(dataset_test.get_series(ID)), 0)
-    idx_old, acc_starting_point = acc_data.closest_point(sample)
+    # ID = 20
+    # # unoptimised sample
+    # sample = IterationSample(IterationDataset(dataset_test.get_series(ID)), 0)
+    # idx_old, acc_starting_point = acc_data.closest_point(sample)
 
-    # compare with old sample
-    old_sample = IterationSample(IterationDataset(dataset.get_series(idx_old)), -1)
+    # # compare with old sample
+    # old_sample = IterationSample(IterationDataset(dataset.get_series(idx_old)), -1)
 
-    # plot empty -> old -> new samples
-    print(f'Empty sample \n {sample.Tractions}')
-    sample.plot()
-    print(f'Old sample (wrong tractions) \n {old_sample.Tractions}')
-    old_sample.plot()
-    print(f'New sample (actualised tractions) \n {acc_starting_point.Tractions}')
-    acc_starting_point.plot()
+    # # plot empty -> old -> new samples
+    # print(f'Empty sample \n {sample.Tractions}')
+    # sample.plot()
+    # print(f'Old sample (wrong tractions) \n {old_sample.Tractions}')
+    # old_sample.plot()
+    # print(f'New sample (actualised tractions) \n {acc_starting_point.Tractions}')
+    # acc_starting_point.plot()
 
     # sample.plot()
     # sample.plot_inputs()
