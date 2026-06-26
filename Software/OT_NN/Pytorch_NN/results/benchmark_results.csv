@@ -1,0 +1,3 @@
+Strategy,Model,First step,NIF,N_conv,use cbam,use augmentation,probability of augmentation,dataset portion,Input ID,Number of FEM iterations for the full-FEM strategy,Number of FEM iterations for the hybrid strategy,Ratio of FEM iterations (Hybrid / full-FEM),Relative compliance error
+Only UNet,U-Net,UNet,32,2,False,False,0.2,1,0,33,18,0.5454545454545454,0.03025713525099986
+Only UNet,U-Net,UNet,32,2,False,False,0.2,1,1,34,28,0.8235294117647058,0.013159247183242859
