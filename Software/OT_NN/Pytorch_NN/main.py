@@ -20,14 +20,14 @@ NETWORK   = 'U-Net'  # 'U-Net' ou 'BE_Unet'
 name_file = 'dataset_1k'
 
 
-N_CONV=2
+N_CONV=3
 HIDDEN_LAYERS_MLP=[32,64]
 EMBED_OUT   = 128     # dimension de l'embedding
 USE_CBAM = False
 USE_AUGMENTATION = False  # Data augmentation
 AUGMENTATION_P   = 0.2
 
-PORTION_DATA = 0.5
+PORTION_DATA = 1
 
 BASE = Path(__file__).parents[3]
 
@@ -89,13 +89,13 @@ ds_iter = IterationDataset(ds_base)
 print(f"  Distributions de forces : {len(ds_base)}")
 print(f"  Itérations totales      : {len(ds_iter)}")
 
-n_val   = int(PORTION_DATA * len(ds_iter) * VAL_SPLIT)
-n_train = int(PORTION_DATA * len(ds_iter)) - n_val
+n_used    = int(PORTION_DATA * len(ds_iter))
+n_val     = int(n_used * VAL_SPLIT)
+n_train   = n_used - n_val
+n_discard = len(ds_iter) - n_used
 
-
-
-train_ds, val_ds = torch.utils.data.random_split(
-    ds_iter, [n_train, n_val],
+train_ds, val_ds, _ = torch.utils.data.random_split(
+    ds_iter, [n_train, n_val, n_discard],
     generator=torch.Generator().manual_seed(42)
 )
 

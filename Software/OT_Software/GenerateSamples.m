@@ -16,21 +16,18 @@ addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
 addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 
 %% Generate Mesh
-% GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
-% Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
+GeoFileName = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.geo';
+Mesh_File   = 'D:\Maxence\Stage-M1---UPV\Software\OT_Software\Square.msh';
 
-GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
-Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
-
-% Strain energy per element per component
-Ener = cell(NumSamples, 1);
+% GeoFileName = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.geo';
+% Mesh_File   = 'C:\Users\maxen\Documents\Stage\Software\OT_Software\Square.msh';
 
 if isfile(Mesh_File)
     delete(Mesh_File)
 end
-% CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+CallString = ['"D:\Maxence\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
-CallString = ['"C:\Users\maxen\Documents\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
+% CallString = ['"C:\Users\maxen\Documents\gmsh\gmsh.exe" "' GeoFileName '" -setnumber numLayers 32 -o "' Mesh_File '" -'];
 
 
 system(CallString);
@@ -78,12 +75,28 @@ Rel_Density = zeros(NumEls,NumSamples);
 Stress = cell(NumSamples,1);
 Strain = cell(NumSamples,1);
 Densities = cell(NumSamples,1);
+Ener = cell(NumSamples,1);
 c = cell(NumSamples,1);
 FEMc = cell(NumSamples,1);
 NumIts = zeros(NumSamples,1);
 ItsFull = zeros(NumSamples,1);
 
 D = DHooks2D(ProbInfo.E, ProbInfo.nu, 'Plane Stress');
+
+%% Initialisation sauvegarde incrémentale
+m = matfile([Folder '\' FileName], 'Writable', true);
+m.MeshData          = MeshData;
+m.Tractions         = Tractions;
+m.Relative_Vol_Frac = Relative_Vol_Frac;
+m.Rel_Density       = zeros(NumEls, NumSamples);
+m.Stress            = cell(NumSamples, 1);
+m.Ener              = cell(NumSamples, 1);
+m.Densities         = cell(NumSamples, 1);
+m.NumIts            = zeros(NumSamples, 1);
+m.ItsFull           = zeros(NumSamples, 1);
+m.c                 = cell(NumSamples, 1);
+m.FEMc              = cell(NumSamples, 1);
+m.TEnd              = 0;
 
 %% Generate topology
 TStart = tic;
@@ -112,6 +125,16 @@ for iSample = List
         Densities{iSample} = Densities{iSample}(:, [1, end]);
     end
 
+    %% Sauvegarde incrémentale
+    m.Rel_Density(:, iSample)  = Rel_Density(:, iSample);
+    m.Stress(iSample, 1)       = {Stress{iSample}};
+    m.Ener(iSample, 1)         = {Ener{iSample}};
+    m.Densities(iSample, 1)    = {Densities{iSample}};
+    m.NumIts(iSample, 1)       = NumIts(iSample);
+    m.ItsFull(iSample, 1)      = ItsFull(iSample);
+    m.c(iSample, 1)            = {c{iSample}};
+    m.FEMc(iSample, 1)         = {FEMc{iSample}};
+
     Top = MeshData.Surf.Topology;
     XY = MeshData.XYZ;
 
@@ -133,12 +156,8 @@ end
 
 close(pbar);
 TEnd = toc(TStart);
+m.TEnd = TEnd;
 
-if ~exist(Folder,'dir')
-    mkdir(Folder)
-end
 saveas(gcf,[Folder '\' FileName])
-
-save([Folder '\' FileName],'Rel_Density','Tractions','MeshData','Relative_Vol_Frac','Stress','Ener','Densities','TEnd','NumIts','ItsFull','c','FEMc')
 
 end
