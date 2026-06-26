@@ -32,12 +32,11 @@ BASE      = Path(__file__).parents[3]
 DATA_PATH = BASE / 'HeavyFiles' / 'data' / (name_file + '.mat')
 
 # Training hyperparameters shared by every configuration
-BATCH_SIZE  = 16
 VAL_SPLIT   = 0.15
 NUM_WORKERS = 0    # parallelisation
 LR          = 1e-3
 EPS_SMAPE   = 1e-6
-EPOCHS      = 1
+EPOCHS      = 150
 RESUME      = False
 
 # Embedding hyperparameters (BE_UNet only)
@@ -51,23 +50,25 @@ print(f"Device: {device}")
 #%%  Benchmark definition
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion]
+# [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 48, 2, False, False, 0.2, 0.5],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1  ],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  ],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  ],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  ],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  ],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5],
+    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header.
 CONFIG_COLUMNS = ['Strategy', 'Model', 'First step', 'NIF', 'N_conv',
                   'use cbam', 'use augmentation', 'probability of augmentation',
-                  'dataset portion']
+                  'dataset portion', 'batch size']
 
 # Metrics computed for each trained configuration.
 RESULT_COLUMNS = ['n_params', 'final_train_loss', 'final_val_loss',
@@ -102,18 +103,18 @@ with open(RESULTS_ROOT / name_benchmark_file, TYPE_WRITE, newline='') as benchma
     if RESET_BENCHMARK:
         writer.writerow(CONFIG_COLUMNS + RESULT_COLUMNS)
 
-    for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA in list_benchmark:
+    for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE in list_benchmark:
 
         print("\n" + "═" * 79)
         print(f"Config: {NETWORK} | NIF={NIF} | N_conv={N_CONV} | cbam={USE_CBAM} | "
-              f"aug={USE_AUGMENTATION} | portion={int(PORTION_DATA*100)}%")
+              f"aug={USE_AUGMENTATION} | portion={int(PORTION_DATA*100)}% | bs={BATCH_SIZE}")
         print("═" * 79)
 
         # ── Output directories for this configuration (mirrors main.py) ──
         if NETWORK == 'U-Net':
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}%'
         else:
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
         RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
         ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
@@ -200,7 +201,7 @@ with open(RESULTS_ROOT / name_benchmark_file, TYPE_WRITE, newline='') as benchma
         # ── Store the results ──
         writer.writerow([
             STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV,
-            USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA,
+            USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE,
             n_params,
             train_losses[-1] if train_losses else float('nan'),
             val_losses[-1]   if val_losses   else float('nan'),
