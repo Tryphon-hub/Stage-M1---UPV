@@ -1,0 +1,2 @@
+Strategy,Model,First step,NIF,N_conv,use cbam,use augmentation,probability of augmentation,dataset portion,n_params,final_train_loss,final_val_loss,sMAPE,MAE_sx,MAE_sy,MAE_txy,training_time_s
+Only UNet,U-Net,UNet,48,2,False,False,0.2,0.5,17465907,1.272281855275303,1.101289223683508,1.101289223683508,0.41564130783081055,0.4109143316745758,0.23104546964168549,445.5952773094177

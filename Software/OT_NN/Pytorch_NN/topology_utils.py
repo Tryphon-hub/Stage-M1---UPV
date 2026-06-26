@@ -223,24 +223,73 @@ def is_converged_compliance(sample_a: IterationSample, sample_b: IterationSample
         return False
     
 def is_converged_window(List_iterations, window=5, tol=1e-3):
+    """
+    Check convergence by comparing the latest compliance to the mean of the
+    previous `window` iterations. This smooths out the iteration-to-iteration
+    noise of the U-Net predictions compared to a raw two-point comparison.
+
+    Parameters
+    ----------
+    List_iterations : list[IterationSample] — optimization history.
+    window          : int   — number of previous iterations averaged.
+    tol             : float — relative tolerance on the compliance.
+
+    Returns
+    -------
+    bool — True if the relative deviation is below `tol`.
+    """
+    # Not enough history yet to fill the window plus the current point.
     if len(List_iterations) < window + 1:
         return False
     c_values = np.array([s.c.item() for s in List_iterations[-(window+1):]])
-    c_window = c_values[:-1]  # les N précédents
+    c_window = c_values[:-1]  # the `window` previous compliances
     c_last = c_values[-1]
     mean_c = c_window.mean()
     return abs(c_last - mean_c) / abs(mean_c) < tol
 
 
 def is_converged_density(sample_a, sample_b, tol=0.01):
+    """
+    Check convergence based on the largest per-element density change between
+    two successive iterations.
+
+    Parameters
+    ----------
+    sample_a, sample_b : IterationSample — consecutive iterations.
+    tol                : float — tolerance on the maximum absolute change.
+
+    Returns
+    -------
+    bool — True if the maximum density change is below `tol`.
+    """
     change = (sample_b.Densities - sample_a.Densities).abs().max().item()
     return change < tol
 
 
 def is_converged_combined(List_iterations, window=5, tol_c=1e-3, tol_rho=0.01, enabled=True):
+    """
+    Combined convergence test used by the main optimization loop.
+
+    When `enabled` is True, convergence requires BOTH a stable compliance
+    (windowed criterion) AND a stable density field. When `enabled` is False,
+    it falls back to the simpler two-point compliance criterion (used once the
+    optimization has switched to FEM-only mode, where the signal is less noisy).
+
+    Parameters
+    ----------
+    List_iterations : list[IterationSample] — optimization history.
+    window          : int   — window size for the compliance criterion.
+    tol_c           : float — relative tolerance on the compliance.
+    tol_rho         : float — tolerance on the density change.
+    enabled         : bool  — enable the combined (compliance + density) test.
+
+    Returns
+    -------
+    bool — True if converged.
+    """
     conv_c = is_converged_window(List_iterations, window, tol_c)
     conv_rho = is_converged_density(List_iterations[-2], List_iterations[-1], tol_rho)
-    
+
     if enabled:
         return conv_c and conv_rho
     else:
@@ -248,15 +297,44 @@ def is_converged_combined(List_iterations, window=5, tol_c=1e-3, tol_rho=0.01, e
 
 
 def is_converged_trend(List_iterations, window=5, tol=1e-4):
+    """
+    Check convergence from the slope of a linear fit of the last `window`
+    compliances: a near-flat trend (relative slope below `tol`) signals
+    convergence.
+
+    Parameters
+    ----------
+    List_iterations : list[IterationSample] — optimization history.
+    window          : int   — number of points used for the linear fit.
+    tol             : float — relative tolerance on the slope.
+
+    Returns
+    -------
+    bool — True if the normalized slope magnitude is below `tol`.
+    """
     if len(List_iterations) < window:
         return False
     c_values = np.array([s.c.item() for s in List_iterations[-window:]])
     x = np.arange(window)
-    slope = np.polyfit(x, c_values, 1)[0]
+    slope = np.polyfit(x, c_values, 1)[0]  # first-order coefficient = slope
     return abs(slope) / abs(c_values.mean()) < tol
 
 
 def is_converged_std(List_iterations, window=5, tol=1e-3):
+    """
+    Check convergence from the coefficient of variation (std / mean) of the
+    compliance over the last `window` iterations.
+
+    Parameters
+    ----------
+    List_iterations : list[IterationSample] — optimization history.
+    window          : int   — number of points used.
+    tol             : float — tolerance on the relative standard deviation.
+
+    Returns
+    -------
+    bool — True if the relative std is below `tol`.
+    """
     if len(List_iterations) < window:
         return False
     c_values = np.array([s.c.item() for s in List_iterations[-window:]])
@@ -280,6 +358,17 @@ def is_increasing_trend(List_iterations, window=5, threshold=0.0):
 #%%  Error quantification                                  #
 
 def extract_stress_maps(y):
+    """
+    Split a network stress output tensor into its three 2D component maps.
+
+    Parameters
+    ----------
+    y : torch.Tensor [1, 3, 32, 32] — stacked stress channels (σx, σy, τxy).
+
+    Returns
+    -------
+    tuple(np.ndarray, np.ndarray, np.ndarray) — the (σx, σy, τxy) maps [32, 32].
+    """
     sx  = y[0, 0].cpu().numpy()   # σx  [32, 32]
     sy  = y[0, 1].cpu().numpy()   # σy  [32, 32]
     txy = y[0, 2].cpu().numpy()   # τxy [32, 32]
@@ -287,11 +376,23 @@ def extract_stress_maps(y):
 
 
 def visualize_in_out(y_true, y_pred):
-        
+    """
+    Plot a 2x3 grid comparing ground-truth and predicted stress fields
+    (σx, σy, τxy) on a shared color scale, with a single common colorbar.
+
+    Parameters
+    ----------
+    y_true : torch.Tensor [1, 3, 32, 32] — reference stress fields.
+    y_pred : torch.Tensor [1, 3, 32, 32] — predicted stress fields.
+
+    Returns
+    -------
+    None — displays a matplotlib figure.
+    """
     # Inputs
-    rho   = x[0, 0].cpu().numpy()        # density        [32, 32]
-    tx    = x[0, 1].cpu().numpy()        # traction tx    [32, 32]
-    ty    = x[0, 2].cpu().numpy()        # traction ty    [32, 32]
+    # rho   = x[0, 0].cpu().numpy()        # density        [32, 32]
+    # tx    = x[0, 1].cpu().numpy()        # traction tx    [32, 32]
+    # ty    = x[0, 2].cpu().numpy()        # traction ty    [32, 32]
 
 
     # Ground truth outputs
@@ -333,7 +434,20 @@ def visualize_in_out(y_true, y_pred):
 
 
 def plot_error(y_true, y_pred, TYPE):
+    """
+    Plot the per-pixel error map between predicted and ground-truth stress
+    fields for each component (σx, σy, τxy).
 
+    Parameters
+    ----------
+    y_true : torch.Tensor [1, 3, 32, 32] — reference stress fields.
+    y_pred : torch.Tensor [1, 3, 32, 32] — predicted stress fields.
+    TYPE   : str — error type: 'MAE', 'MSE' or 'SMAPE'.
+
+    Returns
+    -------
+    None — displays a matplotlib figure.
+    """
     # Ground truth outputs
     sx_true, sy_true, txy_true = extract_stress_maps(y_true)
 
@@ -374,13 +488,26 @@ def plot_error(y_true, y_pred, TYPE):
     cbar_ax = fig.add_axes([0.91, 0.15, 0.02, 0.7])
     fig.colorbar(im, cax=cbar_ax)
 
-    plt.suptitle(f'{TYPE} — Distribution i={i}, iteration j={j}', fontsize=14)
     plt.show()
 
 
 # %% Error calculation
 
 def ErrorMetrics_1D(y_true, y_pred, TYPE):
+    """
+    Compute a scalar error metric per stress component (σx, σy, τxy) over the
+    whole field.
+
+    Parameters
+    ----------
+    y_true : torch.Tensor [1, 3, 32, 32] — reference stress fields.
+    y_pred : torch.Tensor [1, 3, 32, 32] — predicted stress fields.
+    TYPE   : str — metric: 'MSE', 'MAE', 'SMAPE' or 'R2'.
+
+    Returns
+    -------
+    tuple(float, float, float) — the (σx, σy, τxy) metric values.
+    """
     sx=y_true[0, 0].cpu().numpy()        # σx  [32, 32]
     sy=y_true[0, 1].cpu().numpy()        # σy  [32, 32]
     txy=y_true[0, 2].cpu().numpy()       # τxy [32, 32]
@@ -456,7 +583,25 @@ def convolve(img, kernel: int, pad: bool, strides: (int, int)):
 
 
 def ErrorMetrics_Kernel(y_true, y_pred, kernel_size:int, pad:bool, strides:(int, int), TYPE:str,plot=True):
+    """
+    Compute a spatially-smoothed error per stress component by convolving the
+    per-pixel error map with a ones kernel, then averaging. This highlights
+    localized error clusters rather than isolated pixels.
 
+    Parameters
+    ----------
+    y_true      : torch.Tensor [1, 3, 32, 32] — reference stress fields.
+    y_pred      : torch.Tensor [1, 3, 32, 32] — predicted stress fields.
+    kernel_size : int   — side length of the square averaging kernel.
+    pad         : bool  — pad the error map to preserve spatial size.
+    strides     : (int, int) — (stride_h, stride_w) of the convolution.
+    TYPE        : str   — per-pixel error type: 'MAE', 'MSE' or 'SMAPE'.
+    plot        : bool  — display the smoothed error maps.
+
+    Returns
+    -------
+    tuple(float, float, float) — mean smoothed error for (σx, σy, τxy).
+    """
     # Ground truth outputs
     sx_true, sy_true, txy_true = extract_stress_maps(y_true)
 
@@ -746,14 +891,50 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
 
 # Full process
 
-def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100, 
+def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
                                RULE=' ', TYPE_FIRST='FEM', threshold=0.05, N_end_FEM_iterations=0,
-                               window_Unet=5, window_FEM=2, tol_c=1e-3, tol_rho=0.01, 
+                               window_Unet=5, window_FEM=2, tol_c=1e-3, tol_rho=0.01,
                                end_FEM=False,):
-    
+    """
+    Run a full hybrid topology optimization starting from `sample`, mixing
+    U-Net and FEM stress evaluations according to `RULE`.
+
+    The `RULE` string selects the hybrid strategy:
+      - 'Only FEM'              : every iteration uses FEM.
+      - '<n> Unet - <m> FEM'    : periodic pattern of n U-Net then m FEM steps.
+      - 'Decreasing compliance' : U-Net until the compliance starts rising,
+                                  then switch permanently to FEM.
+      - anything else           : U-Net only.
+
+    The first iteration uses `TYPE_FIRST`; the core loop is delegated to
+    `_run_while_loop`, and `N_end_FEM_iterations` extra FEM steps can be
+    appended at the end.
+
+    Parameters
+    ----------
+    sample            : IterationSample — initial state.
+    eng               : matlab.engine — MATLAB engine.
+    model             : trained network for stress prediction.
+    N_in              : int — number of U-Net input channels (1 or 3).
+    N_max_iterations  : int — iteration cap.
+    RULE              : str — hybrid strategy selector (see above).
+    TYPE_FIRST        : str — 'UNet' or 'FEM' for the first step.
+    threshold         : float — slope threshold for the increasing-trend test.
+    N_end_FEM_iterations : int — extra FEM steps appended at convergence.
+    window_Unet/window_FEM : int — convergence window sizes per mode.
+    tol_c, tol_rho    : float — compliance / density convergence tolerances.
+    end_FEM           : bool — append a FEM step when the U-Net converges.
+
+    Returns
+    -------
+    tuple(list[IterationSample], list[int])
+        List_iterations : every computed iteration.
+        List_count_FEM  : indices of the iterations computed with FEM.
+    """
     List_count_FEM = []
     count_unet = 0
 
+    # Detect a periodic "n Unet - m FEM" rule and extract n and m.
     match_Periodic = re.match(r'(\d+) Unet - (\d+) FEM', RULE)
     n_unet, m_fem = None, None
 
@@ -839,7 +1020,27 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
 
 # %% Convergence study
 def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear'):
-    f_text=1.25 # text size multiplicator 
+    """
+    Plot the compliance convergence of a single optimization: the full-FEM
+    reference curve against the hybrid U-Net/FEM run, with the FEM steps of the
+    hybrid run highlighted. Both curves are normalized by the initial FEM
+    compliance.
+
+    Parameters
+    ----------
+    List_Iterations_Unet : list[IterationSample] — hybrid run history.
+    IterationDataset_FEM : IterationDataset — full-FEM reference run.
+    List_count_FEM       : list[int] — indices of FEM steps in the hybrid run.
+    NETWORK              : str — network name, used in labels.
+    PLOT                 : bool — kept for API symmetry (figure always drawn).
+    SCALE                : str — y-axis scale ('linear' or 'log').
+
+    Returns
+    -------
+    tuple(np.ndarray, np.ndarray) — the normalized (FEM_c, UNet_c) curves,
+        each as an array of [iteration, compliance] rows.
+    """
+    f_text=1.25 # text size multiplicator
 
 
     FEM_c=[]
@@ -1047,13 +1248,28 @@ def density_evolution(List_iterations, List_count_FEM, step=5):
 #%% Compare NN and FEM results for a given force distribution
 
 def compare_NN_FEM(sample_NN, sample_FEM):
-    
+    """
+    Display the optimized densities of a U-Net run and a FEM run side by side,
+    each overlaid with its boundary traction arrows, sharing a common density
+    colorbar and a reference force-scale arrow.
+
+    Parameters
+    ----------
+    sample_NN  : IterationSample — U-Net optimized result.
+    sample_FEM : IterationSample — FEM optimized result.
+
+    Returns
+    -------
+    None — displays a matplotlib figure.
+    """
     fig, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     scale_force = 10
     cadre       = int(scale_force)
 
     def plot_density(ax, sample, title):
+        """Draw one sample's density map plus its traction arrows on `ax`;
+        returns the AxesImage so the caller can build a shared colorbar."""
         topo     = sample.Densities.squeeze().numpy()
         img_size = int(np.sqrt(len(topo)))
         img      = topo.reshape(img_size, img_size)
@@ -1125,8 +1341,8 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
     labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
 
     # Aggregate over SIZE_LOOP
-    mean_FEM     = Tab_ratio_FEM.mean(axis=1)
-    std_FEM      = Tab_ratio_FEM.std(axis=1)
+    mean_FEM     = (Tab_ratio_FEM*100).mean(axis=1)
+    std_FEM      = (Tab_ratio_FEM*100).std(axis=1)
     mean_err_pct = (Tab_err_rel_c * 100).mean(axis=1)
     std_err_pct  = (Tab_err_rel_c * 100).std(axis=1)
 
@@ -1150,7 +1366,7 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
     # Labels on bars
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.01,
-                 f'{100*val:.1f}%', ha='left', va='bottom', fontsize=9, color='tab:blue')
+                 f'{val:.1f}%', ha='left', va='bottom', fontsize=9, color='tab:blue')
 
     for bar, val in zip(bars2, mean_err_pct):
         ax2.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.001,
@@ -1177,7 +1393,21 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
 
 
 class ProgressWindow:
+    """
+    Small Tkinter window showing benchmark progress (step count + elapsed time).
+
+    The Tk root is created and updated from the GUI thread (see `run_window`),
+    while the worker thread only mutates counters via `increment()` / `close()`.
+    """
+
     def __init__(self, total):
+        """Initialize the counters; the Tk window itself is built later in the
+        GUI thread by `_setup()`.
+
+        Parameters
+        ----------
+        total : int — total number of steps to reach 100%.
+        """
         self.total = total
         self.step  = 0
         self.start = time.time()
@@ -1185,6 +1415,8 @@ class ProgressWindow:
         self.root = None  # created inside the GUI thread by _setup()
 
     def _setup(self):
+        """Build the Tk window and its labels, then start the refresh loop.
+        Must be called from the GUI thread."""
         self.root = tk.Tk()
         self.root.title("Benchmark progress")
         self.root.geometry("300x120")
@@ -1199,6 +1431,8 @@ class ProgressWindow:
         self._update()
 
     def _update(self):
+        """Refresh the step/time labels every 500 ms, and destroy the window
+        once `running` has been cleared by `close()`."""
         if not self.running:
             self.root.destroy()
             return
@@ -1210,12 +1444,27 @@ class ProgressWindow:
         self.root.after(500, self._update)
 
     def increment(self):
+        """Advance the step counter by one (called from the worker thread)."""
         self.step += 1
 
     def close(self):
+        """Request the window to close. Thread-safe: only clears a flag; the
+        actual `root.destroy()` happens in `_update()` on the GUI thread."""
         # Signal the GUI thread to destroy the window; destruction happens in _update()
         self.running = False
 
 def run_window(win):
+    """
+    GUI-thread entry point for a ProgressWindow: build the window and enter the
+    Tk main loop. Intended to be the target of a daemon thread.
+
+    Parameters
+    ----------
+    win : ProgressWindow — the progress window to run.
+
+    Returns
+    -------
+    None
+    """
     win._setup()
     win.root.mainloop()
