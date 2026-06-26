@@ -8,11 +8,21 @@ from train import sMAPELoss, _batch_to_tensors, _forward
 def evaluate(model, loader, device=None, eps: float = 1e-6,
              SAVE_DIR=None, name_file=None, NETWORK: str = 'U-Net'):
     """
-    Calcule la sMAPE moyenne et le MAE par composante (σx, σy, τxy).
+    Compute the mean sMAPE over a loader and the per-component MAE (σx, σy, τxy).
 
     Parameters
     ----------
-    NETWORK : 'U-Net' ou 'BE_UNet'
+    model     : nn.Module — trained network.
+    loader    : DataLoader — evaluation data.
+    device    : torch.device | None — auto-selected (CUDA if available).
+    eps       : float — sMAPE denominator epsilon.
+    SAVE_DIR, name_file : unused here (kept for signature symmetry with the
+                          plotting functions).
+    NETWORK   : str — 'U-Net' or 'BE_UNet'.
+
+    Returns
+    -------
+    dict — {'smape', 'mae_sx', 'mae_sy', 'mae_txy'}.
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -33,6 +43,7 @@ def evaluate(model, loader, device=None, eps: float = 1e-6,
             pred, y    = _forward(model, tensors, NETWORK)
 
             total_smape += criterion(pred, y).item()
+            # Mean abs error per channel, averaged over batch and spatial dims.
             mae_sum     += (pred - y).abs().mean(dim=(0, 2, 3)).cpu()
             n_batches   += 1
 
@@ -40,7 +51,7 @@ def evaluate(model, loader, device=None, eps: float = 1e-6,
     mae_mean   = mae_sum / n_batches
 
     print("─" * 40)
-    print(f"  sMAPE moyen   : {smape_mean:.5f}")
+    print(f"  mean sMAPE    : {smape_mean:.5f}")
     for i, name in enumerate(components):
         print(f"  MAE {name:<4}      : {mae_mean[i]:.5f}")
     print("─" * 40)
@@ -56,11 +67,22 @@ def evaluate(model, loader, device=None, eps: float = 1e-6,
 def visualize(model, loader, device=None, n: int = 3,
               SAVE_DIR=None, name_file=None, NETWORK: str = 'U-Net'):
     """
-    Affiche n exemples côte à côte : GT vs prédiction pour σx, σy, τxy.
+    Display n examples side by side: ground truth vs prediction for σx, σy, τxy.
+    Each (GT, prediction) pair shares a common color scale.
 
     Parameters
     ----------
-    NETWORK : 'U-Net' ou 'BE_UNet'
+    model     : nn.Module — trained network.
+    loader    : DataLoader — source of the displayed batch.
+    device    : torch.device | None — auto-selected (CUDA if available).
+    n         : int — number of examples to show (capped by batch size).
+    SAVE_DIR  : path-like | None — base directory to save the figure.
+    name_file : str | None — sub-directory name; with SAVE_DIR, enables saving.
+    NETWORK   : str — 'U-Net' or 'BE_UNet'.
+
+    Returns
+    -------
+    None — displays (and optionally saves) a matplotlib figure.
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -103,7 +125,7 @@ def visualize(model, loader, device=None, n: int = 3,
             axes[comp, col_pred].axis('off')
             fig.colorbar(im_pr, ax=axes[comp, col_pred], fraction=0.046)
 
-    plt.suptitle(f"GT vs Prédiction — {NETWORK}", fontsize=14)
+    plt.suptitle(f"GT vs Prediction — {NETWORK}", fontsize=14)
     plt.tight_layout()
 
     if SAVE_DIR is not None and name_file is not None:
@@ -117,11 +139,21 @@ def visualize(model, loader, device=None, n: int = 3,
 def visualize_error(model, loader, device=None, n: int = 3,
                     SAVE_DIR=None, name_file=None, NETWORK: str = 'U-Net'):
     """
-    Affiche les cartes d'erreur absolue |GT - Pred| pour σx, σy, τxy.
+    Display the absolute error maps |GT - Pred| for σx, σy, τxy over n examples.
 
     Parameters
     ----------
-    NETWORK : 'U-Net' ou 'BE_UNet'
+    model     : nn.Module — trained network.
+    loader    : DataLoader — source of the displayed batch.
+    device    : torch.device | None — auto-selected (CUDA if available).
+    n         : int — number of examples to show (capped by batch size).
+    SAVE_DIR  : path-like | None — base directory to save the figure.
+    name_file : str | None — sub-directory name; with SAVE_DIR, enables saving.
+    NETWORK   : str — 'U-Net' or 'BE_UNet'.
+
+    Returns
+    -------
+    None — displays (and optionally saves) a matplotlib figure.
     """
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -148,7 +180,7 @@ def visualize_error(model, loader, device=None, n: int = 3,
             axes[comp, ex].axis('off')
             fig.colorbar(im, ax=axes[comp, ex], fraction=0.046)
 
-    plt.suptitle(f"Erreur absolue |GT − Pred| — {NETWORK}", fontsize=14)
+    plt.suptitle(f"Absolute error |GT − Pred| — {NETWORK}", fontsize=14)
     plt.tight_layout()
 
     if SAVE_DIR is not None and name_file is not None:

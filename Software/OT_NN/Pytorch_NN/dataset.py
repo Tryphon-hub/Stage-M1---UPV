@@ -49,6 +49,21 @@ import matplotlib.pyplot as plt
 #%% Useful functions
 
 def load_mat(filepath: str) -> dict:
+    """
+    Load a MATLAB .mat file into a dict, transparently handling both formats.
+
+    Tries scipy.io.loadmat first (MATLAB v7 and earlier); on the v7.3/HDF5
+    format it falls back to h5py and rebuilds the expected keys, undoing the
+    axis transposition that HDF5 applies relative to MATLAB.
+
+    Parameters
+    ----------
+    filepath : str — path to the .mat file.
+
+    Returns
+    -------
+    dict — the dataset variables keyed by name.
+    """
     import scipy.io
     import h5py
 
@@ -194,6 +209,7 @@ class Dataset_TopOpt(Dataset):
         }
 
     def __repr__(self):
+        """Return a short summary: number of distributions and their NumIts."""
         numits = np.atleast_1d(self.NumIts).tolist()
         return (f"Dataset_TopOpt\n"
                 f"  Num distributions : {len(numits)}\n"
@@ -479,6 +495,7 @@ class IterationDataset(Dataset):
         return self.dataset[self.index[idx]]
 
     def __repr__(self):
+        """Return a short summary: number of samples and the (i, j) index list."""
         return (f"IterationDataset\n"
                 f"  Sample       : {len(self.index)}\n"
                 f"  Index (i,j)  : {self.index}")
@@ -589,6 +606,7 @@ class IterationSample:
         self.UNet_Stress       = None  # Filled after prediction
 
     def __repr__(self):
+        """Return a multi-line summary of the sample's tensor shapes and scalars."""
         return (f"IterationSample\n"
                 f"  Tractions         : {tuple(self.Tractions.shape)}\n"
                 f"  Densities         : {tuple(self.Densities.shape)}\n"
@@ -782,7 +800,7 @@ class IterationSample:
             [sigma_x, sigma_y, tau_xy],
             ['σ_xx', 'σ_yy', 'τ_xy']
         ):
-            vmax = np.abs(img_data).max()   # échelle symétrique autour de 0
+            vmax = np.abs(img_data).max()   # symmetric scale around 0
             im = ax.imshow(img_data, cmap='RdBu', origin='lower',
                         extent=[0, img_size, 0, img_size],
                         vmin=-vmax, vmax=vmax)
@@ -813,10 +831,26 @@ class IterationSample:
 
 #%% Dataset for accelerated process
 class AcceleratedDataset(Dataset):
+    """
+    Lightweight dataset keeping only the converged (last-iteration) density of
+    each case plus its tractions and first-image energy.
+
+    It is used to accelerate a new optimization: given an unoptimized sample,
+    `closest_point` finds the case whose energy field is most similar and reuses
+    its converged geometry as a warm start. `augment` builds the full D4
+    (8-fold) symmetric expansion of the dataset.
+    """
 
     def __init__(self, dataset):
+        """
+        Parameters
+        ----------
+        dataset : Dataset_TopOpt — source dataset; only the last density of each
+            case is kept, together with all tractions and energies.
+        """
         self.Ener = dataset.Ener
         self.Tractions = dataset.Tractions
+        # Keep only the converged (last) density of each case → (N, NumEls)
         self.Densities = np.array([dataset.Densities[i][:, -1] for i in range(len(dataset))])  # (N, 1024)
         self.size = len(dataset)
 
@@ -830,6 +864,7 @@ class AcceleratedDataset(Dataset):
         return self.size
 
     def __repr__(self):
+        """Return a short summary of the dataset size and array shapes."""
         ener_shape = self.Ener[0].shape if len(self) else None
         return (f"AcceleratedDataset\n"
                 f"  Num distributions : {len(self)}\n"
@@ -840,7 +875,19 @@ class AcceleratedDataset(Dataset):
 
     def closest_point(self, sample:IterationSample):
         '''
-        Find the closest sample in terms on energy
+        Find the dataset case whose first-image energy field is closest (in
+        squared-error sense) to that of `sample`, and return a copy of `sample`
+        whose density is replaced by that case's converged geometry (warm start).
+
+        Parameters
+        ----------
+        sample : IterationSample — query sample (uses its Ener field).
+
+        Returns
+        -------
+        tuple(int, IterationSample)
+            index_min_ener : index of the closest dataset case.
+            new_sample     : copy of `sample` with the matched converged density.
         '''
 
         Ener_dataset = self.Ener[0] # 1024 x 6
@@ -1132,7 +1179,23 @@ def random_augment(sample, rotation_90, symmetry_x, symmetry_y):
     return sample
 
 class AugmentedIterationDataset(torch.utils.data.Dataset):
+    """
+    Wrapper that applies on-the-fly random D4 augmentation to a base dataset.
+
+    With probability `p` (and only when `enabled`), each fetched sample is
+    transformed by a random rotation/symmetry before being returned, so the
+    network sees fresh orientations every epoch without growing the stored data.
+    """
     def __init__(self, base_dataset, p, rotation_90, symmetry_x, symmetry_y, enabled=True):
+        """
+        Parameters
+        ----------
+        base_dataset : Dataset — underlying dataset returning sample dicts.
+        p            : float — probability of augmenting a given sample.
+        rotation_90, symmetry_x, symmetry_y : callables — the transform
+            functions, injected to avoid a hard import dependency.
+        enabled      : bool — master switch (disable for validation/eval).
+        """
         self.base        = base_dataset
         self.p           = p
         self.enabled      = enabled
@@ -1141,9 +1204,11 @@ class AugmentedIterationDataset(torch.utils.data.Dataset):
         self.symmetry_y  = symmetry_y
 
     def __len__(self):
+        """Return the number of samples (same as the base dataset)."""
         return len(self.base)
 
     def __getitem__(self, idx):
+        """Fetch sample `idx`, randomly augmenting it with probability `p`."""
         sample_dict = self.base[idx]
 
         if self.enabled and np.random.rand() < self.p:
@@ -1154,6 +1219,16 @@ class AugmentedIterationDataset(torch.utils.data.Dataset):
 
         return sample_dict
 def permutation_tractions(sample, i , j):
+    """
+    Swap traction nodes i and j in place (both tx and ty components).
+
+    Helper used by the symmetry transforms to remap the 8 boundary nodes.
+
+    Parameters
+    ----------
+    sample : IterationSample — modified in place.
+    i, j   : int — node indices to swap.
+    """
     t=sample.Tractions[0][:,i].clone()
 
     sample.Tractions[0][:,i] = sample.Tractions[0][:,j]
@@ -1161,9 +1236,24 @@ def permutation_tractions(sample, i , j):
 
 
 def symmetry_x(sample):
+    """
+    Apply a horizontal mirror (reflection about the vertical axis) to a sample,
+    transforming every field consistently: density, the 8 traction nodes
+    (permutation + tx sign flip), the stress fields (mirror + τxy sign flip),
+    the energy (mirror, no sign change since energy is quadratic) and, if
+    present, the U-Net stress.
+
+    Parameters
+    ----------
+    sample : IterationSample — source sample (left unchanged; a copy is returned).
+
+    Returns
+    -------
+    IterationSample — mirrored copy.
+    """
     new_sample=sample.copy()
 
-    # Density symmetry 
+    # Density symmetry
     rho_2d = new_sample.Densities.squeeze().reshape(32, 32)
     rho_flipped = torch.flip(rho_2d, dims=(1,))
     new_sample.Densities = rho_flipped.reshape(1, -1)
@@ -1232,9 +1322,23 @@ def symmetry_x(sample):
 
 
 def symmetry_y(sample):
+    """
+    Apply a vertical mirror (reflection about the horizontal axis) to a sample,
+    transforming every field consistently: density, the 8 traction nodes
+    (permutation + ty sign flip), the stress fields (mirror + τxy sign flip),
+    the energy (mirror, no sign change) and, if present, the U-Net stress.
+
+    Parameters
+    ----------
+    sample : IterationSample — source sample (left unchanged; a copy is returned).
+
+    Returns
+    -------
+    IterationSample — mirrored copy.
+    """
     new_sample=sample.copy()
 
-    # Density symmetry 
+    # Density symmetry
     rho_2d = new_sample.Densities.squeeze().reshape(32, 32)
     rho_flipped = torch.flip(rho_2d, dims=(0,))
     new_sample.Densities = rho_flipped.reshape(1, -1)
@@ -1303,16 +1407,32 @@ def symmetry_y(sample):
 
 
 def rotation_90(sample, N_rot=1):
+    """
+    Rotate a sample by N_rot * 90 degrees, transforming every field
+    consistently. The image fields (density, stress, energy) rotate in the
+    opposite direction to the traction nodes; on odd rotations the σx/σy (and
+    energy xx/yy) channels swap and τxy changes sign, while the traction nodes
+    are both permuted and rotated ((tx, ty) → (-ty, tx)).
+
+    Parameters
+    ----------
+    sample : IterationSample — source sample (left unchanged; a copy is returned).
+    N_rot  : int — number of 90-degree steps (taken modulo 4).
+
+    Returns
+    -------
+    IterationSample — rotated copy.
+    """
     new_sample = sample.copy()
     k       = N_rot % 4
-    k_image = (-k) % 4   # image tourne dans le sens oppose des tractions
+    k_image = (-k) % 4   # the image rotates in the opposite direction to the tractions
 
     # ── Density - image rotation ──────────────────────────────────────────
     rho_2d = new_sample.Densities.squeeze().reshape(32, 32)
     rho_rot = torch.rot90(rho_2d, k_image, dims=(0, 1))
     new_sample.Densities = rho_rot.reshape(1, -1)
 
-    # ── Traction nodes - permutation (sens inchange, deja valide) ───────────
+    # ── Traction nodes - permutation (direction unchanged, already validated) ──
     Replacements = (
         (0, 2), (7, 1), (6, 0), (5, 7),
         (4, 6), (3, 5), (2, 4), (1, 3),
@@ -1325,14 +1445,14 @@ def rotation_90(sample, N_rot=1):
         T_old = T_new
     new_sample.Tractions[0] = T_old
 
-    # ── Traction nodes - sign change (sens inchange, deja valide) ───────────
+    # ── Traction nodes - sign change (direction unchanged, already validated) ──
     for _ in range(k):
         tx_old = new_sample.Tractions[0][0, :].clone()
         ty_old = new_sample.Tractions[0][1, :].clone()
         new_sample.Tractions[0][0, :] = -ty_old
         new_sample.Tractions[0][1, :] =  tx_old
 
-    # ── Stress - image rotation (meme sens que la densite) ─────────────────
+    # ── Stress - image rotation (same direction as the density) ────────────
     sx_2d  = new_sample.FEM_Stress[:, 0].reshape(32, 32)
     sy_2d  = new_sample.FEM_Stress[:, 1].reshape(32, 32)
     txy_2d = new_sample.FEM_Stress[:, 3].reshape(32, 32)
@@ -1404,14 +1524,14 @@ if __name__ == '__main__':
     print("Current working directory:", Path.cwd())
 
     # Reference Dataset
-    path = (Path.cwd() / 'HeavyFiles/data/dataset_10k.mat').resolve()
+    path = (Path.cwd() / 'HeavyFiles/data/dataset_macro.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
     data_iter = IterationDataset(dataset)
     acc_data = AcceleratedDataset(dataset)
 
     # Test dataset
-    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_10k_05.mat').resolve()
+    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
     data_test = load_mat(path_test)
     dataset_test = Dataset_TopOpt(data_test)
     data_iter_test = IterationDataset(dataset_test)
