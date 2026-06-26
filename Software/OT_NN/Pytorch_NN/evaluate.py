@@ -110,8 +110,7 @@ def visualize(model, loader, device=None, n: int = 3,
         save_dir = SAVE_DIR / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "visualisation_contraintes.png", dpi=150)
-
-
+    plt.close()
 
 
 def visualize_error(model, loader, device=None, n: int = 3,
@@ -155,4 +154,5 @@ def visualize_error(model, loader, device=None, n: int = 3,
         save_dir = SAVE_DIR / name_file
         save_dir.mkdir(parents=True, exist_ok=True)
         plt.savefig(save_dir / "erreur_contraintes.png", dpi=150)
+    plt.close()
 
