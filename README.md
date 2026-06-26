@@ -25,6 +25,9 @@ My contributions to this work are implemented in Pytorch_NN/.
 │   ├── main.py               # Entry point
 │   ├── topology_utils.py     # Topology optimisation utilities
 │   ├── TopOpt_process.py     # Main topology optimisation script
+│   ├── data_augmentation.py  # Functions for data augmentation (rotations, symmetries)
+│   ├── TopOpt_benchmark.py   # Compares different architectures
+│   ├── training_benchmark.py # Trains different models and saves the results
 │   │
 │   ├── results/
 │   │   ├── U-Net/
