@@ -3,16 +3,26 @@ import torch
 import torch.nn as nn
 
 
-# ─── Blocs de base ───────────────────────────────────────────────────────────
+# ─── Basic blocks ────────────────────────────────────────────────────────────
 
 class MultipleConv(nn.Module):
-    """N_conv conv par niveau"""
+    """
+    A stack of N_conv (Conv2d 3x3 → BatchNorm → ReLU) layers at one U-Net level.
+    The first conv maps in_channels → out_channels; the rest keep out_channels.
+    """
     def __init__(self, in_channels, out_channels, N_conv=3):
+        """
+        Parameters
+        ----------
+        in_channels  : int — input channels.
+        out_channels : int — output channels (kept after the first conv).
+        N_conv       : int — number of conv-bn-relu layers in the block.
+        """
         super().__init__()
 
         layers = []
         for k in range(N_conv):
-            c_in = in_channels if k == 0 else out_channels   # 1ère conv : in→out, suivantes : out→out
+            c_in = in_channels if k == 0 else out_channels   # first conv: in→out, others: out→out
             layers += [
                 nn.Conv2d(c_in, out_channels, kernel_size=3, padding=1),
                 nn.BatchNorm2d(out_channels),
@@ -22,11 +32,20 @@ class MultipleConv(nn.Module):
         self.block = nn.Sequential(*layers)
 
     def forward(self, x):
+        """Apply the conv-bn-relu stack to `x`."""
         return self.block(x)
 
 
 class Down(nn.Module):
+    """Encoder step: 2x2 max-pooling (halves H, W) followed by a MultipleConv."""
     def __init__(self, in_channels, out_channels, N_conv=3):
+        """
+        Parameters
+        ----------
+        in_channels  : int — input channels.
+        out_channels : int — output channels after the conv block.
+        N_conv       : int — number of conv layers in the block.
+        """
         super().__init__()
         self.block = nn.Sequential(
             nn.MaxPool2d(2),
@@ -34,30 +53,49 @@ class Down(nn.Module):
         )
 
     def forward(self, x):
+        """Downsample then convolve `x`."""
         return self.block(x)
 
 
 class Up(nn.Module):
+    """
+    Decoder step: transposed-conv upsampling (doubles H, W and halves channels),
+    concatenation with the encoder skip connection, then a MultipleConv.
+    """
     def __init__(self, in_channels, out_channels, N_conv=3):
+        """
+        Parameters
+        ----------
+        in_channels  : int — channels of the deeper feature map (before upsampling).
+        out_channels : int — output channels after the conv block.
+        N_conv       : int — number of conv layers in the block.
+        """
         super().__init__()
         self.up   = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
         self.conv = MultipleConv(in_channels, out_channels, N_conv=N_conv)
 
     def forward(self, x, skip):
+        """Upsample `x`, concatenate the `skip` feature map, then convolve."""
         x = self.up(x)
         x = torch.cat([skip, x], dim=1)
         return self.conv(x)
 
 
-# ─── Module CBAM ─────────────────────────────────────────────────────────────
+# ─── CBAM module ─────────────────────────────────────────────────────────────
 
 class ChannelAttention(nn.Module):
     """
-    Étape 1 du CBAM : quels canaux sont importants ?
-    AvgPool + MaxPool globaux → MLP partagé → vecteur de poids Cx1x1.
-    ratio : facteur de compression du MLP (hyperparamètre, 8 par défaut).
+    CBAM stage 1: which channels matter?
+    Global AvgPool + MaxPool → shared MLP → per-channel weight vector [C, 1, 1].
+    `ratio` is the MLP bottleneck compression factor (default 8).
     """
     def __init__(self, channels, ratio=8):
+        """
+        Parameters
+        ----------
+        channels : int — number of feature channels.
+        ratio    : int — channel-reduction factor inside the shared MLP.
+        """
         super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
@@ -70,16 +108,17 @@ class ChannelAttention(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
+        """Return per-channel gates in [0, 1], shape [B, C, 1, 1]."""
         avg = self.mlp(self.avg_pool(x))   # [B, C]
-        mx  = self.mlp(self.max_pool(x))   # [B, C]  — MLP partagé
+        mx  = self.mlp(self.max_pool(x))   # [B, C]  — shared MLP
         out = self.sigmoid(avg + mx)       # [B, C]
         return out.unsqueeze(-1).unsqueeze(-1)  # [B, C, 1, 1]
 
 
 class SpatialAttention(nn.Module):
     """
-    Étape 2 du CBAM : où regarder dans la carte 2D ?
-    Avg + Max sur les canaux → Conv 7x7 → carte HxW.
+    CBAM stage 2: where to look in the 2D map?
+    Channel-wise Avg + Max → 7x7 conv → single-channel spatial map [B, 1, H, W].
     """
     def __init__(self):
         super().__init__()
@@ -87,6 +126,7 @@ class SpatialAttention(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
+        """Return a spatial gate in [0, 1], shape [B, 1, H, W]."""
         avg = x.mean(dim=1, keepdim=True)       # [B, 1, H, W]
         mx, _ = x.max(dim=1, keepdim=True)      # [B, 1, H, W]
         out = torch.cat([avg, mx], dim=1)        # [B, 2, H, W]
@@ -94,45 +134,65 @@ class SpatialAttention(nn.Module):
 
 
 class CBAM(nn.Module):
+    """
+    Convolutional Block Attention Module: sequentially applies channel attention
+    then spatial attention, re-weighting the feature map along each axis.
+    """
     def __init__(self, channels, ratio=8):
+        """
+        Parameters
+        ----------
+        channels : int — number of feature channels.
+        ratio    : int — channel-attention reduction ratio.
+        """
         super().__init__()
         self.channel_att = ChannelAttention(channels, ratio)
         self.spatial_att = SpatialAttention()
 
     def forward(self, x):
-        x = x * self.channel_att(x)   # pondère les canaux
-        x = x * self.spatial_att(x)   # pondère les positions spatiales
+        """Apply channel then spatial attention to `x`."""
+        x = x * self.channel_att(x)   # weight the channels
+        x = x * self.spatial_att(x)   # weight the spatial positions
         return x
 
 
-# ─── U-Net principal ─────────────────────────────────────────────────────────
+# ─── Main U-Net ──────────────────────────────────────────────────────────────
 
 class UNetTopo(nn.Module):
     """
-    U-Net pour optimisation topologique 2D.
+    U-Net for 2D topology optimization (density + tractions → stress fields).
 
-    Paramètres
+    Parameters
     ----------
-    nif       : nombre de filtres au niveau 0 (hyperparamètre principal)
-    n_in      : canaux d'entrée  — ρ, tx, ty, border_mask = 4
-    n_out     : canaux de sortie — σx, σy, τxy = 3
-    use_cbam  : active le module CBAM au bottleneck
+    nif       : number of filters at level 0 (main capacity hyperparameter)
+    n_in      : input channels  — ρ, tx, ty (, border_mask)
+    n_out     : output channels — σx, σy, τxy = 3
+    use_cbam  : enable the CBAM module at the bottleneck
 
-    Architecture (avec nif=32, input 32x32)
+    Architecture (with nif=32, input 32x32)
     ----------------------------------------
-    Niveau 0  : 32x32,  nif    = 32  filtres
-    Niveau 1  : 16x16,  nifx2  = 64  filtres
-    Niveau 2  :  8x8,   nifx4  = 128 filtres
-    Niveau 3  :  4x4,   nifx8  = 256 filtres
-    Bottleneck:  2x2,   nifx16 = 512 filtres  ← CBAM 
+    Level 0   : 32x32,  nif    = 32  filters
+    Level 1   : 16x16,  nifx2  = 64  filters
+    Level 2   :  8x8,   nifx4  = 128 filters
+    Level 3   :  4x4,   nifx8  = 256 filters
+    Bottleneck:  2x2,   nifx16 = 512 filters  ← CBAM
     """
     def __init__(self, nif=32, n_in=4, n_out=3, use_cbam=True, N_conv=3):
+        """
+        Parameters
+        ----------
+        nif      : int  — base number of filters (level 0).
+        n_in     : int  — number of input channels.
+        n_out    : int  — number of output channels.
+        use_cbam : bool — insert a CBAM block at the bottleneck.
+        N_conv   : int  — conv layers per level.
+        """
         super().__init__()
         self.use_cbam = use_cbam
 
-        f = nif  # alias court
+        f = nif  # short alias
 
-        # Encodeur — 4 niveaux comme dans l'article
+        # Encoder — 4 levels as in the reference paper
         self.inc   = MultipleConv(n_in, f, N_conv=N_conv)          # 32x32 → f
         self.down1 = Down(f,     f * 2, N_conv=N_conv)           # 16x16 → fx2
         self.down2 = Down(f * 2, f * 4, N_conv=N_conv)           #  8x8  → fx4
@@ -143,28 +203,39 @@ class UNetTopo(nn.Module):
         if use_cbam:
             self.cbam = CBAM(f * 16)
 
-        # Décodeur — symétrique
+        # Decoder — symmetric to the encoder
         self.up1 = Up(f * 16, f * 8, N_conv=N_conv)             #  4x4  → fx8
         self.up2 = Up(f * 8,  f * 4, N_conv=N_conv)             #  8x8  → fx4
         self.up3 = Up(f * 4,  f * 2, N_conv=N_conv)             # 16x16 → fx2
         self.up4 = Up(f * 2,  f, N_conv=N_conv)                 # 32x32 → f
 
-        # Tête de sortie — linéaire (pas d'activation : contraintes non bornées)
+        # Output head — linear (no activation: stresses are unbounded)
         self.outc = nn.Conv2d(f, n_out, kernel_size=1)
 
     def forward(self, x):
-        # Encodeur
+        """
+        Map an input image stack to the three stress fields.
+
+        Parameters
+        ----------
+        x : torch.Tensor [B, n_in, 32, 32] — ρ + traction channels.
+
+        Returns
+        -------
+        torch.Tensor [B, 3, 32, 32] — predicted (σx, σy, τxy).
+        """
+        # Encoder
         x1 = self.inc(x)       # [B, f,    32, 32]
         x2 = self.down1(x1)    # [B, fx2,  16, 16]
         x3 = self.down2(x2)    # [B, fx4,   8,  8]
         x4 = self.down3(x3)    # [B, fx8,   4,  4]
 
-        # Bottleneck
+        # Bottleneck (+ optional attention)
         xb = self.bottleneck(x4)          # [B, fx16,  2,  2]
         if self.use_cbam:
             xb = self.cbam(xb)
 
-        # Décodeur
+        # Decoder (with skip connections)
         x = self.up1(xb, x4)  # [B, fx8,   4,  4]
         x = self.up2(x,  x3)  # [B, fx4,   8,  8]
         x = self.up3(x,  x2)  # [B, fx2,  16, 16]
@@ -175,38 +246,27 @@ class UNetTopo(nn.Module):
 
 
 # ─── Boundary-Embedding ──────────────────────────────────────────────────────
-class BoundaryEmbedding(nn.Module):
-    """
-    Embedding des tractions de bordure directement dans l'espace latent du U-Net, 
-    pour mieux guider la reconstruction.
-    Idée : concaténer les tractions de bordure (tx, ty) au bottleneck du U-Net,
-    après les convolutions d'encodage, avant le CBAM et le décodage
-    (au lieu de les fournir en entrée, ce qui peut être plus difficile à apprendre).
-    Cela permet au réseau de "voir" les tractions de bordure 
-    au moment où il doit reconstruire les contraintes, 
-    et de les utiliser comme indices pour la reconstruction.
-
-
-    Inputs: 
-    - n1 : taille du premier layer du MLP (ex: 32)
-    - out_channels : taille du second layer du MLP (ex: 64)
-    """
-import torch
-import torch.nn as nn
 
 class BoundaryEmbedding(nn.Module):
     """
-    Embedding des tractions de bordure dans l'espace latent du U-Net.
+    Embed the boundary tractions directly into the U-Net latent space to better
+    guide the reconstruction.
+
+    Idea: instead of feeding the tractions (tx, ty) as input channels (which can
+    be harder to learn), concatenate an embedding of them at the U-Net
+    bottleneck — after the encoder convolutions, before the CBAM and the
+    decoder. The network thus "sees" the boundary loads exactly when it has to
+    reconstruct the stresses, and can use them as cues.
 
     Parameters
     ----------
     in_channels : int
-        Dimension de l'entrée (ex: 16).
+        Input dimension (e.g. 16 = 2 components x 8 nodes).
     hidden_layers : list[int]
-        Tailles des couches cachées du MLP (ex: [32, 64]).
+        Hidden-layer sizes of the MLP (e.g. [32, 64]).
     out_channels : int
-        Dimension de sortie du MLP, correspondant typiquement
-        au nombre de canaux du bottleneck du U-Net.
+        MLP output dimension, typically the number of channels added at the
+        U-Net bottleneck.
     """
 
     def __init__(self,
@@ -218,18 +278,18 @@ class BoundaryEmbedding(nn.Module):
         layers = []
         prev_dim = in_channels
 
-        # Couches cachées
+        # Hidden layers (Linear + ReLU)
         for hidden_dim in hidden_layers:
             layers.append(nn.Linear(prev_dim, hidden_dim))
             layers.append(nn.ReLU(inplace=True))
             prev_dim = hidden_dim
 
-        # Couche de sortie (sans ReLU)
+        # Output layer (no ReLU)
         layers.append(nn.Linear(prev_dim, out_channels))
 
         self.fclayers = nn.Sequential(*layers)
 
-        # Passage de [B, C, 1, 1] -> [B, C, 2, 2]
+        # Upsample [B, C, 1, 1] -> [B, C, 2, 2] to match the bottleneck spatial size
         self.upsample = nn.ConvTranspose2d(
             out_channels,
             out_channels,
@@ -239,49 +299,71 @@ class BoundaryEmbedding(nn.Module):
 
     def forward(self, x):
         """
-        x : [B, in_channels]
+        Embed the nodal tractions into a small spatial feature map.
+
+        Parameters
+        ----------
+        x : torch.Tensor [B, in_channels] — flattened nodal tractions.
+
+        Returns
+        -------
+        torch.Tensor [B, out_channels, 2, 2] — bottleneck-sized embedding.
         """
         e = self.fclayers(x)                # [B, out_channels]
         e = e.unsqueeze(-1).unsqueeze(-1)   # [B, out_channels, 1, 1]
         e = self.upsample(e)                # [B, out_channels, 2, 2]
         return e
 
-# ─── BE-UNet principal ─────────────────────────────────────────────────────────
+# ─── Main BE-UNet ────────────────────────────────────────────────────────────
 
 class BE_UNetTopo(nn.Module):
     """
-    U-Net pour optimisation topologique 2D.
+    U-Net for 2D topology optimization with a Boundary Embedding.
 
-    Paramètres
+    Same backbone as UNetTopo, but the tractions are injected as an embedding
+    concatenated at the bottleneck (see BoundaryEmbedding) instead of as input
+    channels, so the input is the density field alone.
+
+    Parameters
     ----------
-    nif           : nombre de filtres au niveau 0 (hyperparamètre principal)
-    n_in          : canaux d'entrée  — ρ seul = 1 
-    n_out         : canaux de sortie — σx, σy, τxy = 3
-    use_cbam      : active le module CBAM au bottleneck
-    embed_n1      : taille du premier layer caché du MLP
-    embed_out     : dimension de l'embedding (canaux ajoutés au bottleneck)
+    nif               : number of filters at level 0 (main hyperparameter)
+    n_in              : input channels  — ρ only = 1
+    n_out             : output channels — σx, σy, τxy = 3
+    use_cbam          : enable the CBAM module at the bottleneck
+    hidden_layers_MLP : hidden-layer sizes of the embedding MLP
+    embed_out         : embedding dimension (channels added at the bottleneck)
 
-    Architecture (avec nif=32, input 32x32)
+    Architecture (with nif=32, input 32x32)
     ----------------------------------------
-    Niveau 0   : 32x32,  nif    = 32  filtres
-    Niveau 1   : 16x16,  nif×2  = 64  filtres
-    Niveau 2   :  8x8,   nif×4  = 128 filtres
-    Niveau 3   :  4x4,   nif×8  = 256 filtres
-    Bottleneck :  2x2,   nif×16 = 512 filtres
-                  + embed_out   = 64  filtres  ← BoundaryEmbedding concat 
-                  → total       = 576 filtres  ← CBAM
+    Level 0    : 32x32,  nif    = 32  filters
+    Level 1    : 16x16,  nif×2  = 64  filters
+    Level 2    :  8x8,   nif×4  = 128 filters
+    Level 3    :  4x4,   nif×8  = 256 filters
+    Bottleneck :  2x2,   nif×16 = 512 filters
+                  + embed_out          ← BoundaryEmbedding concat
+                  → projected back to 512 filters before the (symmetric) decoder
     """
     def __init__(self, nif=32, n_in=3, n_out=3,
-                use_cbam=True, 
-                hidden_layers_MLP = [32,64,128], 
-                embed_out=128, 
+                use_cbam=True,
+                hidden_layers_MLP = [32,64,128],
+                embed_out=128,
                 N_conv=3):
-        
+        """
+        Parameters
+        ----------
+        nif               : int  — base number of filters (level 0).
+        n_in              : int  — input channels (1 = density only).
+        n_out             : int  — output channels (3 stress components).
+        use_cbam          : bool — insert a CBAM block on the enriched bottleneck.
+        hidden_layers_MLP : list[int] — embedding MLP hidden sizes.
+        embed_out         : int  — embedding channels added at the bottleneck.
+        N_conv            : int  — conv layers per level.
+        """
         super().__init__()
         self.use_cbam = use_cbam
         f = nif
 
-        # Encodeur
+        # Encoder
         self.inc   = MultipleConv(n_in, f, N_conv=N_conv)
         self.down1 = Down(f,     f * 2, N_conv=N_conv)
         self.down2 = Down(f * 2, f * 4, N_conv=N_conv)
@@ -290,35 +372,47 @@ class BE_UNetTopo(nn.Module):
         # Bottleneck
         self.bottleneck = Down(f * 8, f * 16, N_conv=N_conv)
 
-        # BoundaryEmbedding
+        # Boundary embedding of the nodal tractions
         self.boundary_embedding = BoundaryEmbedding(
             in_channels  = 16,
             hidden_layers = hidden_layers_MLP,
             out_channels = embed_out
         )
 
-        # calcul de bottleneck_out AVANT de l'utiliser
-        bottleneck_out = f * 16 + embed_out        # 512 + 64 = 576
+        # Enriched bottleneck width (compute before using it)
+        bottleneck_out = f * 16 + embed_out        # e.g. 512 + 64 = 576
 
-        # CBAM sur les 576 canaux enrichis
+        # CBAM on the enriched bottleneck channels
         if use_cbam:
             self.cbam = CBAM(bottleneck_out)
 
-        # Projection 576 → 512 pour restaurer la symétrie du décodeur
+        # Project enriched → f*16 to restore the decoder's symmetry
         self.bottleneck_proj = nn.Conv2d(bottleneck_out, f * 16, kernel_size=1)
 
-        # Décodeur — symétrique, up1 reçoit f*16=512 après projection
+        # Decoder — symmetric; up1 receives f*16 after projection
         self.up1 = Up(f * 16, f * 8, N_conv=N_conv)
         self.up2 = Up(f * 8,  f * 4, N_conv=N_conv)
         self.up3 = Up(f * 4,  f * 2, N_conv=N_conv)
         self.up4 = Up(f * 2,  f, N_conv=N_conv)
 
-        # Tête de sortie
+        # Output head
         self.outc = nn.Conv2d(f, n_out, kernel_size=1)
 
 
     def forward(self, x, nodes=None):
-        # Encodeur
+        """
+        Map a density field plus nodal tractions to the three stress fields.
+
+        Parameters
+        ----------
+        x     : torch.Tensor [B, n_in, 32, 32] — density field.
+        nodes : torch.Tensor [B, 16] — flattened nodal tractions for the embedding.
+
+        Returns
+        -------
+        torch.Tensor [B, 3, 32, 32] — predicted (σx, σy, τxy).
+        """
+        # Encoder
         x1 = self.inc(x)
         x2 = self.down1(x1)
         x3 = self.down2(x2)
@@ -327,18 +421,18 @@ class BE_UNetTopo(nn.Module):
         # Bottleneck
         xb = self.bottleneck(x4)              # [B, 512, 2, 2]
 
-        # BoundaryEmbedding — concat
-        e_T = self.boundary_embedding(nodes)  # [B, 64,  2, 2]
-        xb  = torch.cat([xb, e_T], dim=1)    # [B, 576, 2, 2]
+        # Boundary embedding — concatenated at the bottleneck
+        e_T = self.boundary_embedding(nodes)  # [B, embed_out, 2, 2]
+        xb  = torch.cat([xb, e_T], dim=1)    # [B, 512+embed_out, 2, 2]
 
-        # CBAM sur les 576 canaux enrichis
+        # CBAM on the enriched bottleneck
         if self.use_cbam:
             xb = self.cbam(xb)
 
-        # Projection 576 → 512
+        # Project back to 512 channels
         xb = self.bottleneck_proj(xb)         # [B, 512, 2, 2]
 
-        # Décodeur
+        # Decoder (with skip connections)
         x = self.up1(xb, x4)
         x = self.up2(x,  x3)
         x = self.up3(x,  x2)
