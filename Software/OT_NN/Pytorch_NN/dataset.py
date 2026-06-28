@@ -1519,19 +1519,17 @@ def rotation_90(sample, N_rot=1):
 #%% Test
 
 if __name__ == '__main__':
-    # os.chdir(r'C:\Users\maxen\Documents\Stage')
-    os.chdir(r'D:\Maxence\Stage-M1---UPV')
-    print("Current working directory:", Path.cwd())
+    BASE = Path(__file__).parents[3]
 
     # Reference Dataset
-    path = (Path.cwd() / 'HeavyFiles/data/dataset_macro.mat').resolve()
+    path = (BASE / 'HeavyFiles/data/dataset_macro.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
     data_iter = IterationDataset(dataset)
     acc_data = AcceleratedDataset(dataset)
 
     # Test dataset
-    path_test = (Path.cwd() / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
+    path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
     data_test = load_mat(path_test)
     dataset_test = Dataset_TopOpt(data_test)
     data_iter_test = IterationDataset(dataset_test)
