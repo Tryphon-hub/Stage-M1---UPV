@@ -26,7 +26,7 @@ HIDDEN_LAYERS_MLP=[32,64]
 EMBED_OUT   = 128     # dimension de l'embedding
 
 USE_CBAM = False
-USE_AUGMENTATION = True  # Data augmentation
+USE_AUGMENTATION = False  # Data augmentation
 
 AUGMENTATION_P   = 0.2
 PORTION_DATA     = 1
@@ -176,11 +176,11 @@ List_iterations, List_count_FEM = run_topology_optimization(
         N_in = N_in,
         N_max_iterations = 100, 
         RULE = 'Only UNet',
-        # RULE = '10 Unet - 1 FEM',
+        # RULE = '10 Unet - 2 FEM',
         # RULE = 'Decreasing compliance', 
         # RULE = 'Only FEM',
-        # TYPE_FIRST = 'UNet',
         TYPE_FIRST = 'UNet',
+        # TYPE_FIRST = 'FEM',
         threshold = 0.0,
         N_end_FEM_iterations = 0,
         window_Unet = 3,
