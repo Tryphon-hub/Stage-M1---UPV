@@ -20,13 +20,14 @@ name_data = 'dataset_test'
 NETWORK   = 'U-Net'
 
 
+
 NIF = 32
 N_CONV=2
 HIDDEN_LAYERS_MLP=[32,64]
 EMBED_OUT   = 128     # dimension de l'embedding
 
 USE_CBAM = False
-USE_AUGMENTATION = True  # Data augmentation
+USE_AUGMENTATION = False  # Data augmentation
 
 AUGMENTATION_P   = 0.2
 PORTION_DATA     = 1
@@ -42,9 +43,7 @@ else:
 
 
 
-
 BASE = Path(__file__).parents[3]
-
 
 GMSH_EXE = BASE.parent / 'gmsh' / 'gmsh.exe'
 
@@ -78,6 +77,8 @@ NGPpL    = 2
 NGPpS    = 9
 E        = 1000
 NU       = 0.3
+
+
 
 
 #%% Load model
@@ -114,7 +115,6 @@ model.load_state_dict(state_dict)
 model.eval()
 n_params = sum(p.numel() for p in model.parameters())
 print(f"Number of {NETWORK} parameters : {n_params:_}".replace('_',' '))
-
 
 #%% Load dataset
 data    = load_mat(DATA_PATH)
@@ -159,28 +159,45 @@ print(f"NumEls after regen: {eng.eval('length(MeshData.Surf.Elements)')}")
 eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 
-#%% One sample
+#%% Load dataset for accelerated non-machine learning method
 
-ID_distrib=0
+data_big_base         = load_mat(DATA_PATH.parent / (name_file+'.mat'))
+ds_big_base           = Dataset_TopOpt(data_big_base)
+ds_filtre_big_base    = ds_big_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
+IterData_FEM_big_base = IterationDataset(ds_filtre_big_base)
+data_acc              = AcceleratedDataset(ds_filtre_big_base)
+
+
+#%% Run loop
+
+ID_distrib=50
+empty_sample = IterationSample(IterationDataset(ds_base.get_series(ID_distrib)), 0)
+
+# data augmentation
+data_acc_aug = data_acc.augment()
+
+# find closest sample
+idx_old, first_guess_sample = data_acc_aug.closest_point(empty_sample)
+
+
+
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
-
-sample_start = IterationSample(IterationDataset(ds_filtre.get_series(ID_distrib)), 0)
 
 ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
 List_iterations, List_count_FEM = run_topology_optimization(
-        sample_start,
+        first_guess_sample,
         eng, 
         model, 
         N_in = N_in,
         N_max_iterations = 100, 
-        RULE = 'Only UNet',
-        # RULE = '10 Unet - 1 FEM',
+        # RULE = 'Only UNet',
+        # RULE = ' Unet - 2 FEM',
         # RULE = 'Decreasing compliance', 
-        # RULE = 'Only FEM',
+        RULE = 'Only FEM',
         # TYPE_FIRST = 'UNet',
-        TYPE_FIRST = 'UNet',
+        TYPE_FIRST = 'FEM',
         threshold = 0.0,
         N_end_FEM_iterations = 0,
         window_Unet = 3,
@@ -204,6 +221,5 @@ FEM_c, UNet_c = visualize_convergence(
 compare_NN_FEM(List_iterations[-1], FEM_sample)
 
 density_evolution(List_iterations,List_count_FEM, 1)
-
 
 #%%

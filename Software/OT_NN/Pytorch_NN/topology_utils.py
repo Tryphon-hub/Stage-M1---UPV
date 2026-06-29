@@ -1,10 +1,3 @@
-''' 
-Adaptated from GenTopology.mat by Maxence Barberet-Pinto
-------------------------------------------------------
-This script uses a trained U-Net to predict stress fields
-and return the density image for the next topology optimization iteration.
-'''
-
 #%% Libraries
 
 import sys
@@ -1350,9 +1343,16 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         table_data = None
     else:
         labels = [f"Config {i+1}" for i in range(n)]
-        # Parameter table: one row per parameter, one column per config
         param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
-        table_data = [[str(b[3+k]) for b in list_benchmark] for k in range(len(param_names))]
+        aug_idx = param_names.index('aug')
+
+        def cell(b, k):
+            # Hide p_aug value when aug is False
+            if param_names[k] == 'p_aug' and not b[3 + aug_idx]:
+                return ''
+            return str(b[3 + k])
+
+        table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
 
     fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
@@ -1388,7 +1388,6 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     ax1.legend([bars1, bars2], ['Ratio of FEM iterations', 'Relative error (%)'],
                 fontsize=11, loc='upper left')
 
-    # Add parameter table below the plot for non-Hybrid mode
     if table_data is not None:
         table = ax1.table(
             cellText=table_data,
@@ -1397,18 +1396,17 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
             cellLoc='center',
             rowLoc='center',
             loc='bottom',
-            bbox=[0, -0.45, 1, 0.35]   # [x, y, width, height] in axes fraction
+            bbox=[0, -0.45, 1, 0.35]
         )
         table.auto_set_font_size(False)
         table.set_fontsize(9)
-        ax1.set_xticklabels([])  # hide x-axis labels (replaced by table columns)
+        ax1.set_xticklabels([])
         ax1.set_xlabel('')
 
     plt.title(f'Hybrid strategies comparison — {len(Tab_ratio_FEM[0])} traction distributions',
               fontsize=14)
     plt.tight_layout()
     plt.show()
-
 
 #%% Window showing the progress of the process
 
