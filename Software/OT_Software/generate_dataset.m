@@ -17,7 +17,7 @@ FileName             = 'dataset_128';
 TractionFileName     = 'tractions_128';
 GenerateNewTractions = true;
 Net                  = [];
-NumSamples           = 1;
+NumSamples           = 5;
 save_last_only       = false;
 
 
