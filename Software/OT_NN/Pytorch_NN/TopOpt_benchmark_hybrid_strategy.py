@@ -101,7 +101,7 @@ list_benchmark = [
 # the per-run rows and the aggregation at the end.
 CONFIG_COLUMNS = ['Strategy', 'Model', 'First step', 'NIF', 'N_conv',
                   'use cbam', 'use augmentation', 'probability of augmentation',
-                  'dataset portion', 'batch size']
+                  'dataset portion']
 
 RESULT_COLUMNS = ['Input ID',
                   'Number of FEM iterations for the full-FEM strategy',

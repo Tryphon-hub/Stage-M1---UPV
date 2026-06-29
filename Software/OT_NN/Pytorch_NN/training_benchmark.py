@@ -112,7 +112,7 @@ with open(RESULTS_ROOT / name_benchmark_file, TYPE_WRITE, newline='') as benchma
 
         # ── Output directories for this configuration (mirrors main.py) ──
         if NETWORK == 'U-Net':
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}%'
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
         else:
             tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
