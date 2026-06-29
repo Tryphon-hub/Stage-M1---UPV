@@ -1,11 +1,11 @@
 %% Path
-addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
-addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
-Folder='D:\Maxence\Stage-M1---UPV\HeavyFiles\data';
+% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
+% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
+% Folder='D:\Maxence\Stage-M1---UPV\HeavyFiles\data';
 
-% addpath 'C:\Users\maxen\Documents\Stage\Software\OT_Functions'
-% addpath 'C:\Users\maxen\Documents\Stage\Software\OT_Software'
-% Folder = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data';
+addpath 'C:\Users\maxen\Documents\Stage\Software\OT_Functions'
+addpath 'C:\Users\maxen\Documents\Stage\Software\OT_Software'
+Folder = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data';
 
 % Ensure the folder exists before proceeding
 if ~isfolder(Folder)
@@ -13,12 +13,12 @@ if ~isfolder(Folder)
 end
 
 %% Input parameters
-FileName             = 'dataset_10k';
-TractionFileName     = 'tractions_10k';
+FileName             = 'dataset_128';
+TractionFileName     = 'tractions_128';
 GenerateNewTractions = true;
 Net                  = [];
-NumSamples           = 10000;
-save_last_only       = true;
+NumSamples           = 1;
+save_last_only       = false;
 
 
 %% Data generation

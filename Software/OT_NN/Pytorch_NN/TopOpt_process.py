@@ -34,6 +34,8 @@ USE_AUGMENTATION = False  # Data augmentation
 AUGMENTATION_P   = 0.2
 PORTION_DATA     = 1
 
+BATCH_SIZE = 16
+
 
 
 if NETWORK=='BE_UNet':
@@ -58,21 +60,16 @@ GMSH_EXE = BASE.parent / 'gmsh' / 'gmsh.exe'
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
 
 if NETWORK == 'U-Net':
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-    BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
-
-
-
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 else:
-    RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-    ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-    CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-    BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-    TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
+RESULTS_DIR       = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / tag
+ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
+CHECKPOINT_PATH   = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+BEST_PATH         = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+TB_LOG_DIR        = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 sys.path.append(str(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN'))
@@ -177,19 +174,6 @@ disp(['system() status: ' num2str(status)])
 print(f"NumEls after regen: {eng.eval('length(MeshData.Surf.Elements)')}")
 
 eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
-#%% Plot
-
-# FEM_c, UNet_c = statistical_convergence(
-#     List_List_iterations, 
-#     IterData_FEM, 
-#     NETWORK=NETWORK, 
-#     PLOT=True, 
-#     TYPE='std'
-#     )
-
-
-
-
 
 
 #%% One sample
