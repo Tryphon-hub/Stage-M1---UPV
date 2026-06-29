@@ -20,6 +20,7 @@ name_data = 'dataset_test'
 
 
 BASE = Path(__file__).parents[3]
+RESULTS_ROOT = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results'
 
 GMSH_EXE = BASE.parent / 'gmsh' / 'gmsh.exe'
 
@@ -119,9 +120,9 @@ if RESET_BENCHMARK:
 else: 
     TYPE_WRITE = 'a'
 
-SIZE_LOOP = 2
+SIZE_LOOP = 1
 
-name_benchmark_file = 'benchmark_architecture_results.csv'
+name_benchmark_file = 'benchmark_architecture.csv'
 
 
 
@@ -140,7 +141,7 @@ with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmar
     if RESET_BENCHMARK:
         writer.writerow(CONFIG_COLUMNS + RESULT_COLUMNS)
 
-    for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA in list_benchmark:
+    for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE in list_benchmark:
 
         HIDDEN_LAYERS_MLP=[32,64]
         EMBED_OUT   = 128     # dimension de l'embedding
@@ -152,20 +153,14 @@ with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmar
 
 
         if NETWORK == 'U-Net':
-            RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-            ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-            CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-            BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-            TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
-
-
-
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
         else:
-            RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-            ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-            CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-            BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-            TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+
+        RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
+        ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
+        CHECKPOINT_PATH   = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+        BEST_PATH         = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
 
 
         # Load model
@@ -182,9 +177,9 @@ with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmar
             
         elif NETWORK=='U-Net':
             model = UNetTopo(
-                nif=32, 
-                n_in=N_in, 
-                n_out=3, 
+                nif=NIF,
+                n_in=N_in,
+                n_out=3,
                 use_cbam=USE_CBAM,
                 N_conv=N_CONV,
                 )
@@ -235,7 +230,7 @@ with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmar
 
             writer.writerow([
                 STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV,
-                USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA,
+                USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE,
                 ID, len(ds_iter), number_FEM,
                 number_FEM / len(ds_iter),
                 err_rel_c
@@ -278,7 +273,7 @@ for bench in list_benchmark:
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
 
 
 

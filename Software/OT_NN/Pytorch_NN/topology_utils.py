@@ -1329,7 +1329,7 @@ def compare_NN_FEM(sample_NN, sample_FEM):
 
 #%% Hybrid strategy comparison
 
-def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
+def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid'):
     """
     Tab_ratio_FEM : (n_configs, SIZE_LOOP)
     Tab_err_rel_c  : (n_configs, SIZE_LOOP)
@@ -1338,53 +1338,74 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c):
     x = np.arange(n)
     width = 0.35
 
-    labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
-
     # Aggregate over SIZE_LOOP
     mean_FEM     = (Tab_ratio_FEM*100).mean(axis=1)
     std_FEM      = (Tab_ratio_FEM*100).std(axis=1)
     mean_err_pct = (Tab_err_rel_c * 100).mean(axis=1)
     std_err_pct  = (Tab_err_rel_c * 100).std(axis=1)
 
-    fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 6))
+    # Build x-axis labels and optional parameter table
+    if TYPE_BENCHMARK == 'Hybrid':
+        labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
+        table_data = None
+    else:
+        labels = [f"Config {i+1}" for i in range(n)]
+        # Parameter table: one row per parameter, one column per config
+        param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
+        table_data = [[str(b[3+k]) for b in list_benchmark] for k in range(len(param_names))]
+
+    fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
     # FEM iterations — left axis
     bars1 = ax1.bar(x - width/2, mean_FEM, width, yerr=std_FEM,
-                     capsize=4, label='# ratio of FEM iterations (Hybrid / full-FEM)', 
-                     color='tab:blue', alpha=0.8)
-    ax1.set_ylabel(f' Ratio of FEM iteration: $N_{{Hybrid}}/N_{{FEM}}$ (%)', fontsize=13, color='tab:blue')
+                     capsize=4, color='tab:blue', alpha=0.8)
+    ax1.set_ylabel(r'Ratio of FEM iterations: $N_{Hybrid}/N_{FEM}$ (%)', fontsize=13, color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Relative error (%) — right axis
     ax2 = ax1.twinx()
     bars2 = ax2.bar(x + width/2, mean_err_pct, width, yerr=std_err_pct,
-                     capsize=4, label='Relative error (%)',
-                     color='tab:orange', alpha=0.8)
+                     capsize=4, color='tab:orange', alpha=0.8)
     ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
     ax2.tick_params(axis='y', labelcolor='tab:orange')
 
-    # Labels on bars
+    # Bar value labels
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.01,
                  f'{val:.1f}%', ha='left', va='bottom', fontsize=9, color='tab:blue')
-
     for bar, val in zip(bars2, mean_err_pct):
         ax2.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.001,
                  f'{val:.2f}%', ha='left', va='bottom', fontsize=9, color='tab:orange')
 
-    # Align zeros: both quantities are ≥ 0, so force bottom=0 on both axes
     ax1.set_ylim(bottom=0)
     ax2.set_ylim(bottom=0)
 
     ax1.set_xticks(x)
-    ax1.set_xticklabels(labels, fontsize=10, rotation=30, ha='right')
+    rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
+    ax1.set_xticklabels(labels, fontsize=10, rotation=rotation, ha='right' if rotation else 'center')
     ax1.set_xlabel('Configuration', fontsize=13)
 
-    lines = [bars1, bars2]
-    labs  = ['Ratio of FEM iterations', 'Relative error (%)']
-    ax1.legend(lines, labs, fontsize=11, loc='upper left')
-#
-    plt.title(f'Hybrid strategies comparison — {len(Tab_ratio_FEM[0])} traction distributions', fontsize=14)
+    ax1.legend([bars1, bars2], ['Ratio of FEM iterations', 'Relative error (%)'],
+                fontsize=11, loc='upper left')
+
+    # Add parameter table below the plot for non-Hybrid mode
+    if table_data is not None:
+        table = ax1.table(
+            cellText=table_data,
+            rowLabels=param_names,
+            colLabels=labels,
+            cellLoc='center',
+            rowLoc='center',
+            loc='bottom',
+            bbox=[0, -0.45, 1, 0.35]   # [x, y, width, height] in axes fraction
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        ax1.set_xticklabels([])  # hide x-axis labels (replaced by table columns)
+        ax1.set_xlabel('')
+
+    plt.title(f'Hybrid strategies comparison — {len(Tab_ratio_FEM[0])} traction distributions',
+              fontsize=14)
     plt.tight_layout()
     plt.show()
 
