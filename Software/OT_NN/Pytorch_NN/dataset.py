@@ -619,17 +619,24 @@ class IterationSample:
                 f"  ItsFull           : {int(self.ItsFull.item())}\n"
                 f"  TEnd              : {self.TEnd.item():.4f}")
 
-    def get_traction_distribution(self):
+    def get_traction_distribution(self, width=1):
         """
         Build 2D traction images tx and ty by linear interpolation
         of nodal forces along the 4 edges of the square domain.
         The 8 nodal points are distributed 2 per edge (corner + mid-edge).
-        Corner pixels accumulate contributions from both adjacent edges.
+
+        Each edge is drawn as a band of `width` pixels, replicated inward
+        toward the center. Contributions are accumulated (+=), so pixels that
+        belong to two edges (corners) sum the forces of both edges.
+
+        Parameters:
+            width (int): Border thickness in pixels (>= 1). Default: 1.
 
         Returns:
             ndarray: Stacked traction images, shape (2, img_size, img_size).
                      Channel 0: tx, Channel 1: ty.
         """
+        width     = max(1, int(round(width)))   # border thickness is in pixels
         img_size  = int(np.sqrt(self.Densities.shape[1]))
         tx        = np.zeros((img_size, img_size))
         ty        = np.zeros((img_size, img_size))
@@ -646,13 +653,24 @@ class IterationSample:
             [0,          img_size-1],
         ], dtype=float)
 
+        center = (img_size - 1) / 2.0
         for k in range(0, 8, 2):
             p1 = Points[k]
             p2 = Points[k+1]
             xs = np.round(np.linspace(p1[0], p2[0], img_size)).astype(int)
             ys = np.round(np.linspace(p1[1], p2[1], img_size)).astype(int)
-            tx[ys, xs] += np.linspace(tractions[0, k], tractions[0, k+1], img_size)
-            ty[ys, xs] += np.linspace(tractions[1, k], tractions[1, k+1], img_size)
+            prof_x = np.linspace(tractions[0, k], tractions[0, k+1], img_size)
+            prof_y = np.linspace(tractions[1, k], tractions[1, k+1], img_size)
+
+            # Inward offset (perpendicular to the edge, toward the center)
+            mid    = (p1 + p2) / 2.0
+            inward = np.sign(np.round(center - mid)).astype(int)  # (dx, dy)
+
+            for d in range(width):
+                xo = np.clip(xs + inward[0] * d, 0, img_size - 1)
+                yo = np.clip(ys + inward[1] * d, 0, img_size - 1)
+                tx[yo, xo] += prof_x
+                ty[yo, xo] += prof_y
 
         return np.stack([tx, ty], axis=0)  # (2, img_size, img_size)
 
@@ -731,13 +749,17 @@ class IterationSample:
         plt.tight_layout()
         plt.show()
 
-    def plot_inputs(self, TITLE=None) -> None:
+    def plot_inputs(self, TITLE=None, width=1) -> None:
         """
         Display the 3 U-Net inputs: densities, tx, ty.
         gray_r colormap [0,1] for densities, symmetric RdBu for tractions.
 
         Parameters:
             TITLE (str|None): Figure title. Default: 'Inputs'.
+            width (int): Border thickness (in pixels) used to display the
+                         traction distributions. Each of the 4 edges is drawn
+                         as a band of `width` pixels, forces summing at the
+                         corners. Default: 1.
 
         Returns:
             None
@@ -746,7 +768,7 @@ class IterationSample:
         img_size = int(np.sqrt(len(topo)))
         img      = topo.reshape(img_size, img_size)
 
-        tx_ty   = self.get_traction_distribution()
+        tx_ty   = self.get_traction_distribution(width)
         vmax_tx = np.abs(tx_ty[0]).max()
         vmax_ty = np.abs(tx_ty[1]).max()
 
@@ -763,11 +785,70 @@ class IterationSample:
             im = ax.imshow(img_data, cmap=cmap, origin='lower',
                            extent=[0, img_size, 0, img_size],
                            vmin=vmin, vmax=vmax)
-            fig.colorbar(im, ax=ax)
+            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             ax.set_title(title, fontsize=14)
             ax.axis('off')
 
         plt.suptitle(TITLE if TITLE is not None else 'Inputs', fontsize=16)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_inputs_3d(self, width=1, gap=0.7, angle=30, depth=0.6) -> None:
+        """
+        Display the 3 U-Net inputs (densities, tx, ty) in an oblique projection:
+        the x-axis (columns) is drawn at an iso angle, the y-axis (rows) stays
+        vertical. The three images are placed side by side and overlap, so each
+        one is partially hidden by its left neighbour.
+
+        Order (left → right, front → back): densities (main, on top), then tx,
+        then ty. gray_r [0,1] for densities, symmetric RdBu for tractions.
+
+        Parameters:
+            width (int): Traction border thickness in pixels (see plot_inputs).
+            gap (float): Horizontal spacing between images, as a fraction of the
+                         image size. Smaller = more overlap. Default: 0.7.
+            angle (float): Iso angle of the x-axis in degrees. Default: 30.
+            depth (float): Foreshortening of the x-axis (oblique depth scale).
+                           Default: 0.6.
+
+        Returns:
+            None
+        """
+        from matplotlib.colors import Normalize
+
+        topo     = self.Densities.squeeze().numpy()
+        img_size = int(np.sqrt(len(topo)))
+        img      = topo.reshape(img_size, img_size)
+
+        tx_ty   = self.get_traction_distribution(width)
+        vmax_tx = np.abs(tx_ty[0]).max()
+        vmax_ty = np.abs(tx_ty[1]).max()
+
+        layers = [tx_ty[1], tx_ty[0], img]
+        cmaps  = ['RdBu', 'RdBu', 'gray_r']
+        norms  = [Normalize(-vmax_ty, vmax_ty),
+                  Normalize(-vmax_tx, vmax_tx),
+                  Normalize(0, 1)]
+
+        # Sheared corner grid: x (columns) goes up-right at `angle`, y vertical
+        N      = img_size
+        theta  = np.deg2rad(angle)
+        xi, yi = np.meshgrid(np.arange(N + 1), np.arange(N + 1))
+        sx     = xi * depth * np.cos(theta)
+        sy     = yi + xi * depth * np.sin(theta)
+
+        offset = gap * N   # horizontal shift between successive images
+
+        _, ax = plt.subplots(figsize=(12, 5))
+        for k in range(len(layers)):
+            # ty (k=0) leftmost/behind; densities (k=2) rightmost and on top
+            ax.pcolormesh(sx + k * offset, sy, layers[k],
+                          cmap=cmaps[k], norm=norms[k],
+                          shading='flat', zorder=k)
+
+        ax.set_aspect('equal')
+        ax.axis('off')
+
         plt.tight_layout()
         plt.show()
 
@@ -795,20 +876,106 @@ class IterationSample:
 
         fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 
+        # Shared symmetric scale around 0 → white at 0 for all 3 subplots
+        vmax = max(np.abs(sigma_x).max(), np.abs(sigma_y).max(), np.abs(tau_xy).max())
+
         for ax, img_data, title in zip(
             axes,
             [sigma_x, sigma_y, tau_xy],
             ['σ_xx', 'σ_yy', 'τ_xy']
         ):
-            vmax = np.abs(img_data).max()   # symmetric scale around 0
             im = ax.imshow(img_data, cmap='RdBu', origin='lower',
                         extent=[0, img_size, 0, img_size],
                         vmin=-vmax, vmax=vmax)
-            fig.colorbar(im, ax=ax)
             ax.set_title(title, fontsize=14)
             ax.axis('off')
 
+        # Single common colorbar for the 3 subplots, aligned with the image
+        fig.colorbar(im, ax=axes[-1], fraction=0.046, pad=0.04)
+
         plt.suptitle(f'{TYPE} outputs', fontsize=16)
+        plt.show()
+
+    def plot_outputs_3d(self, TYPE, gap=0.7, angle=30, depth=0.6, width=2) -> None:
+        """
+        Display the 3 stress components (σ_xx, σ_yy, τ_xy) in an oblique
+        projection: the x-axis (columns) is drawn at an iso angle, the y-axis
+        (rows) stays vertical. The three images are placed side by side and
+        overlap, so each one is partially hidden by its neighbour. A black
+        outline is drawn around each image.
+
+        Order (right → left): σ_xx, σ_yy, τ_xy. σ_xx is rightmost and on top.
+        Shared symmetric RdBu scale (white at 0) for the three components.
+
+        Parameters:
+            TYPE (str): Stress source. 'FEM' for reference stress fields,
+                        'UNet' for predicted stress (requires prior prediction).
+            gap (float): Horizontal spacing between images, as a fraction of the
+                         image size. Smaller = more overlap. Default: 0.7.
+            angle (float): Iso angle of the x-axis in degrees. Default: 30.
+            depth (float): Foreshortening of the x-axis (oblique depth scale).
+                           Default: 0.6.
+            width (float): Line width of the black outline around each image.
+                           Default: 2.
+
+        Returns:
+            None
+        """
+        from matplotlib.colors import Normalize
+        from matplotlib.patches import Polygon
+
+        if TYPE == 'FEM':
+            stress = self.FEM_Stress.numpy()   # (NumEls, 6)
+        elif TYPE == 'UNet':
+            assert self.UNet_Stress is not None, "UNet stress not computed yet. Run prediction first."
+            stress = self.UNet_Stress.numpy()  # (NumEls, 6)
+
+        img_size = int(np.sqrt(stress.shape[0]))
+        sigma_x  = stress[:, 0].reshape(img_size, img_size)
+        sigma_y  = stress[:, 1].reshape(img_size, img_size)
+        tau_xy   = stress[:, 3].reshape(img_size, img_size)
+
+        # Shared symmetric scale around 0 → white at 0 for all 3 components
+        vmax = max(np.abs(sigma_x).max(), np.abs(sigma_y).max(), np.abs(tau_xy).max())
+        norm = Normalize(-vmax, vmax)
+
+        # Left → right: τ_xy, σ_yy, σ_xx  (i.e. right → left: σ_xx, σ_yy, τ_xy)
+        layers = [tau_xy, sigma_y, sigma_x]
+
+        # Sheared corner grid: x (columns) goes up-right at `angle`, y vertical
+        N      = img_size
+        theta  = np.deg2rad(angle)
+        xi, yi = np.meshgrid(np.arange(N + 1), np.arange(N + 1))
+        sx     = xi * depth * np.cos(theta)
+        sy     = yi + xi * depth * np.sin(theta)
+
+        offset = gap * N   # horizontal shift between successive images
+
+        _, ax = plt.subplots(figsize=(12, 5))
+        im = None
+        for k in range(len(layers)):
+            x0 = k * offset
+            # τ_xy (k=0) leftmost/behind; σ_xx (k=2) rightmost and on top
+            im = ax.pcolormesh(sx + x0, sy, layers[k],
+                               cmap='RdBu', norm=norm,
+                               shading='flat', zorder=k)
+
+            # Black outline around the image (parallelogram corners)
+            corners = np.array([
+                [x0,                          0           ],  # bottom-left
+                [x0 + N * depth * np.cos(theta), N * depth * np.sin(theta)],  # bottom-right
+                [x0 + N * depth * np.cos(theta), N + N * depth * np.sin(theta)],  # top-right
+                [x0,                          N           ],  # top-left
+            ])
+            ax.add_patch(Polygon(corners, closed=True, fill=False,
+                                 edgecolor='black', lw=width, zorder=k + 0.5))
+
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+        fig = ax.figure
+        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
         plt.tight_layout()
         plt.show()
 
@@ -1522,17 +1689,28 @@ if __name__ == '__main__':
     BASE = Path(__file__).parents[3]
 
     # Reference Dataset
-    path = (BASE / 'HeavyFiles/data/dataset_macro.mat').resolve()
+    path = (BASE / 'HeavyFiles/data/dataset_128.mat').resolve()
     data = load_mat(path)
     dataset = Dataset_TopOpt(data)
     data_iter = IterationDataset(dataset)
-    acc_data = AcceleratedDataset(dataset)
 
-    # Test dataset
-    path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
-    data_test = load_mat(path_test)
-    dataset_test = Dataset_TopOpt(data_test)
-    data_iter_test = IterationDataset(dataset_test)
+    ID = 0
+    sample = IterationSample(IterationDataset(dataset.get_series(ID)), -1)
+    sample.plot_inputs(width=5)
+    sample.plot_outputs('FEM')
+    sample.plot_inputs_3d(width=5, gap=0.2, angle=45)
+    sample.plot_outputs_3d('FEM', width=1, gap=0.2, angle=45)
+ 
+#  plot_inputs_3d(self, TITLE=None, width=1, gap=0.7,
+                    #    angle=30, depth=0.6)
+
+    # acc_data = AcceleratedDataset(dataset)
+
+    # # Test dataset
+    # path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
+    # data_test = load_mat(path_test)
+    # dataset_test = Dataset_TopOpt(data_test)
+    # data_iter_test = IterationDataset(dataset_test)
 
 
     # ID = 20
