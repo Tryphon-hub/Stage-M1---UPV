@@ -9,7 +9,7 @@ addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_128.mat';
 
 fprintf('Chargement du dataset...\n');
-data = load(DatasetFile, 'Rel_Density', 'Tractions', 'MeshData');
+data = load(DatasetFile);
 
 MeshData      = data.MeshData;
 Rel_Density_1 = data.Rel_Density(:, 1);  % densité de la première image
@@ -47,7 +47,8 @@ for iSample = 1:NumSamples
     fprintf('  Sample %d/%d done\n', iSample, NumSamples);
 end
 
-save(DatasetFile, 'Ener', '-append');
+data.Ener = Ener;
+save(DatasetFile, '-struct', 'data');
 fprintf('Ener sauvegardé dans %s\n', DatasetFile);
 
 
