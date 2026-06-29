@@ -6,6 +6,7 @@
 
 import numpy as np
 import torch
+from pathlib import Path
 
 from dataset import IterationSample
 
@@ -259,7 +260,7 @@ def symmetry_y(sample):
 
 
         # UNet Stress - sign change: tau' = - tau'
-        new_sample.FEM_Stress[:, 3] = - new_sample.FEM_Stress[:, 3]
+        new_sample.UNet_Stress[:, 3] = - new_sample.UNet_Stress[:, 3]
 
 
     return new_sample
@@ -366,4 +367,4 @@ if __name__ == '__main__':
     new_sample.plot_outputs('FEM')
 
 
-    
+    #%%
