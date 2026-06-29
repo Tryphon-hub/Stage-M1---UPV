@@ -87,21 +87,24 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion]
 list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 48, 2, False, False, 0.2, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1],
+    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
 # the per-run rows and the aggregation at the end.
 CONFIG_COLUMNS = ['Strategy', 'Model', 'First step', 'NIF', 'N_conv',
                   'use cbam', 'use augmentation', 'probability of augmentation',
-                  'dataset portion']
+                  'dataset portion', 'batch size']
 
 RESULT_COLUMNS = ['Input ID',
                   'Number of FEM iterations for the full-FEM strategy',
@@ -118,7 +121,7 @@ else:
 
 SIZE_LOOP = 2
 
-name_benchmark_file = 'benchmark_results.csv'
+name_benchmark_file = 'benchmark_architecture_results.csv'
 
 
 
@@ -169,7 +172,7 @@ with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmar
         if NETWORK=='BE_UNet':
             model = BE_UNetTopo(
                 nif           = NIF,
-                n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
+                n_in          = N_in,          # ρ only — tractions via BoundaryEmbedding
                 n_out         = 3,
                 use_cbam      = USE_CBAM,
                 hidden_layers_MLP = HIDDEN_LAYERS_MLP,
