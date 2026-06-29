@@ -120,7 +120,7 @@ if RESET_BENCHMARK:
 else: 
     TYPE_WRITE = 'a'
 
-SIZE_LOOP = 1
+SIZE_LOOP = 20
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
