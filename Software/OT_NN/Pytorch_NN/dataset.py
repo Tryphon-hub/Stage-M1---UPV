@@ -405,6 +405,61 @@ class Dataset_TopOpt(Dataset):
         plt.tight_layout()
         plt.show()
 
+    def normalize_dataset(self):
+        """
+        Return a new Dataset_TopOpt with Tractions, Stress, c, FEMc, and Ener
+        rescaled, exploiting the linearity of elasticity:
+        - Tractions and Stress scale linearly:   σ(λf) = λσ(f)
+        - Compliance scales quadratically:        c(λf) = λ² c(f)
+        - Strain energy (Ener = stress * strain)
+            scales quadratically as well, since strain itself scales linearly
+            with the load:                          Ener(λf) = λ² Ener(f)
+
+        Each distribution is normalized independently by its own maximum
+        absolute traction value (tx or ty).
+
+        Returns:
+            Dataset_TopOpt: new dataset with normalized Tractions, Stress, c,
+                            FEMc, and Ener.
+        """
+        N = len(self)
+        Tractions_norm = self.Tractions.copy().astype(np.float64)
+
+        Stress_norm = (np.empty(N, dtype=object) 
+                    if self.Stress.dtype == object else self.Stress.copy())
+        c_norm    = (np.empty(N, dtype=object) 
+                    if self.c.dtype == object else self.c.copy())
+        FEMc_norm = (np.empty(N, dtype=object) 
+                    if self.FEMc.dtype == object else self.FEMc.copy())
+        Ener_norm = (np.empty(N, dtype=object) 
+                    if self.Ener.dtype == object else self.Ener.copy())
+
+        for i in range(N):
+            s = np.abs(self.Tractions[:, :, i]).max()
+            if s == 0:
+                s = 1.0
+
+            Tractions_norm[:, :, i] = self.Tractions[:, :, i] / s
+            Stress_norm[i] = self.Stress[i] / s
+            c_norm[i]    = self.c[i]    / (s ** 2)
+            FEMc_norm[i] = self.FEMc[i] / (s ** 2)
+            Ener_norm[i] = self.Ener[i] / (s ** 2)
+
+        sub = {
+            'MeshData'          : self.mesh,
+            'Tractions'         : Tractions_norm,
+            'Relative_Vol_Frac' : self.Relative_Vol_Frac,
+            'Rel_Density'       : self.Rel_Density,
+            'Stress'            : Stress_norm,
+            'Ener'              : Ener_norm,
+            'Densities'         : self.Densities,
+            'c'                 : c_norm,
+            'NumIts'            : self.NumIts,
+            'ItsFull'           : self.ItsFull,
+            'FEMc'              : FEMc_norm,
+            'TEnd'              : self.TEnd,
+        }
+        return Dataset_TopOpt(sub)
 
 #%% Dataset for all iterations
 
@@ -674,7 +729,7 @@ class IterationSample:
 
         return np.stack([tx, ty], axis=0)  # (2, img_size, img_size)
 
-    def plot(self) -> None:
+    def plot(self,scale_force = 10) -> None:
         """
         Display the optimized topology with boundary force distributions.
         Red: nodal forces. Blue: normal force distributions per edge.
@@ -682,7 +737,7 @@ class IterationSample:
         Returns:
             None
         """
-        scale_force = 10
+        
         cadre       = int(scale_force)
 
         topo     = self.Densities.squeeze().numpy()
@@ -1039,6 +1094,23 @@ class AcceleratedDataset(Dataset):
                 f"  Densities         : {tuple(np.shape(self.Densities))}\n"
                 f"  Ener (per case)   : {tuple(ener_shape) if ener_shape is not None else 'empty'}")
 
+    def __getitem__(self, idx):
+        if isinstance(idx, tuple):
+            idx = idx[0]
+        ener = torch.from_numpy(self.Ener[idx]).float() if self.Ener is not None else None
+        return {
+            'Tractions'         : torch.from_numpy(self.Tractions[:, :, idx]).float().unsqueeze(0),
+            'MeshData'          : None,
+            'Densities'         : torch.from_numpy(self.Densities[idx]).float().unsqueeze(0),
+            'Relative_Vol_Frac' : torch.tensor(float(self.Densities[idx].mean())).float(),
+            'Stress'            : ener,
+            'Ener'              : ener,
+            'FEMc'              : torch.tensor(0.0).float(),
+            'c'                 : torch.tensor(0.0).float(),
+            'NumIts'            : torch.tensor(1.0).float(),
+            'ItsFull'           : torch.tensor(1.0).float(),
+            'TEnd'              : torch.tensor(0.0).float(),
+        }
 
     def closest_point(self, sample:IterationSample):
         '''
@@ -1082,7 +1154,7 @@ class AcceleratedDataset(Dataset):
             self.Densities[index_min_ener]
         ).float()
 
-        return index_min_ener, new_sample
+        return index_min_ener, min_distance_ener, new_sample
 
     def _sample_from_index(self, i):
         """
@@ -1234,7 +1306,6 @@ def get_traction_distribution(Tractions, img_size=32):
 
 
 #%% List to IterationSample
-
 def list_to_IterationDataset(list_samples: list[IterationSample]) -> IterationDataset:
     """
     Convert a list of IterationSample into an IterationDataset.
@@ -1248,15 +1319,18 @@ def list_to_IterationDataset(list_samples: list[IterationSample]) -> IterationDa
     """
     n_iter = len(list_samples)
 
+    # Build the (NumEls, 6, n_iter) array with an explicit numeric dtype
+    stress_stack = np.stack(
+        [s.FEM_Stress.numpy().astype(np.float32) for s in list_samples], axis=-1
+    )  # (NumEls, 6, n_iter), dtype=float32
+
     sub = {
         'MeshData'          : None,
         'Tractions'         : list_samples[0].Tractions.squeeze().numpy()[:, :, np.newaxis],  # (2, 8, 1)
         'Relative_Vol_Frac' : np.array([list_samples[0].Relative_Vol_Frac.item()]),
         'Rel_Density'       : list_samples[-1].Densities.squeeze().numpy()[:, np.newaxis],    # (NumEls, 1)
-        'Stress'            : np.array([np.stack(
-                                [s.FEM_Stress.numpy() for s in list_samples], axis=-1         # (NumEls, 6, n_iter)
-                            )], dtype=object),
-        'Ener'              : np.array([list_samples[0].Ener.numpy()], dtype=object),          # (NumEls, 6) — first image only
+        'Stress'            : np.empty(1, dtype=object),  # object array of length 1, filled below
+        'Ener'              : np.empty(1, dtype=object),  # object array of length 1, filled below
         'Densities'         : np.stack(
                                 [s.Densities.squeeze().numpy() for s in list_samples], axis=-1 # (NumEls, n_iter)
                             ),
@@ -1266,11 +1340,11 @@ def list_to_IterationDataset(list_samples: list[IterationSample]) -> IterationDa
         'FEMc'              : np.array([[s.FEMc.item() for s in list_samples]]),               # (1, n_iter)
         'TEnd'              : list_samples[0].TEnd.item(),
     }
+    sub['Stress'][0] = stress_stack  # explicitly assign the float32 array into the object slot
+    sub['Ener'][0]   = list_samples[0].Ener.numpy().astype(np.float32)  # same trick for Ener
 
     ds_base = Dataset_TopOpt(sub)
     return IterationDataset(ds_base)
-
-
 
 #%% Data augmentation 
 
@@ -1347,7 +1421,7 @@ def random_augment(sample, rotation_90, symmetry_x, symmetry_y):
 
 class AugmentedIterationDataset(torch.utils.data.Dataset):
     """
-    Wrapper that applies on-the-fly random D4 augmentation to a base dataset.
+    Wrapper that applies random augmentation to a base dataset.
 
     With probability `p` (and only when `enabled`), each fetched sample is
     transformed by a random rotation/symmetry before being returned, so the
@@ -1385,6 +1459,8 @@ class AugmentedIterationDataset(torch.utils.data.Dataset):
             sample_dict = sample_to_dict(sample)
 
         return sample_dict
+
+
 def permutation_tractions(sample, i , j):
     """
     Swap traction nodes i and j in place (both tx and ty components).
@@ -1420,8 +1496,10 @@ def symmetry_x(sample):
     """
     new_sample=sample.copy()
 
+    img_size = int(np.sqrt(sample.Densities.shape[1]))
+
     # Density symmetry
-    rho_2d = new_sample.Densities.squeeze().reshape(32, 32)
+    rho_2d = new_sample.Densities.squeeze().reshape(img_size, img_size)
     rho_flipped = torch.flip(rho_2d, dims=(1,))
     new_sample.Densities = rho_flipped.reshape(1, -1)
 
@@ -1441,9 +1519,9 @@ def symmetry_x(sample):
 
 
     # Stress - image symmetry
-    sx_2d  = new_sample.FEM_Stress[:, 0].reshape(32, 32)
-    sy_2d  = new_sample.FEM_Stress[:, 1].reshape(32, 32)
-    txy_2d = new_sample.FEM_Stress[:, 3].reshape(32, 32)
+    sx_2d  = new_sample.FEM_Stress[:, 0].reshape(img_size, img_size)
+    sy_2d  = new_sample.FEM_Stress[:, 1].reshape(img_size, img_size)
+    txy_2d = new_sample.FEM_Stress[:, 3].reshape(img_size, img_size)
 
     sx_flipped  = torch.flip(sx_2d,  dims=(1,))
     sy_flipped  = torch.flip(sy_2d,  dims=(1,))
@@ -1462,15 +1540,15 @@ def symmetry_x(sample):
     # so the shear product E_xy = sigma_xy * eps_xy is invariant under reflection)
     if getattr(new_sample, 'Ener', None) is not None:
         for comp in (0, 1, 3):
-            e_2d = new_sample.Ener[:, comp].reshape(32, 32)
+            e_2d = new_sample.Ener[:, comp].reshape(img_size, img_size)
             new_sample.Ener[:, comp] = torch.flip(e_2d, dims=(1,)).reshape(-1)
 
 
     # UNet Stress - image symmetry
     if new_sample.UNet_Stress is not None:
-        sx_2d  = new_sample.UNet_Stress[:, 0].reshape(32, 32)
-        sy_2d  = new_sample.UNet_Stress[:, 1].reshape(32, 32)
-        txy_2d = new_sample.UNet_Stress[:, 3].reshape(32, 32)
+        sx_2d  = new_sample.UNet_Stress[:, 0].reshape(img_size, img_size)
+        sy_2d  = new_sample.UNet_Stress[:, 1].reshape(img_size, img_size)
+        txy_2d = new_sample.UNet_Stress[:, 3].reshape(img_size, img_size)
 
         sx_flipped  = torch.flip(sx_2d,  dims=(1,))
         sy_flipped  = torch.flip(sy_2d,  dims=(1,))
@@ -1505,8 +1583,10 @@ def symmetry_y(sample):
     """
     new_sample=sample.copy()
 
+    img_size = int(np.sqrt(sample.Densities.shape[1]))
+
     # Density symmetry
-    rho_2d = new_sample.Densities.squeeze().reshape(32, 32)
+    rho_2d = new_sample.Densities.squeeze().reshape(img_size, img_size)
     rho_flipped = torch.flip(rho_2d, dims=(0,))
     new_sample.Densities = rho_flipped.reshape(1, -1)
 
@@ -1526,9 +1606,9 @@ def symmetry_y(sample):
 
 
     # Stress - image symmetry
-    sx_2d  = new_sample.FEM_Stress[:, 0].reshape(32, 32)
-    sy_2d  = new_sample.FEM_Stress[:, 1].reshape(32, 32)
-    txy_2d = new_sample.FEM_Stress[:, 3].reshape(32, 32)
+    sx_2d  = new_sample.FEM_Stress[:, 0].reshape(img_size, img_size)
+    sy_2d  = new_sample.FEM_Stress[:, 1].reshape(img_size, img_size)
+    txy_2d = new_sample.FEM_Stress[:, 3].reshape(img_size, img_size)
 
     sx_flipped  = torch.flip(sx_2d,  dims=(0,))
     sy_flipped  = torch.flip(sy_2d,  dims=(0,))
@@ -1547,15 +1627,15 @@ def symmetry_y(sample):
     # so the shear product E_xy = sigma_xy * eps_xy is invariant under reflection)
     if getattr(new_sample, 'Ener', None) is not None:
         for comp in (0, 1, 3):
-            e_2d = new_sample.Ener[:, comp].reshape(32, 32)
+            e_2d = new_sample.Ener[:, comp].reshape(img_size, img_size)
             new_sample.Ener[:, comp] = torch.flip(e_2d, dims=(0,)).reshape(-1)
 
 
     # UNet Stress - image symmetry
     if new_sample.UNet_Stress is not None:
-        sx_2d  = new_sample.UNet_Stress[:, 0].reshape(32, 32)
-        sy_2d  = new_sample.UNet_Stress[:, 1].reshape(32, 32)
-        txy_2d = new_sample.UNet_Stress[:, 3].reshape(32, 32)
+        sx_2d  = new_sample.UNet_Stress[:, 0].reshape(img_size, img_size)
+        sy_2d  = new_sample.UNet_Stress[:, 1].reshape(img_size, img_size)
+        txy_2d = new_sample.UNet_Stress[:, 3].reshape(img_size, img_size)
 
         sx_flipped  = torch.flip(sx_2d,  dims=(0,))
         sy_flipped  = torch.flip(sy_2d,  dims=(0,))
@@ -1591,11 +1671,14 @@ def rotation_90(sample, N_rot=1):
     IterationSample — rotated copy.
     """
     new_sample = sample.copy()
+
+    img_size = int(np.sqrt(sample.Densities.shape[1]))
+
     k       = N_rot % 4
     k_image = (-k) % 4   # the image rotates in the opposite direction to the tractions
 
     # ── Density - image rotation ──────────────────────────────────────────
-    rho_2d = new_sample.Densities.squeeze().reshape(32, 32)
+    rho_2d = new_sample.Densities.squeeze().reshape(img_size, img_size)
     rho_rot = torch.rot90(rho_2d, k_image, dims=(0, 1))
     new_sample.Densities = rho_rot.reshape(1, -1)
 
@@ -1620,9 +1703,9 @@ def rotation_90(sample, N_rot=1):
         new_sample.Tractions[0][1, :] =  tx_old
 
     # ── Stress - image rotation (same direction as the density) ────────────
-    sx_2d  = new_sample.FEM_Stress[:, 0].reshape(32, 32)
-    sy_2d  = new_sample.FEM_Stress[:, 1].reshape(32, 32)
-    txy_2d = new_sample.FEM_Stress[:, 3].reshape(32, 32)
+    sx_2d  = new_sample.FEM_Stress[:, 0].reshape(img_size, img_size)
+    sy_2d  = new_sample.FEM_Stress[:, 1].reshape(img_size, img_size)
+    txy_2d = new_sample.FEM_Stress[:, 3].reshape(img_size, img_size)
 
     sx_rot  = torch.rot90(sx_2d,  k_image, dims=(0, 1))
     sy_rot  = torch.rot90(sy_2d,  k_image, dims=(0, 1))
@@ -1639,9 +1722,9 @@ def rotation_90(sample, N_rot=1):
 
     # ── Energy - image rotation (xx<->yy swap on odd k, NO shear sign change) ──
     if getattr(new_sample, 'Ener', None) is not None:
-        ex_2d  = new_sample.Ener[:, 0].reshape(32, 32)
-        ey_2d  = new_sample.Ener[:, 1].reshape(32, 32)
-        exy_2d = new_sample.Ener[:, 3].reshape(32, 32)
+        ex_2d  = new_sample.Ener[:, 0].reshape(img_size, img_size)
+        ey_2d  = new_sample.Ener[:, 1].reshape(img_size, img_size)
+        exy_2d = new_sample.Ener[:, 3].reshape(img_size, img_size)
 
         ex_rot  = torch.rot90(ex_2d,  k_image, dims=(0, 1))
         ey_rot  = torch.rot90(ey_2d,  k_image, dims=(0, 1))
@@ -1657,9 +1740,9 @@ def rotation_90(sample, N_rot=1):
             new_sample.Ener[:, 3] = exy_rot.reshape(-1)
 
     if new_sample.UNet_Stress is not None:
-        sx_2d  = new_sample.UNet_Stress[:, 0].reshape(32, 32)
-        sy_2d  = new_sample.UNet_Stress[:, 1].reshape(32, 32)
-        txy_2d = new_sample.UNet_Stress[:, 3].reshape(32, 32)
+        sx_2d  = new_sample.UNet_Stress[:, 0].reshape(img_size, img_size)
+        sy_2d  = new_sample.UNet_Stress[:, 1].reshape(img_size, img_size)
+        txy_2d = new_sample.UNet_Stress[:, 3].reshape(img_size, img_size)
 
         sx_rot  = torch.rot90(sx_2d,  k_image, dims=(0, 1))
         sy_rot  = torch.rot90(sy_2d,  k_image, dims=(0, 1))
@@ -1689,18 +1772,105 @@ if __name__ == '__main__':
     BASE = Path(__file__).parents[3]
 
     # Reference Dataset
-    path = (BASE / 'HeavyFiles/data/dataset_128.mat').resolve()
+    path = (BASE / 'HeavyFiles/data/dataset_macro_2iter_05.mat').resolve()
     data = load_mat(path)
-    dataset = Dataset_TopOpt(data)
-    data_iter = IterationDataset(dataset)
+    ds_base = Dataset_TopOpt(data)
+    # data_iter = IterationDataset(ds_base)
+    data_acc = AcceleratedDataset(ds_base)
+    data_acc_aug = data_acc.augment()
 
-    ID = 0
-    sample = IterationSample(IterationDataset(dataset.get_series(ID)), -1)
-    sample.plot_inputs(width=5)
-    sample.plot_outputs('FEM')
-    sample.plot_inputs_3d(width=5, gap=0.2, angle=45)
-    sample.plot_outputs_3d('FEM', width=1, gap=0.2, angle=45)
+    path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever_2iter_05.mat').resolve()
+    data_test = load_mat(path_test)
+    ds_test = Dataset_TopOpt(data_test)
+
+
+
+    ID = 20
+    initial_sample = dict_to_sample(ds_test[ID,0])
+
+    idx_closest, dist, _ = data_acc.closest_point(initial_sample)
+
+
+
+
+    
+
+
+    # ID = 0
+    # sample = IterationSample(IterationDataset(dataset.get_series(ID)), -1)
+    # sample.plot_inputs(width=5)
+    # sample.plot_outputs('FEM')
+    # sample.plot_inputs_3d(width=5, gap=0.2, angle=45)
+    # sample.plot_outputs_3d('FEM', width=1, gap=0.2, angle=45)
  
+
+    # ── Extraire toutes les tractions du dataset ──────────────────────────────────
+    # ds_base.Tractions shape : dépend du dataset, typiquement (N_distrib, 2, 8)
+    # On récupère les angles de chaque composante nodale (tx, ty) pour chaque noeud
+
+    # T = data_acc_aug.Tractions   # (N_distrib, 2, 8) ou (2, 8, N_distrib) selon le mat
+
+    # # Vérifier la shape
+    # print("Tractions shape :", T.shape)
+
+    # # Adapter selon la shape réelle
+    # # Si T.shape = (2, 8, N) :
+    # tx = T[0, :, :]   
+    # ty = T[1, :, :]   
+
+    # # ── Angles des vecteurs de traction ──────────────────────────────────────────
+    # # arctan2(ty, tx) donne l'angle de chaque vecteur nodal en radians
+    # angles = np.arctan2(ty, tx)   # (N, 8) — un angle par noeud par distribution
+
+    # # Amplitude de chaque vecteur
+    # amplitudes = np.sqrt(tx**2 + ty**2)   # (N, 8)
+
+    # # ── Figure 1 : distribution des angles ───────────────────────────────────────
+    # fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # axes[0].hist(angles.flatten(), bins=72, color='steelblue', edgecolor='none')
+    # axes[0].set_xlabel("Angle (rad)", fontsize=13)
+    # axes[0].set_ylabel("Count", fontsize=13)
+    # axes[0].set_title("Distribution of traction angles\n(all nodes, all distributions)", fontsize=13)
+    # axes[0].axhline(len(angles.flatten()) / 72, color='coral', linestyle='--',
+    #                 label='Uniform reference')
+    # axes[0].legend()
+    # axes[0].set_xticks([-np.pi, -np.pi/2, 0, np.pi/2, np.pi])
+    # axes[0].set_xticklabels(['-π', '-π/2', '0', 'π/2', 'π'])
+
+    # # ── Figure 2 : distribution des amplitudes ───────────────────────────────────
+    # axes[1].hist(amplitudes.flatten(), bins=50, color='teal', edgecolor='none')
+    # axes[1].set_xlabel("Amplitude", fontsize=13)
+    # axes[1].set_ylabel("Count", fontsize=13)
+    # axes[1].set_title("Distribution of traction amplitudes\n(all nodes, all distributions)", fontsize=13)
+
+    # plt.suptitle(f"Traction diversity — {len(ds_base)} distributions, {T.shape[1]} nodes each",
+    #             fontsize=14)
+    # plt.tight_layout()
+    # plt.show()
+
+    # # ── Figure 3 : rose des vents (polar histogram) ───────────────────────────────
+    # fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(6, 6))
+    # counts, bin_edges = np.histogram(angles.flatten(), bins=36)
+    # bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+    # bar_width   = 2 * np.pi / 36
+
+    # bars = ax.bar(bin_centers, counts, width=bar_width,
+    #             bottom=0, color='steelblue', alpha=0.8, edgecolor='none')
+    # ax.set_title("Polar distribution of traction angles", fontsize=13, pad=20)
+    # plt.tight_layout()
+    # plt.show()
+
+    # # ── Statistique résumée ───────────────────────────────────────────────────────
+    # print(f"\nNombre de distributions : {len(ds_base)}")
+    # print(f"Nombre total de vecteurs : {angles.size}")
+    # print(f"Angle moyen   : {np.degrees(angles.mean()):.1f} deg")
+    # print(f"Ecart-type    : {np.degrees(angles.std()):.1f} deg  (uniforme attendu : {np.degrees(np.pi/np.sqrt(3)):.1f} deg)")
+    # print(f"Amplitude min : {amplitudes.min():.4f}")
+    # print(f"Amplitude max : {amplitudes.max():.4f}")
+    # print(f"Amplitude moy : {amplitudes.mean():.4f}")
+
+
 #  plot_inputs_3d(self, TITLE=None, width=1, gap=0.7,
                     #    angle=30, depth=0.6)
 

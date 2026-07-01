@@ -197,6 +197,7 @@ def GenTopology(sample: IterationSample, eng, model, TYPE, N_in=3) -> IterationS
     next_sample.NumIts            = sample.NumIts
     next_sample.ItsFull           = sample.ItsFull
     next_sample.TEnd              = sample.TEnd
+    next_sample.Ener              = sample.Ener
     return next_sample
 
 
@@ -665,15 +666,20 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
     """
     NEXT_TYPE = 'UNet'
     
-    fem_mode  = False   # True while correcting a compliance increase with FEM steps
+    if match_FEM:
+        enabled_rho_criteria = False
+        window = window_FEM
+    else:
+        fem_mode  = False   # True while correcting a compliance increase with FEM steps
+        enabled_rho_criteria = True
+        window = window_Unet
 
-    window = window_Unet
-
-    enabled_rho_criteria = True
+        
 
     while (i < N_max_iterations
            and not is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho, enabled=enabled_rho_criteria)
         ):
+        print(abs(List_iterations[-1].c.item()-List_iterations[-2].c.item())/List_iterations[-1].c.item())
 
         NEXT_TYPE = 'UNet' # Default setting
 
@@ -699,100 +705,6 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
             List_count_FEM.append(i)
             count_unet = 0
 
-
-        # elif match_decreasing:
-        #     # List_iterations[-1] is the most recent *computed* iteration,
-        #     # so [-1] / [-2] hold the last two compliances.
-        #     increase = (List_iterations[-1].c.item()
-        #                 > List_iterations[-2].c.item() * (1 + threshold))
-        #     if fem_mode:
-        #         # Already correcting an increase with FEM.
-        #         if increase:
-        #             # Still increasing: keep using FEM (move forward, never roll back
-        #             # again -> guarantees the loop progresses).
-        #             NEXT_TYPE = 'FEM'
-        #             converged_early = False
-
-        #             for _ in range(N_decrease-1):
-        #                 List_count_FEM.append(i)
-        #                 next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
-
-        #                 List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
-        #                 List_mean_densities.append(sample.Densities.numpy().mean())
-        #                 List_iterations.append(sample)
-        #                 sample=next_sample
-        #                 i += 1
-        #                 if is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho):
-        #                     converged_early = True
-        #                     break
-
-        #             if converged_early:
-        #                 break
-
-        #         else:
-        #             # Compliance back under control: resume U-Net.
-        #             NEXT_TYPE = 'UNet'
-        #             fem_mode = False
-
-        #     elif increase:
-        #         NEXT_TYPE = 'FEM'  # set immediately so every FEM call below is correctly typed
-        #         fem_mode = True
-        #         converged_early = False
-
-        #         if len(List_iterations) > 2:
-        #             # The last (U-Net) step increased the compliance: drop it and
-        #             # recompute the previous iteration with FEM. The common section
-        #             # below then commits the FEM-corrected candidate, so the rolled
-        #             # back iteration is replaced (never duplicated).
-        #             del List_iterations[-1]
-        #             del List_Relative_Vol_Frac[-1]
-        #             del List_mean_densities[-1]
-        #             i -= 1
-        #             sample = List_iterations[-1]
-        #             next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
-        #             sample = next_sample
-        #             List_count_FEM.append(i - 1)   # iteration recomputed with FEM
-
-        #             # N_decrease - 2 additional FEM iterations
-        #             # (1 already done above + 1 will be committed by the common section)
-        #             for _ in range(N_decrease-2):
-        #                 List_count_FEM.append(i)
-        #                 next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
-
-        #                 List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
-        #                 List_mean_densities.append(sample.Densities.numpy().mean())
-        #                 List_iterations.append(sample)
-        #                 sample=next_sample
-        #                 i += 1
-        #                 if is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho):
-        #                     converged_early = True
-        #                     break
-
-        #             if not converged_early:
-        #                 List_count_FEM.append(i)        # FEM-corrected candidate (committed below)
-
-        #         else:
-        #             # Nothing earlier to roll back to: just take N_decrease FEM steps.
-        #             for _ in range(N_decrease-1):
-        #                 List_count_FEM.append(i)
-        #                 next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
-
-        #                 List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
-        #                 List_mean_densities.append(sample.Densities.numpy().mean())
-        #                 List_iterations.append(sample)
-        #                 sample=next_sample
-        #                 i += 1
-        #                 if is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho):
-        #                     converged_early = True
-        #                     break
-        #             if not converged_early:
-        #                 List_count_FEM.append(i)
-
-        #         if converged_early:
-        #             break
-
-        #     else:
-        #         NEXT_TYPE = 'UNet'
 
         elif match_decreasing:
             increase = is_increasing_trend(List_iterations, window, threshold)
@@ -1079,8 +991,8 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     plt.xlabel('Iterations', fontsize=f_text*14,)
     plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
     
-    plt.yscale(SCALE)
-    plt.ylim(0,1.1)
+    # plt.yscale(SCALE)
+    # plt.ylim(0,1.1)
     plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
@@ -1321,7 +1233,6 @@ def compare_NN_FEM(sample_NN, sample_FEM):
 
 
 #%% Hybrid strategy comparison
-
 def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid'):
     """
     Tab_ratio_FEM : (n_configs, SIZE_LOOP)
@@ -1407,7 +1318,6 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
               fontsize=14)
     plt.tight_layout()
     plt.show()
-
 #%% Window showing the progress of the process
 
 

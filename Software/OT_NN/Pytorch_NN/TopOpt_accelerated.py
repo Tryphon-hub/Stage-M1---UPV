@@ -26,7 +26,7 @@ N_CONV=2
 HIDDEN_LAYERS_MLP=[32,64]
 EMBED_OUT   = 128     # dimension de l'embedding
 
-USE_CBAM = False
+USE_CBAM = True
 USE_AUGMENTATION = False  # Data augmentation
 
 AUGMENTATION_P   = 0.2
@@ -161,33 +161,42 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% Load dataset for accelerated non-machine learning method
 
-data_big_base         = load_mat(DATA_PATH.parent / (name_file+'.mat'))
-ds_big_base           = Dataset_TopOpt(data_big_base)
-ds_filtre_big_base    = ds_big_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
-IterData_FEM_big_base = IterationDataset(ds_filtre_big_base)
-data_acc              = AcceleratedDataset(ds_filtre_big_base)
+# data_big_base         = load_mat(DATA_PATH.parent / (name_file+'.mat'))
+# ds_big_base           = Dataset_TopOpt(data_big_base)
+# ds_filtre_big_base    = ds_big_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
+# IterData_FEM_big_base = IterationDataset(ds_filtre_big_base)
+# data_acc              = AcceleratedDataset(ds_filtre_big_base)
+
+# Reference Dataset
+path = (BASE / 'HeavyFiles/data/dataset_macro_2iter_05.mat').resolve()
+data = load_mat(path)
+ds_base = Dataset_TopOpt(data)
+ds_base = ds_base.normalize_dataset()
+ds_base = ds_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
+# data_iter = IterationDataset(ds_base)
+data_acc = AcceleratedDataset(ds_base)
+data_acc = data_acc.augment()
+
+path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever_2iter_05.mat').resolve()
+data_test = load_mat(path_test)
+ds_test = Dataset_TopOpt(data_test)
+ds_test = ds_test.normalize_dataset()
+ds_test = ds_test.filtre_dataset(rho_min=0.15, rho_max=0.85)
+
+ID = 20
+initial_sample = dict_to_sample(ds_test[ID,0])
 
 
-#%% Run loop
-
-ID_distrib=50
-empty_sample = IterationSample(IterationDataset(ds_base.get_series(ID_distrib)), 0)
-
-# data augmentation
-data_acc_aug = data_acc.augment()
-
-# find closest sample
-idx_old, first_guess_sample = data_acc_aug.closest_point(empty_sample)
+#%% Load closest point
+# In this case (0.5 densities) the solution is calculated here
 
 
+idx_closest, dist, closest_sample = data_acc.closest_point(initial_sample)
 
-idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
-FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
-
-ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
-
+empty_sample = dict_to_sample(data_acc[idx_closest])
+    
 List_iterations, List_count_FEM = run_topology_optimization(
-        first_guess_sample,
+        empty_sample,
         eng, 
         model, 
         N_in = N_in,
@@ -207,9 +216,42 @@ List_iterations, List_count_FEM = run_topology_optimization(
         end_FEM=True
         )
 
+first_guess_sample = List_iterations[-1]
+
+#%% Run loop
+
+# classical process
+ds_iter = list_to_IterationDataset(List_iterations[:-1])
+
+initial_sample.Relative_Vol_Frac=0.5
+# Adaptate tractions
+first_guess_sample.Tractions = initial_sample.Tractions
+
+List_iterations_acc, List_count_FEM = run_topology_optimization(
+        first_guess_sample,
+        eng,
+        model, 
+        N_in = N_in,
+        N_max_iterations = 100, 
+        # RULE = 'Only UNet',
+        # RULE = ' Unet - 2 FEM',
+        # RULE = 'Decreasing compliance', 
+        RULE = 'Only FEM',
+        # TYPE_FIRST = 'UNet',
+        TYPE_FIRST = 'FEM',
+        threshold = 0.0,
+        N_end_FEM_iterations = 0,
+        window_Unet = 3,
+        window_FEM = 1, 
+        tol_c=1e-3, 
+        tol_rho=1,
+        end_FEM=True
+        )
+
+
 
 FEM_c, UNet_c = visualize_convergence(
-    List_iterations, 
+    List_iterations_acc, 
     ds_iter, 
     List_count_FEM,
     NETWORK=NETWORK,
@@ -218,8 +260,6 @@ FEM_c, UNet_c = visualize_convergence(
     )
 
 
-compare_NN_FEM(List_iterations[-1], FEM_sample)
-
-density_evolution(List_iterations,List_count_FEM, 1)
+density_evolution(List_iterations_acc,List_count_FEM, 1)
 
 #%%
