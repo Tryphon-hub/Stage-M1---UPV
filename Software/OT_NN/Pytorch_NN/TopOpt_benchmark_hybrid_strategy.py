@@ -87,21 +87,19 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion]
 list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1],
-    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 1],
-    ['Only UNet', 'U-Net', 'UNet', 48, 2, False, False, 0.2, 1],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1],
+    ['Only UNet', 'UNet'],
+    ['Only UNet', 'FEM'],
+    ['10 Unet - 1 FEM', 'UNet'],
+    ['10 Unet - 1 FEM', 'FEM'],
+    ['10 Unet - 3 FEM', 'UNet'],
+    ['10 Unet - 3 FEM', 'FEM'],
+    ['Decreasing compliance', 'UNet'],
+    ['Decreasing compliance', 'FEM'],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
 # the per-run rows and the aggregation at the end.
-CONFIG_COLUMNS = ['Strategy', 'Model', 'First step', 'NIF', 'N_conv',
-                  'use cbam', 'use augmentation', 'probability of augmentation',
-                  'dataset portion']
+CONFIG_COLUMNS = ['Strategy', 'First step']
 
 RESULT_COLUMNS = ['Input ID',
                   'Number of FEM iterations for the full-FEM strategy',
