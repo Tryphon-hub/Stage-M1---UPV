@@ -1232,7 +1232,7 @@ def compare_NN_FEM(sample_NN, sample_FEM):
     plt.show()
 
 
-#%% Hybrid strategy comparison
+#%% Strategy comparison
 def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid'):
     """
     Tab_ratio_FEM : (n_configs, SIZE_LOOP)
@@ -1241,6 +1241,9 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     n = len(list_benchmark)
     x = np.arange(n)
     width = 0.35
+
+    FONT = 18
+    FONT_SIZE = 13  # font size of the parameter table cells
 
     # Aggregate over SIZE_LOOP
     mean_FEM     = (Tab_ratio_FEM*100).mean(axis=1)
@@ -1293,8 +1296,7 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
 
     ax1.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
-    ax1.set_xticklabels(labels, fontsize=10, rotation=rotation, ha='right' if rotation else 'center')
-    ax1.set_xlabel('Configuration', fontsize=13)
+    ax1.set_xticklabels(labels, fontsize=13, rotation=rotation, ha='right' if rotation else 'center')
 
     ax1.legend([bars1, bars2], ['Ratio of FEM iterations', 'Relative error (%)'],
                 fontsize=11, loc='upper left')
@@ -1307,15 +1309,15 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
             cellLoc='center',
             rowLoc='center',
             loc='bottom',
-            bbox=[0, -0.45, 1, 0.35]
+            bbox=[0, -0.6, 1, 0.55]
         )
         table.auto_set_font_size(False)
-        table.set_fontsize(9)
+        table.set_fontsize(FONT_SIZE)
         ax1.set_xticklabels([])
         ax1.set_xlabel('')
 
     plt.title(f'Hybrid strategies comparison — {len(Tab_ratio_FEM[0])} traction distributions',
-              fontsize=14)
+              fontsize=FONT)
     plt.tight_layout()
     plt.show()
 #%% Window showing the progress of the process
