@@ -88,17 +88,17 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
+    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.5, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -124,119 +124,120 @@ SIZE_LOOP = 20
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
-
-total = len(list_benchmark) * SIZE_LOOP
-win = ProgressWindow(total)
-thread = threading.Thread(target=run_window, args=(win,), daemon=True)
-thread.start()
-
-
-with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
-
-    writer = csv.writer(benchmark_file)
-    if RESET_BENCHMARK:
-        writer.writerow(CONFIG_COLUMNS + RESULT_COLUMNS)
-
-    for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE in list_benchmark:
-
-        HIDDEN_LAYERS_MLP=[32,64]
-        EMBED_OUT   = 128     # dimension de l'embedding
-
-        if NETWORK=='BE_UNet':
-            N_in=1
-        else:
-            N_in=3
+if RUN_BENCHMARK:
+    print(f"Running benchmark for {len(list_benchmark)} configurations, {SIZE_LOOP} runs each.")
+    total = len(list_benchmark) * SIZE_LOOP
+    win = ProgressWindow(total)
+    thread = threading.Thread(target=run_window, args=(win,), daemon=True)
+    thread.start()
 
 
-        if NETWORK == 'U-Net':
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
-        else:
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+    with open(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file, TYPE_WRITE, newline='') as benchmark_file:
 
-        RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
-        ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
-        CHECKPOINT_PATH   = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-        BEST_PATH         = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+        writer = csv.writer(benchmark_file)
+        if RESET_BENCHMARK:
+            writer.writerow(CONFIG_COLUMNS + RESULT_COLUMNS)
+
+        for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE in list_benchmark:
+
+            HIDDEN_LAYERS_MLP=[32,64]
+            EMBED_OUT   = 128     # dimension de l'embedding
+
+            if NETWORK=='BE_UNet':
+                N_in=1
+            else:
+                N_in=3
 
 
-        # Load model
-        if NETWORK=='BE_UNet':
-            model = BE_UNetTopo(
-                nif           = NIF,
-                n_in          = N_in,          # ρ only — tractions via BoundaryEmbedding
-                n_out         = 3,
-                use_cbam      = USE_CBAM,
-                hidden_layers_MLP = HIDDEN_LAYERS_MLP,
-                embed_out     = EMBED_OUT,
-                N_conv=N_CONV,
+            if NETWORK == 'U-Net':
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+            else:
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+
+            RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
+            ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
+            CHECKPOINT_PATH   = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
+            BEST_PATH         = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+
+
+            # Load model
+            if NETWORK=='BE_UNet':
+                model = BE_UNetTopo(
+                    nif           = NIF,
+                    n_in          = N_in,          # ρ only — tractions via BoundaryEmbedding
+                    n_out         = 3,
+                    use_cbam      = USE_CBAM,
+                    hidden_layers_MLP = HIDDEN_LAYERS_MLP,
+                    embed_out     = EMBED_OUT,
+                    N_conv=N_CONV,
+                )
+                
+            elif NETWORK=='U-Net':
+                model = UNetTopo(
+                    nif=NIF,
+                    n_in=N_in,
+                    n_out=3,
+                    use_cbam=USE_CBAM,
+                    N_conv=N_CONV,
+                    )
+
+            else:
+                raise ValueError("Invalid NETWORK value. Choose 'U-net' or 'BE_Unet'.")
+
+            state_dict = torch.load(
+                BEST_PATH,
+                map_location='cpu'
             )
-            
-        elif NETWORK=='U-Net':
-            model = UNetTopo(
-                nif=NIF,
-                n_in=N_in,
-                n_out=3,
-                use_cbam=USE_CBAM,
-                N_conv=N_CONV,
+
+            model.load_state_dict(state_dict)
+            model.eval()
+                    
+            for ID in range(SIZE_LOOP):
+
+                sample_start = IterationSample(IterationDataset(ds_filtre.get_series(ID)), 0)
+
+                List_iterations, List_count_FEM = run_topology_optimization(
+                    sample_start,  
+                    eng, 
+                    model,
+                    N_in=N_in, 
+                    N_max_iterations=100,
+                    RULE=STRATEGY,
+                    TYPE_FIRST=FIRST_STEP,
+                    threshold=0.0, 
+                    N_end_FEM_iterations=0,
+                    window_Unet=5, 
+                    window_FEM=1,
+                    tol_c=1e-3, 
+                    tol_rho=0.1, 
+                    end_FEM=True
                 )
 
-        else:
-            raise ValueError("Invalid NETWORK value. Choose 'U-net' or 'BE_Unet'.")
+                win.increment()
 
-        state_dict = torch.load(
-            BEST_PATH,
-            map_location='cpu'
-        )
+                idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
+                FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
-        model.load_state_dict(state_dict)
-        model.eval()
-                
-        for ID in range(SIZE_LOOP):
+                c_FEM  = FEM_sample.c.item()
+                c_Unet = List_iterations[-1].c.item()
 
-            sample_start = IterationSample(IterationDataset(ds_filtre.get_series(ID)), 0)
+                err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
+                number_FEM = len(List_count_FEM)
+                ds_iter    = IterationDataset(ds_filtre.get_series(ID))
 
-            List_iterations, List_count_FEM = run_topology_optimization(
-                sample_start,  
-                eng, 
-                model,
-                N_in=N_in, 
-                N_max_iterations=100,
-                RULE=STRATEGY,
-                TYPE_FIRST=FIRST_STEP,
-                threshold=0.0, 
-                N_end_FEM_iterations=0,
-                window_Unet=5, 
-                window_FEM=1,
-                tol_c=1e-3, 
-                tol_rho=0.1, 
-                end_FEM=True
-            )
+                writer.writerow([
+                    STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV,
+                    USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE,
+                    ID, len(ds_iter), number_FEM,
+                    number_FEM / len(ds_iter),
+                    err_rel_c
+                ])
 
-            win.increment()
-
-            idx_FEM_sol = IterData_FEM.last_iteration_index[ID]
-            FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
-
-            c_FEM  = FEM_sample.c.item()
-            c_Unet = List_iterations[-1].c.item()
-
-            err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
-            number_FEM = len(List_count_FEM)
-            ds_iter    = IterationDataset(ds_filtre.get_series(ID))
-
-            writer.writerow([
-                STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV,
-                USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE,
-                ID, len(ds_iter), number_FEM,
-                number_FEM / len(ds_iter),
-                err_rel_c
-            ])
-
-win.close()
+    win.close()
 
     
 
