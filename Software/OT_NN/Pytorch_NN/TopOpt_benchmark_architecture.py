@@ -12,8 +12,6 @@ from model         import *
 from dataset       import *
 from topology_utils import *
 
-user      = 'laptop'
-# user      = 'server'
 
 name_file = 'dataset_1k'
 name_data = 'dataset_test'
@@ -88,17 +86,21 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net' , 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 1  , 32],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, True , 0.5, 1  , 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 3, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, True , False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net' , 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1  , 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -120,11 +122,11 @@ if RESET_BENCHMARK:
 else: 
     TYPE_WRITE = 'a'
 
-SIZE_LOOP = 20
+SIZE_LOOP = 100
 
-name_benchmark_file = 'benchmark_architecture.csv'
+name_benchmark_file = 'benchmark_architecture_100.csv'
 
-RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
+RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -154,9 +156,9 @@ if RUN_BENCHMARK:
 
 
             if NETWORK == 'U-Net':
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
             else:
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
             RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
             ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag

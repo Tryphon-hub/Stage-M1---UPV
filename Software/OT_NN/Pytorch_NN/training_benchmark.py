@@ -52,17 +52,21 @@ print(f"Device: {device}")
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.5, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet','U-Net'  , 'UNet', 32, 2, False, True , 0.5, 1  , 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1  , 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header.
@@ -74,10 +78,10 @@ CONFIG_COLUMNS = ['Strategy', 'Model', 'First step', 'NIF', 'N_conv',
 RESULT_COLUMNS = ['n_params', 'final_train_loss', 'final_val_loss',
                   'sMAPE', 'MAE_sx', 'MAE_sy', 'MAE_txy', 'training_time_s']
 
-RESET_BENCHMARK = True            # overwrite the CSV (False → append)
+RESET_BENCHMARK = False            # overwrite the CSV (False → append)
 TYPE_WRITE      = 'w' if RESET_BENCHMARK else 'a'
 
-name_benchmark_file = 'training_benchmark_results.csv'
+name_benchmark_file = 'benchmark_training_loss.csv'
 RESULTS_ROOT        = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results'
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -112,9 +116,9 @@ with open(RESULTS_ROOT / name_benchmark_file, TYPE_WRITE, newline='') as benchma
 
         # ── Output directories for this configuration (mirrors main.py) ──
         if NETWORK == 'U-Net':
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else AUGMENTATION_P}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
         else:
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else AUGMENTATION_P}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
         RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
         ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
