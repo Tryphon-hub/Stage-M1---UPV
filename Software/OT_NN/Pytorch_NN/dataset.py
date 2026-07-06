@@ -804,17 +804,20 @@ class IterationSample:
         plt.tight_layout()
         plt.show()
 
-    def plot_inputs(self, TITLE=None, width=1) -> None:
+    def plot_inputs(self, TITLE=None, width=1, SAVE_DIR=None, SEPARATED_IMG=False) -> None:
         """
         Display the 3 U-Net inputs: densities, tx, ty.
         gray_r colormap [0,1] for densities, symmetric RdBu for tractions.
 
         Parameters:
-            TITLE (str|None): Figure title. Default: 'Inputs'.
-            width (int): Border thickness (in pixels) used to display the
-                         traction distributions. Each of the 4 edges is drawn
-                         as a band of `width` pixels, forces summing at the
-                         corners. Default: 1.
+            TITLE (str|None)     : Figure title. Default: 'Inputs'.
+            width (int)          : Border thickness (in pixels) used to display the
+                                traction distributions. Each of the 4 edges is drawn
+                                as a band of `width` pixels, forces summing at the
+                                corners. Default: 1.
+            SAVE_DIR (str|None)  : Directory to save the figure. Default: None.
+            SEPARATED_IMG (bool) : If True, save the 3 images separately without
+                                title, colorbar or axis labels. Default: False.
 
         Returns:
             None
@@ -827,25 +830,55 @@ class IterationSample:
         vmax_tx = np.abs(tx_ty[0]).max()
         vmax_ty = np.abs(tx_ty[1]).max()
 
+        img_data_list = [img,      tx_ty[0], tx_ty[1]]
+        title_list    = ['Densities', 'tx',  'ty'    ]
+        cmap_list     = ['gray_r', 'RdBu',   'RdBu'  ]
+        vmin_list     = [0,        -vmax_tx, -vmax_ty ]
+        vmax_list     = [1,         vmax_tx,  vmax_ty ]
+
+        # ── Mode separated images ─────────────────────────────────────────────────
+        if SEPARATED_IMG:
+            for img_data, name, cmap, vmin, vmax in zip(
+                img_data_list, title_list, cmap_list, vmin_list, vmax_list
+            ):
+                fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+                ax.imshow(img_data, cmap=cmap, origin='lower',
+                        vmin=vmin, vmax=vmax)
+
+                ax.axis('off')  # supprime ticks, labels ET spines (bordures)
+                plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+                if SAVE_DIR is not None:
+                    plt.savefig(f"{SAVE_DIR}/{name}.png", dpi=150)
+                plt.show()
+            return
+
+        # ── Mode combined figure ──────────────────────────────────────────────────
         fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 
         for ax, img_data, title, cmap, vmin, vmax in zip(
-            axes,
-            [img, tx_ty[0], tx_ty[1]],
-            ['Densities', 'tx', 'ty'],
-            ['gray_r', 'RdBu', 'RdBu'],
-            [0, -vmax_tx, -vmax_ty],
-            [1, vmax_tx, vmax_ty]
+            axes, img_data_list, title_list, cmap_list, vmin_list, vmax_list
         ):
             im = ax.imshow(img_data, cmap=cmap, origin='lower',
-                           extent=[0, img_size, 0, img_size],
-                           vmin=vmin, vmax=vmax)
+                        extent=[0, img_size, 0, img_size],
+                        vmin=vmin, vmax=vmax)
             fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
             ax.set_title(title, fontsize=14)
-            ax.axis('off')
+
+            # Black border around each image (keep spines, hide ticks)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(True)
+                spine.set_edgecolor('black')
+                spine.set_linewidth(1.5)
 
         plt.suptitle(TITLE if TITLE is not None else 'Inputs', fontsize=16)
         plt.tight_layout()
+
+        if SAVE_DIR is not None:
+            plt.savefig(f"{SAVE_DIR}/inputs.png", dpi=150, bbox_inches='tight')
+
         plt.show()
 
     def plot_inputs_3d(self, width=1, gap=0.7, angle=30, depth=0.6) -> None:
@@ -907,50 +940,77 @@ class IterationSample:
         plt.tight_layout()
         plt.show()
 
-    def plot_outputs(self, TYPE) -> None:
+    def plot_outputs(self, TYPE, SAVE_DIR=None, SEPARATED_IMG=False) -> None:
         """
         Display the 3 stress components: σ_xx, σ_yy, τ_xy.
 
         Parameters:
-            TYPE (str): Stress source. 'FEM' for reference stress fields,
-                        'UNet' for predicted stress (requires prior prediction).
+            TYPE (str)           : Stress source. 'FEM' for reference stress fields,
+                                'UNet' for predicted stress (requires prior prediction).
+            SAVE_DIR (str|None)  : Directory to save the figure. Default: None.
+            SEPARATED_IMG (bool) : If True, save the 3 images separately without
+                                title, colorbar or axis labels. Default: False.
 
         Returns:
             None
         """
         if TYPE == 'FEM':
-            stress = self.FEM_Stress.numpy()   # (NumEls, 6)
+            stress = self.FEM_Stress.numpy()
         elif TYPE == 'UNet':
             assert self.UNet_Stress is not None, "UNet stress not computed yet. Run prediction first."
-            stress = self.UNet_Stress.numpy()  # (NumEls, 6)
+            stress = self.UNet_Stress.numpy()
 
         img_size = int(np.sqrt(stress.shape[0]))
         sigma_x  = stress[:, 0].reshape(img_size, img_size)
         sigma_y  = stress[:, 1].reshape(img_size, img_size)
         tau_xy   = stress[:, 3].reshape(img_size, img_size)
 
-        fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-
-        # Shared symmetric scale around 0 → white at 0 for all 3 subplots
         vmax = max(np.abs(sigma_x).max(), np.abs(sigma_y).max(), np.abs(tau_xy).max())
 
+        img_data_list = [sigma_x,  sigma_y,  tau_xy ]
+        title_list    = ['sigma_x', 'sigma_y', 'tau_xy']
+
+        # ── Mode separated images ─────────────────────────────────────────────────
+        if SEPARATED_IMG:
+            for img_data, name in zip(img_data_list, title_list):
+                fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+                ax.imshow(img_data, cmap='RdBu', origin='lower',
+                        vmin=-vmax, vmax=vmax)
+                ax.axis('off')
+                plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+                if SAVE_DIR is not None:
+                    plt.savefig(f"{SAVE_DIR}/{TYPE}_{name}.png", dpi=150)
+                plt.show()
+            return
+
+        # ── Mode combined figure ──────────────────────────────────────────────────
+        fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+
         for ax, img_data, title in zip(
-            axes,
-            [sigma_x, sigma_y, tau_xy],
-            ['σ_xx', 'σ_yy', 'τ_xy']
+            axes, img_data_list, ['σ_xx', 'σ_yy', 'τ_xy']
         ):
             im = ax.imshow(img_data, cmap='RdBu', origin='lower',
                         extent=[0, img_size, 0, img_size],
                         vmin=-vmax, vmax=vmax)
             ax.set_title(title, fontsize=14)
-            ax.axis('off')
 
-        # Single common colorbar for the 3 subplots, aligned with the image
+            # Black border around each image
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(True)
+                spine.set_edgecolor('black')
+                spine.set_linewidth(1.5)
+
         fig.colorbar(im, ax=axes[-1], fraction=0.046, pad=0.04)
-
         plt.suptitle(f'{TYPE} outputs', fontsize=16)
+
+        if SAVE_DIR is not None:
+            plt.savefig(f"{SAVE_DIR}/{TYPE}_outputs.png", dpi=150, bbox_inches='tight')
+
         plt.show()
 
+        
     def plot_outputs_3d(self, TYPE, gap=0.7, angle=30, depth=0.6, width=2) -> None:
         """
         Display the 3 stress components (σ_xx, σ_yy, τ_xy) in an oblique

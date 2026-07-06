@@ -90,16 +90,16 @@ list_benchmark = [
     ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 1  , 32],
     ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, True , 0.5, 1  , 16],
+    # ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, True , 0.5, 1  , 16],
     ['Only UNet', 'U-Net' , 'UNet', 32, 3, False, False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net' , 'UNet', 32, 2, True , False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net' , 'UNet', 32, 2, False, True , 0.2, 1  , 16],
     ['Only UNet', 'U-Net' , 'UNet', 32, 3, True , True , 0.2, 1  , 16],
     ['Only UNet', 'U-Net' , 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1  , 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1  , 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -123,9 +123,9 @@ else:
 
 SIZE_LOOP = 100
 
-name_benchmark_file = 'benchmark_architecture_100.csv'
+name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -155,9 +155,9 @@ if RUN_BENCHMARK:
 
 
             if NETWORK == 'U-Net':
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else f'{int(100*AUGMENTATION_P)}%'}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
             else:
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else f'{int(100*AUGMENTATION_P)}%'}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
             RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
             ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
@@ -265,12 +265,26 @@ print(summary.to_string())
 Tab_ratio_FEM = []
 Tab_err_rel_c = []
 
+counts = []
 for bench in list_benchmark:
     mask = (df[CONFIG_COLUMNS] == pd.Series(bench, index=CONFIG_COLUMNS)).all(axis=1)
     row  = df[mask]
+    counts.append(len(row))
 
     Tab_ratio_FEM.append(row['Ratio of FEM iterations (Hybrid / full-FEM)'].values)
     Tab_err_rel_c.append(row['Relative compliance error'].values)
+
+# All configs must match the same (non-zero) number of rows, otherwise the
+# stack below fails with a cryptic "inhomogeneous shape" numpy error.
+if len(set(counts)) != 1 or counts[0] == 0:
+    details = '\n'.join(f'  {n:3d} rows  {bench}'
+                        for n, bench in zip(counts, list_benchmark))
+    raise ValueError(
+        f"Each configuration must match the same non-zero number of rows in "
+        f"'{name_benchmark_file}', but got:\n{details}\n"
+        f"Configs with 0 rows are absent from the CSV (run the benchmark for "
+        f"them, or remove them from list_benchmark)."
+    )
 
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)

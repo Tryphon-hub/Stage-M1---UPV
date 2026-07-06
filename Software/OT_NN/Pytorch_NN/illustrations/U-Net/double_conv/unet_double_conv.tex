@@ -25,20 +25,19 @@
 \tikzstyle{connection}=[ultra thick,every node/.style={sloped,allow upside down},draw=\edgecolor,opacity=0.7]
 \tikzstyle{copyconnection}=[ultra thick,every node/.style={sloped,allow upside down},draw={rgb:blue,4;red,1;green,1;black,3},opacity=0.7]
 
-\pic[line width=0.2pt, shift={(0,0,0)}] at (0,0,0) 
-    {Box={
-        name=input,
-        caption=Input\\{$(\rho\;t_{x}\;t_{y})$},
-        xlabel={{ , }},
-        zlabel= ,
-        fill=\InputColor,
-        height=40,
-        width=3,
-        depth=40
-        }
-    };
+\node[canvas is zy plane at x=0, inner sep=0pt, outer sep=0pt] (input_ty) at (-2, 0, 0) {\includegraphics[width=8cm,height=8cm]{C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/ty.png}};
+\draw[black, line width=1pt, canvas is zy plane at x=0] 
+    (input_ty.south west) rectangle (input_ty.north east);
 
-\pic[line width=0.2pt, shift={ (2,0,0) }] at (input-east) 
+\node[canvas is zy plane at x=0, inner sep=0pt, outer sep=0pt] (input_tx) at (-1, 0, 0) {\includegraphics[width=8cm,height=8cm]{C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/tx.png}};
+\draw[black, line width=1pt, canvas is zy plane at x=0] 
+    (input_tx.south west) rectangle (input_tx.north east);
+
+\node[canvas is zy plane at x=0, inner sep=0pt, outer sep=0pt] (input_rho) at (0, 0, 0) {\includegraphics[width=8cm,height=8cm]{C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/Densities.png}};
+\draw[black, line width=1pt, canvas is zy plane at x=0] 
+    (input_rho.south west) rectangle (input_rho.north east);
+
+\pic[line width=0.2pt, shift={ (2,0,0) }] at (0,0,0) 
     {RightBandedBox={
         name=enc0,
         caption= ,
@@ -274,20 +273,18 @@
         }
     };
 
-\pic[line width=0.2pt, shift={(2,0,0)}] at (dec0-east) 
-    {Box={
-        name=output,
-        caption={Output\\$(\sigma_{x},\,\sigma_{y},\,\tau_{xy})$},
-        xlabel={{ , }},
-        zlabel= ,
-        fill=\OutputColor,
-        height=40,
-        width=3,
-        depth=40
-        }
-    };
+\draw [connection] (dec0-east) -- node {\midarrow} (39, 0);
+\node[canvas is zy plane at x=0, inner sep=0pt, outer sep=0pt, opacity=0.9] (output_sx) at (40, 0, 0) {\includegraphics[width=8cm,height=8cm]{C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/FEM_sigma_x.png}};
+\draw[black, line width=1pt, canvas is zy plane at x=0] 
+    (output_sx.south west) rectangle (output_sx.north east);
 
-\draw [connection]  (input-east)    -- node {\midarrow} (enc0-west);
+\node[canvas is zy plane at x=0, inner sep=0pt, outer sep=0pt, opacity=0.9] (output_sy) at (41, 0, 0) {\includegraphics[width=8cm,height=8cm]{C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/FEM_sigma_y.png}};
+\draw[black, line width=1pt, canvas is zy plane at x=0] 
+    (output_sy.south west) rectangle (output_sy.north east);
+
+\node[canvas is zy plane at x=0, inner sep=0pt, outer sep=0pt, opacity=0.9] (output_txy) at (42, 0, 0) {\includegraphics[width=8cm,height=8cm]{C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/FEM_tau_xy.png}};
+\draw[black, line width=1pt, canvas is zy plane at x=0] 
+    (output_txy.south west) rectangle (output_txy.north east);
 
 \draw [connection]  (pool0-east)    -- node {\midarrow} (enc1-west);
 
@@ -304,8 +301,6 @@
 \draw [connection]  (dec2-east)    -- node {\midarrow} (unpool1-west);
 
 \draw [connection]  (dec1-east)    -- node {\midarrow} (unpool0-west);
-
-\draw [connection]  (dec0-east)    -- node {\midarrow} (output-west);
 
 \path (enc3-southeast) -- (enc3-northeast) coordinate[pos=1.25] (enc3-top) ;
 \path (unpool3-south)  -- (unpool3-north)  coordinate[pos=1.25] (unpool3-top) ;
@@ -336,55 +331,53 @@
 -- node {\copymidarrow} (unpool0-north);
 
 
+% Input label + arrow
+\node[left, align=center] (input_label) at (0, -7) {
+    \scalebox{3}{\textbf{Input}} \\ \scalebox{2.5}{$(\rho,\; t_x,\; t_y)$}
+};
+\draw [connection] (0, 0) -- node {\midarrow} (enc0-west);
+
+% Output label only (arrow already drawn behind images)
+\node[right, align=center] (output_label) at (38, -7) {
+    \scalebox{3}{\textbf{Output}} \\ \scalebox{2.5}{$(\sigma_{xx},\; \sigma_{yy},\; \tau_{xy})$}
+};
+
 \node[anchor=north] at (current bounding box.south) {
     \begin{tikzpicture}
 
-        % Colonne 1
-        \pic at (0,0) {Box={name=leg_input, fill=\InputColor,
-            height=12, width=1, depth=12, opacity=0.8,
-            xlabel={{"","","","","","","","","",""}},
-            zlabel=, caption=}};
-        \node[right] at (0.6, 0) {\LARGE Input layer};
-
-        \pic at (0,-3.0) {RightBandedBox={name=leg_conv,
+        % Row 1 - Col 1
+        \pic at (0,0) {RightBandedBox={name=leg_conv,
             fill=\ConvColor, bandfill=\ConvReluColor,
             height=12, width=2, depth=12,
             opacity=0.8, bandopacity=0.8,
             xlabel={{"",""}}, zlabel=, caption=}};
-        \node[right] at (1.0, -3.0) {\LARGE Convolutional layer};
+        \node[right] at (1.0, 0) {\scalebox{3}{Convolutional layer}};
 
-        % Colonne 2
-        \pic at (8,0) {Box={name=leg_pool, fill=\PoolColor,
+        % Row 1 - Col 2
+        \pic at (12,0) {Box={name=leg_pool, fill=\PoolColor,
             height=12, width=1, depth=12, opacity=0.8,
             xlabel={{"","","","","","","","","",""}},
             zlabel=, caption=}};
-        \node[right] at (8.6, 0) {\LARGE Max Pooling operation};
+        \node[right] at (12.6, 0) {\scalebox{3}{Max Pooling operation}};
 
-        \pic at (8,-3.0) {Box={name=leg_unpool, fill=\UnpoolColor,
+        % Row 2 - Col 1
+        \pic at (0,-3.0) {Box={name=leg_unpool, fill=\UnpoolColor,
             height=12, width=1, depth=12, opacity=0.8,
             xlabel={{"","","","","","","","","",""}},
             zlabel=, caption=}};
-        \node[right] at (8.6, -3.0) {\LARGE Up-conv. operation};
+        \node[right] at (0.6, -3.0) {\scalebox{3}{Up-conv. operation}};
 
-        % Colonne 3
-        \pic at (17,0) {Box={name=leg_output, fill=\OutputColor,
-            height=12, width=1, depth=12, opacity=0.8,
-            xlabel={{"","","","","","","","","",""}},
-            zlabel=, caption=}};
-        \node[right] at (17.6, 0) {\LARGE Output layer};
-
-        
-        \pic at (17,-3.0) {RightBandedBox={name=leg_conv,
+        % Row 2 - Col 2
+        \pic at (12,-3.0) {RightBandedBox={name=leg_cbam,
             fill=\SoftmaxColor, bandfill=\CBAMColor,
             height=12, width=2, depth=12,
             opacity=0.8, bandopacity=0.8,
             xlabel={{"",""}}, zlabel=, caption=}};
-        \node[right] at (18, -3.0) {\LARGE CBAM};
+        \node[right] at (13.0, -3.0) {\scalebox{3}{CBAM}};
 
-
-        % Colonne 4      
-        \draw[copyconnection, -Stealth] (22, -1.5) -- ++(2.0, 0)
-            node[right] {\LARGE Skip connection: Concatenation};
+        % Row 1+2 - Col 3 : Skip connection (right column, vertically centered)
+        \draw[copyconnection, -Stealth] (20, -3) -- ++(2.0, 0)
+            node[right] {\scalebox{3}{Skip connection: Concatenation}};
 
     \end{tikzpicture}
 };

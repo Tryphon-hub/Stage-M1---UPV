@@ -1619,6 +1619,34 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     plt.show()
 
 
+def _model_display_name(b):
+    """Human-readable model name for a benchmark row (b[1] = network id)."""
+    return 'BE U-Net' if b[1] == 'BE_UNet' else 'U-Net'
+
+
+def _model_param_count(b):
+    """
+    Count the trainable parameters of the model described by a benchmark row.
+    Mirrors the model construction in TopOpt_benchmark_architecture.py.
+    Returns a compact string (e.g. '1.24M') or '-' if the model cannot be built.
+    """
+    NETWORK, NIF, N_CONV, USE_CBAM = b[1], b[3], b[4], b[5]
+    HIDDEN_LAYERS_MLP = [32, 64]
+    EMBED_OUT = 128
+    try:
+        if NETWORK == 'BE_UNet':
+            model = BE_UNetTopo(nif=NIF, n_in=1, n_out=3, use_cbam=USE_CBAM,
+                                hidden_layers_MLP=HIDDEN_LAYERS_MLP,
+                                embed_out=EMBED_OUT, N_conv=N_CONV)
+        else:
+            model = UNetTopo(nif=NIF, n_in=3, n_out=3,
+                             use_cbam=USE_CBAM, N_conv=N_CONV)
+        n_params = sum(p.numel() for p in model.parameters())
+    except Exception:
+        return '-'
+    return f'{n_params / 1e6:.2f}M'
+
+
 def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
                      TYPE_BENCHMARK='Architecture'):
     """
@@ -1646,7 +1674,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     width = 0.25
 
     FONT      = 18
-    FONT_SIZE = 13  # font size of the parameter table cells
+    FONT_SIZE = 10  # font size of the parameter table cells
 
     # Aggregate the three metrics
     mean_FEM     = (Tab_ratio_FEM * 100).mean(axis=1)
@@ -1672,6 +1700,12 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
             return str(b[3 + k])
 
         table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
+
+        # Model name (first row) and parameter count (last row)
+        model_row  = [_model_display_name(b) for b in list_benchmark]
+        nparam_row = [_model_param_count(b)  for b in list_benchmark]
+        table_data = [model_row] + table_data + [nparam_row]
+        row_labels = ['Model'] + param_names + ['# params']
 
     fig, ax1 = plt.subplots(figsize=(max(11, n * 1.6), 7 if table_data else 6))
 
@@ -1726,7 +1760,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     if table_data is not None:
         table = ax1.table(
             cellText=table_data,
-            rowLabels=param_names,
+            rowLabels=row_labels,
             colLabels=labels,
             cellLoc='center',
             rowLoc='center',
