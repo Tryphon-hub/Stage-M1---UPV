@@ -1320,9 +1320,9 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
               fontsize=FONT)
     plt.tight_layout()
     plt.show()
+
+
 #%% Window showing the progress of the process
-
-
 class ProgressWindow:
     """
     Small Tkinter window showing benchmark progress (step count + elapsed time).
@@ -1399,3 +1399,349 @@ def run_window(win):
     """
     win._setup()
     win.root.mainloop()
+
+
+#%% sMAPE benchmark across models
+
+# Column layout of each list_benchmark entry (mirrors the benchmark scripts).
+BENCHMARK_CONFIG_COLUMNS = ['Strategy', 'Model', 'First step', 'NIF', 'N_conv',
+                            'use cbam', 'use augmentation', 'probability of augmentation',
+                            'dataset portion', 'batch size']
+
+
+def _build_model_from_config(bench, RESULTS_ROOT, name_file,
+                             hidden_layers_MLP=(32, 64), embed_out=128):
+    """
+    Rebuild and load a trained model from one `list_benchmark` entry.
+    Mirrors the model-loading block of the benchmark scripts.
+
+    Parameters
+    ----------
+    bench             : list — one `list_benchmark` row (see BENCHMARK_CONFIG_COLUMNS).
+    RESULTS_ROOT      : Path — root of the trained-model results tree.
+    name_file         : str  — dataset tag used when the models were trained.
+    hidden_layers_MLP : tuple — MLP layout for BE_UNet (unused for U-Net).
+    embed_out         : int   — embedding dim for BE_UNet (unused for U-Net).
+
+    Returns
+    -------
+    tuple(nn.Module, str, int) — (model in eval mode, NETWORK, N_in).
+    """
+    (STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM,
+     USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE) = bench
+
+    N_in = 1 if NETWORK == 'BE_UNet' else 3
+
+    if NETWORK == 'U-Net':
+        tag = (f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}'
+               f'_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}')
+    else:
+        tag = (f'{name_file}_NIF={NIF}_{N_CONV}_conv_{list(hidden_layers_MLP)}_CBAM={USE_CBAM}'
+               f'_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}')
+
+    BEST_PATH = RESULTS_ROOT / NETWORK / tag / ('unet_' + name_file + '_best.pth')
+
+    if NETWORK == 'BE_UNet':
+        model = BE_UNetTopo(nif=NIF, n_in=N_in, n_out=3, use_cbam=USE_CBAM,
+                            hidden_layers_MLP=list(hidden_layers_MLP),
+                            embed_out=embed_out, N_conv=N_CONV)
+    elif NETWORK == 'U-Net':
+        model = UNetTopo(nif=NIF, n_in=N_in, n_out=3, use_cbam=USE_CBAM, N_conv=N_CONV)
+    else:
+        raise ValueError("Invalid NETWORK value. Choose 'U-Net' or 'BE_UNet'.")
+
+    model.load_state_dict(torch.load(BEST_PATH, map_location='cpu'))
+    model.eval()
+    return model, NETWORK, N_in
+
+
+def save_smape_benchmark(list_benchmark, ds_iter, csv_path, RESULTS_ROOT, name_file,
+                         device=None, eps=1e-6, reset=True):
+    """
+    Compute, for every model in `list_benchmark`, the total sMAPE of each sample
+    of `ds_iter`, and store one row per (config, sample) in a CSV file.
+
+    The sMAPE is computed exactly like at training time (`sMAPELoss` over the
+    three stress components σx, σy, τxy), sample by sample. The resulting CSV is
+    meant to be read back by `plot_smape_benchmark`.
+
+    Parameters
+    ----------
+    list_benchmark : list[list] — configurations (see BENCHMARK_CONFIG_COLUMNS).
+    ds_iter        : IterationDataset — samples to evaluate.
+    csv_path       : path-like — destination CSV file.
+    RESULTS_ROOT   : Path — root of the trained-model results tree.
+    name_file      : str  — dataset tag used at training time.
+    device         : torch.device | None — auto-selected (CUDA if available).
+    eps            : float — sMAPE denominator epsilon.
+    reset          : bool  — overwrite the CSV ('w') and write the header;
+                             if False, append ('a') without a header.
+
+    Returns
+    -------
+    None — writes `csv_path`.
+    """
+    import csv
+    from torch.utils.data import DataLoader
+    from train import sMAPELoss, _batch_to_tensors, _forward
+
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    criterion = sMAPELoss(eps=eps)
+    loader    = DataLoader(ds_iter, batch_size=1, shuffle=False)
+    columns   = BENCHMARK_CONFIG_COLUMNS + ['Sample index', 'sMAPE']
+
+    with open(csv_path, 'w' if reset else 'a', newline='') as f:
+        writer = csv.writer(f)
+        if reset:
+            writer.writerow(columns)
+
+        for bench in list_benchmark:
+            model, NETWORK, _ = _build_model_from_config(bench, RESULTS_ROOT, name_file)
+            model.to(device)
+
+            with torch.no_grad():
+                for idx, batch in enumerate(loader):
+                    tensors = _batch_to_tensors(batch, device, NETWORK)
+                    pred, y = _forward(model, tensors, NETWORK)
+                    smape   = criterion(pred, y).item()
+                    writer.writerow(list(bench) + [idx, smape])
+
+            print(f"[sMAPE] {bench} — done ({len(ds_iter)} samples)")
+
+
+def _aggregate_smape(list_benchmark, csv_path):
+    """
+    Read the CSV written by `save_smape_benchmark` and return, per configuration
+    (ordered like `list_benchmark`), the mean and std of the total sMAPE over the
+    `ds_iter` samples.
+
+    Returns
+    -------
+    tuple(np.ndarray, np.ndarray, int) — (mean_smape, std_smape, n_samples).
+    """
+    import pandas as pd
+
+    df = pd.read_csv(csv_path)
+
+    mean_smape, std_smape, n_samples = [], [], 0
+    for bench in list_benchmark:
+        mask = (df[BENCHMARK_CONFIG_COLUMNS] ==
+                pd.Series(bench, index=BENCHMARK_CONFIG_COLUMNS)).all(axis=1)
+        vals = df[mask]['sMAPE'].values
+        mean_smape.append(vals.mean())
+        std_smape.append(vals.std())
+        n_samples = max(n_samples, len(vals))
+
+    return np.array(mean_smape), np.array(std_smape), n_samples
+
+
+def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'):
+    """
+    Read the CSV written by `save_smape_benchmark` and draw a bar chart of the
+    mean total sMAPE (± std) over the `ds_iter` samples, one bar per model.
+
+    Visual style mirrors `plot_FEM_error_c`: a parameter table under the bars
+    for the 'Architecture' benchmark, or two-line strategy labels for 'Hybrid'.
+
+    Parameters
+    ----------
+    list_benchmark : list[list] — configurations, in the desired bar order.
+    csv_path       : path-like — CSV produced by `save_smape_benchmark`.
+    TYPE_BENCHMARK : str — 'Architecture' (default) or 'Hybrid'.
+
+    Returns
+    -------
+    None — displays a matplotlib figure.
+    """
+    mean_smape, std_smape, n_samples = _aggregate_smape(list_benchmark, csv_path)
+
+    n = len(list_benchmark)
+    x = np.arange(n)
+    width = 0.6
+
+    FONT      = 18
+    FONT_SIZE = 13  # font size of the parameter table cells
+
+    # Build x-axis labels and optional parameter table (same logic as plot_FEM_error_c)
+    if TYPE_BENCHMARK == 'Hybrid':
+        labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
+        table_data = None
+    else:
+        labels = [f"Config {i+1}" for i in range(n)]
+        param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
+        aug_idx = param_names.index('aug')
+
+        def cell(b, k):
+            # Hide p_aug value when aug is False
+            if param_names[k] == 'p_aug' and not b[3 + aug_idx]:
+                return ''
+            return str(b[3 + k])
+
+        table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
+
+    fig, ax = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
+
+    bars = ax.bar(x, mean_smape, width, yerr=std_smape,
+                  capsize=4, color='tab:green', alpha=0.85)
+    ax.set_ylabel('Mean total sMAPE', fontsize=13, color='tab:green')
+    ax.tick_params(axis='y', labelcolor='tab:green')
+
+    for bar, val in zip(bars, mean_smape):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                f'{val:.3f}', ha='center', va='bottom', fontsize=9, color='tab:green')
+
+    ax.set_ylim(bottom=0)
+    ax.set_xticks(x)
+    rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
+    ax.set_xticklabels(labels, fontsize=13, rotation=rotation,
+                       ha='right' if rotation else 'center')
+
+    if table_data is not None:
+        table = ax.table(
+            cellText=table_data,
+            rowLabels=param_names,
+            colLabels=labels,
+            cellLoc='center',
+            rowLoc='center',
+            loc='bottom',
+            bbox=[0, -0.6, 1, 0.55]
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(FONT_SIZE)
+        ax.set_xticklabels([])
+        ax.set_xlabel('')
+
+    plt.title(f'Model comparison — mean total sMAPE over {n_samples} stress predictions',
+              fontsize=FONT)
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
+                     TYPE_BENCHMARK='Architecture'):
+    """
+    Fused comparison chart merging `plot_FEM_error_c` and `plot_smape_benchmark`:
+    three grouped bars per configuration, each on its own y-axis.
+
+      - blue   : ratio of FEM iterations  N_hybrid / N_FEM        (%)   — left axis
+      - orange : relative compliance error                        (%)   — right axis
+      - green  : mean total sMAPE over the ds_iter samples              — far-right axis
+
+    Parameters
+    ----------
+    list_benchmark : list[list] — configurations, in the desired bar order.
+    Tab_ratio_FEM  : np.ndarray (n_configs, SIZE_LOOP) — FEM-iteration ratios.
+    Tab_err_rel_c  : np.ndarray (n_configs, SIZE_LOOP) — relative compliance errors.
+    smape_csv      : path-like — CSV produced by `save_smape_benchmark`.
+    TYPE_BENCHMARK : str — 'Architecture' (default) or 'Hybrid'.
+
+    Returns
+    -------
+    None — displays a matplotlib figure.
+    """
+    n = len(list_benchmark)
+    x = np.arange(n)
+    width = 0.25
+
+    FONT      = 18
+    FONT_SIZE = 13  # font size of the parameter table cells
+
+    # Aggregate the three metrics
+    mean_FEM     = (Tab_ratio_FEM * 100).mean(axis=1)
+    std_FEM      = (Tab_ratio_FEM * 100).std(axis=1)
+    mean_err_pct = (Tab_err_rel_c * 100).mean(axis=1)
+    std_err_pct  = (Tab_err_rel_c * 100).std(axis=1)
+    mean_smape, std_smape, n_smp = _aggregate_smape(list_benchmark, smape_csv)
+    mean_smape = mean_smape * 100   # sMAPE as a percentage
+    std_smape  = std_smape * 100
+
+    # Build x-axis labels and optional parameter table (same logic as plot_FEM_error_c)
+    if TYPE_BENCHMARK == 'Hybrid':
+        labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
+        table_data = None
+    else:
+        labels = [f"Config {i+1}" for i in range(n)]
+        param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
+        aug_idx = param_names.index('aug')
+
+        def cell(b, k):
+            if param_names[k] == 'p_aug' and not b[3 + aug_idx]:
+                return ''
+            return str(b[3 + k])
+
+        table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
+
+    fig, ax1 = plt.subplots(figsize=(max(11, n * 1.6), 7 if table_data else 6))
+
+    # Second and third y-axes; the third spine is pushed further right.
+    ax2 = ax1.twinx()
+    ax3 = ax1.twinx()
+    ax3.spines['right'].set_position(('outward', 60))
+
+    # FEM iteration ratio — left axis (blue)
+    bars1 = ax1.bar(x - width, mean_FEM, width, yerr=std_FEM,
+                    capsize=4, color='tab:blue', alpha=0.85)
+    ax1.set_ylabel(r'Ratio of FEM iterations: $N_{Hybrid}/N_{FEM}$ (%)',
+                   fontsize=13, color='tab:blue')
+    ax1.tick_params(axis='y', labelcolor='tab:blue')
+
+    # Relative compliance error — right axis (orange)
+    bars2 = ax2.bar(x, mean_err_pct, width, yerr=std_err_pct,
+                    capsize=4, color='tab:orange', alpha=0.85)
+    ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
+    ax2.tick_params(axis='y', labelcolor='tab:orange')
+
+    # Mean total sMAPE — far-right axis (green)
+    bars3 = ax3.bar(x + width, mean_smape, width, yerr=std_smape,
+                    capsize=4, color='tab:green', alpha=0.85)
+    ax3.set_ylabel('Mean total sMAPE (%)', fontsize=13, color='tab:green')
+    ax3.tick_params(axis='y', labelcolor='tab:green')
+
+    # Bar value labels
+    for bar, val in zip(bars1, mean_FEM):
+        ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                 f'{val:.1f}', ha='center', va='bottom', fontsize=8, color='tab:blue')
+    for bar, val in zip(bars2, mean_err_pct):
+        ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                 f'{val:.2f}', ha='center', va='bottom', fontsize=8, color='tab:orange')
+    for bar, val in zip(bars3, mean_smape):
+        ax3.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                 f'{val:.1f}', ha='center', va='bottom', fontsize=8, color='tab:green')
+
+    ax1.set_ylim(bottom=0)
+    ax2.set_ylim(bottom=0)
+    ax3.set_ylim(bottom=0)
+
+    ax1.set_xticks(x)
+    rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
+    ax1.set_xticklabels(labels, fontsize=13, rotation=rotation,
+                        ha='right' if rotation else 'center')
+
+    ax1.legend([bars1, bars2, bars3],
+               ['Ratio of FEM iterations (%)', 'Relative error (%)', 'Mean total sMAPE (%)'],
+               fontsize=11, loc='upper left')
+
+    if table_data is not None:
+        table = ax1.table(
+            cellText=table_data,
+            rowLabels=param_names,
+            colLabels=labels,
+            cellLoc='center',
+            rowLoc='center',
+            loc='bottom',
+            bbox=[0, -0.6, 1, 0.55]
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(FONT_SIZE)
+        ax1.set_xticklabels([])
+        ax1.set_xlabel('')
+
+    plt.title(f'Model comparison — FEM ratio, compliance error & sMAPE '
+              f'({len(Tab_ratio_FEM[0])} distributions, {n_smp} sMAPE samples)',
+              fontsize=FONT)
+    plt.tight_layout()
+    plt.show()
+
+

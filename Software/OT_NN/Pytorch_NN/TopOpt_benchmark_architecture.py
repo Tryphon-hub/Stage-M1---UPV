@@ -93,7 +93,7 @@ list_benchmark = [
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.5, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.5, 1  , 16],
     ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
@@ -276,6 +276,32 @@ Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
 plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
 
+
+
+#%% SMAPE Benchmark
+
+# Samples on which the sMAPE is evaluated (full filtered dataset).
+ds_iter_smape = IterationDataset(ds_filtre)
+
+name_smape_file = 'benchmark_smape_architecture.csv'
+smape_csv       = RESULTS_ROOT / name_smape_file
+
+RUN_SMAPE = False  # Set to False to skip the computation and only read/plot the csv
+
+if RUN_SMAPE:
+    save_smape_benchmark(
+        list_benchmark,
+        ds_iter_smape,
+        smape_csv,
+        RESULTS_ROOT,
+        name_file,
+        reset=True,
+    )
+
+plot_smape_benchmark(list_benchmark, smape_csv, 'Architecture')
+
+# Fused chart: FEM-iteration ratio (blue), compliance error (orange), sMAPE (green)
+plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv, 'Architecture')
 
 
 #%%
