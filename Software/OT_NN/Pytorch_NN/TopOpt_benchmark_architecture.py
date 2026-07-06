@@ -12,7 +12,6 @@ from model         import *
 from dataset       import *
 from topology_utils import *
 
-
 name_file = 'dataset_1k'
 name_data = 'dataset_test'
 
@@ -156,9 +155,9 @@ if RUN_BENCHMARK:
 
 
             if NETWORK == 'U-Net':
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
             else:
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
             RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
             ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
