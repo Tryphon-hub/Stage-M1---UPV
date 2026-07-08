@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.18)  2 JUN 2026 19:01
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (MiKTeX 25.12) (preloaded format=pdflatex 2026.5.18)  6 JUL 2026 16:19
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -493,55 +493,99 @@ Package epstopdf-base Info: Redefining graphics rule for `.eps' on input line 4
 fg
 File: epstopdf-sys.cfg 2021/03/18 v2.0 Configuration of epstopdf for MiKTeX
 ))
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/ty.png, id=4, 289.08pt x 289.08pt>
+File: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-
+Net/double_conv/ty.png Graphic file (type png)
+<use C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-N
+et/double_conv/ty.png>
+Package pdftex.def Info: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_
+NN/illustrations/U-Net/double_conv/ty.png  used on input line 28.
+(pdftex.def)             Requested size: 227.62082pt x 227.62082pt.
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/tx.png, id=6, 289.08pt x 289.08pt>
+File: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-
+Net/double_conv/tx.png Graphic file (type png)
+<use C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-N
+et/double_conv/tx.png>
+Package pdftex.def Info: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_
+NN/illustrations/U-Net/double_conv/tx.png  used on input line 32.
+(pdftex.def)             Requested size: 227.62082pt x 227.62082pt.
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/Densities.png, id=7, 289.08pt x 289.08pt>
+File: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-
+Net/double_conv/Densities.png Graphic file (type png)
+<use C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-N
+et/double_conv/Densities.png>
+Package pdftex.def Info: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_
+NN/illustrations/U-Net/double_conv/Densities.png  used on input line 36.
+(pdftex.def)             Requested size: 227.62082pt x 227.62082pt.
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/FEM_sigma_x.png, id=8, 289.08pt x 289.08pt>
+File: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-
+Net/double_conv/FEM_sigma_x.png Graphic file (type png)
+<use C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-N
+et/double_conv/FEM_sigma_x.png>
+Package pdftex.def Info: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_
+NN/illustrations/U-Net/double_conv/FEM_sigma_x.png  used on input line 277.
+(pdftex.def)             Requested size: 227.62082pt x 227.62082pt.
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/FEM_sigma_y.png, id=9, 289.08pt x 289.08pt>
+File: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-
+Net/double_conv/FEM_sigma_y.png Graphic file (type png)
+<use C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-N
+et/double_conv/FEM_sigma_y.png>
+Package pdftex.def Info: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_
+NN/illustrations/U-Net/double_conv/FEM_sigma_y.png  used on input line 281.
+(pdftex.def)             Requested size: 227.62082pt x 227.62082pt.
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/FEM_tau_xy.png, id=10, 289.08pt x 289.08pt>
+File: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-
+Net/double_conv/FEM_tau_xy.png Graphic file (type png)
+<use C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-N
+et/double_conv/FEM_tau_xy.png>
+Package pdftex.def Info: C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_
+NN/illustrations/U-Net/double_conv/FEM_tau_xy.png  used on input line 285.
+(pdftex.def)             Requested size: 227.62082pt x 227.62082pt.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <14.4> on input line 39.
+(Font)              <7> on input line 336.
 LaTeX Font Info:    External font `cmex10' loaded for size
-(Font)              <7> on input line 39.
-
-Overfull \hbox (3.39958pt too wide) in paragraph at lines 39--39
- []$\OT1/cmr/m/n/14.4 (\OML/cmm/m/it/14.4 ^^Z t[] t[]\OT1/cmr/m/n/14.4 )$[] 
- []
-
-
-Overfull \hbox (6.76726pt too wide) in paragraph at lines 288--288
- [][][]\OT1/cmr/bx/n/14.4 Output 
- []
-
-
-Overfull \hbox (29.00542pt too wide) in paragraph at lines 288--288
- []$\OT1/cmr/m/n/14.4 (\OML/cmm/m/it/14.4 ^^[[];  ^^[[];  ^^\[]\OT1/cmr/m/n/14.
-4 )$[] 
- []
-
-[1
+(Font)              <5> on input line 336.
+ [1
 
 
 Non-PDF special ignored!
-<special> papersize=1313.06383pt,614.07846pt
-{C:/Users/maxen/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
-(unet_double_conv.aux)
+<special> papersize=1387.19156pt,643.04pt
+{C:/Users/maxen/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map} <C:/Users/max
+en/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/ty
+.png> <C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U
+-Net/double_conv/tx.png> <C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch
+_NN/illustrations/U-Net/double_conv/Densities.png> <C:/Users/maxen/Documents/St
+age/Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/FEM_sigma_x.png> 
+<C:/Users/maxen/Documents/Stage/Software/OT_NN/Pytorch_NN/illustrations/U-Net/d
+ouble_conv/FEM_sigma_y.png> <C:/Users/maxen/Documents/Stage/Software/OT_NN/Pyto
+rch_NN/illustrations/U-Net/double_conv/FEM_tau_xy.png>] (unet_double_conv.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2025-12-24>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 17454 strings out of 467871
- 393708 string characters out of 5418376
- 1041160 words of memory out of 5000000
- 46108 multiletter control sequences out of 15000+600000
- 629538 words of font info for 46 fonts, out of 8000000 for 9000
+ 17071 strings out of 467871
+ 386072 string characters out of 5418376
+ 1006798 words of memory out of 5000000
+ 45726 multiletter control sequences out of 15000+600000
+ 628932 words of font info for 44 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 117i,14n,121p,422b,1723s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 117i,14n,121p,422b,1719s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/maxen/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/cm/
-cmbx12.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
+cmbx10.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/fonts/type1/public/ams
 fonts/cm/cmmi10.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/fonts/type1/p
-ublic/amsfonts/cm/cmmi12.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/font
-s/type1/public/amsfonts/cm/cmr12.pfb><C:/Users/maxen/AppData/Local/Programs/MiK
-TeX/fonts/type1/public/amsfonts/cm/cmr17.pfb>
-Output written on unet_double_conv.pdf (1 page, 59256 bytes).
+ublic/amsfonts/cm/cmmi7.pfb><C:/Users/maxen/AppData/Local/Programs/MiKTeX/fonts
+/type1/public/amsfonts/cm/cmr10.pfb>
+Output written on unet_double_conv.pdf (1 page, 167930 bytes).
 PDF statistics:
- 34 PDF objects out of 1000 (max. 8388607)
+ 42 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
- 13 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 43 words of extra memory for PDF output out of 10000 (max. 10000000)
 
