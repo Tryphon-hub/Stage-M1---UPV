@@ -680,7 +680,6 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
            and not is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho, enabled=enabled_rho_criteria)
         ):
         
-        
         NEXT_TYPE = 'UNet' # Default setting
 
         if match_FEM:
