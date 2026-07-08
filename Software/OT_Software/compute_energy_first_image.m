@@ -6,7 +6,7 @@
 addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
 addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 
-DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_10k.mat';
+DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_macro_cantilever.mat';
 
 fprintf('Chargement du dataset...\n');
 data = load(DatasetFile);

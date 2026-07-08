@@ -107,9 +107,14 @@ def _tractions_to_maps(tractions: torch.Tensor, img_size: int,
     interpolation along the 4 edges of the square domain. Corner pixels
     accumulate contributions from both adjacent edges.
 
+    The stored rows are per-edge (Tn, Tt) = (normal, tangential): they are
+    converted to global (tx, ty) and each node placed at its physical boundary
+    position. Kept identical to `dataset.get_traction_distribution` so training
+    and inference feed the model the same representation.
+
     Parameters
     ----------
-    tractions : torch.Tensor [B, 1, 2, 8] — nodal forces (tx, ty per node).
+    tractions : torch.Tensor [B, 1, 2, 8] — nodal (Tn, Tt) per node.
     img_size  : int — side length of the square output maps.
     device    : torch.device — target device for the returned maps.
 
@@ -118,32 +123,25 @@ def _tractions_to_maps(tractions: torch.Tensor, img_size: int,
     tuple(torch.Tensor, torch.Tensor) — (tx_map, ty_map), each [B, 1, H, W].
     """
     import numpy as np
+    from dataset import tractions_to_global, node_positions_pixels
 
     B = tractions.shape[0]
-    T = tractions.squeeze(1).numpy()   # [B, 2, 8]
+    T = tractions.squeeze(1).numpy()   # [B, 2, 8] = (Tn, Tt)
 
-    points = np.array([
-        [0,          img_size - 1],
-        [img_size-1, img_size - 1],
-        [img_size-1, img_size - 1],
-        [img_size-1, 0           ],
-        [img_size-1, 0           ],
-        [0,          0           ],
-        [0,          0           ],
-        [0,          img_size - 1],
-    ], dtype=float)
+    points = node_positions_pixels(img_size, inclusive=False)   # (8, 2) physical
 
     tx_batch = np.zeros((B, img_size, img_size), dtype=np.float32)
     ty_batch = np.zeros((B, img_size, img_size), dtype=np.float32)
 
     for b in range(B):
+        T_global = tractions_to_global(T[b])   # (2, 8) global (tx, ty)
         for k in range(0, 8, 2):
             p1 = points[k]
             p2 = points[k + 1]
             xs = np.round(np.linspace(p1[0], p2[0], img_size)).astype(int)
             ys = np.round(np.linspace(p1[1], p2[1], img_size)).astype(int)
-            tx_batch[b, ys, xs] += np.linspace(T[b, 0, k], T[b, 0, k+1], img_size)
-            ty_batch[b, ys, xs] += np.linspace(T[b, 1, k], T[b, 1, k+1], img_size)
+            tx_batch[b, ys, xs] += np.linspace(T_global[0, k], T_global[0, k+1], img_size)
+            ty_batch[b, ys, xs] += np.linspace(T_global[1, k], T_global[1, k+1], img_size)
 
     tx_map = torch.from_numpy(tx_batch).unsqueeze(1).to(device)
     ty_map = torch.from_numpy(ty_batch).unsqueeze(1).to(device)

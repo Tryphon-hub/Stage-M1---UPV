@@ -168,16 +168,16 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 # data_acc              = AcceleratedDataset(ds_filtre_big_base)
 
 # Reference Dataset
-path = (BASE / 'HeavyFiles/data/dataset_macro_2iter_05.mat').resolve()
+path = (BASE / 'HeavyFiles/data/dataset_macro.mat').resolve()
 data = load_mat(path)
 ds_base = Dataset_TopOpt(data)
 ds_base = ds_base.normalize_dataset()
 ds_base = ds_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
-# data_iter = IterationDataset(ds_base)
+data_iter = IterationDataset(ds_base)
 data_acc = AcceleratedDataset(ds_base)
 data_acc = data_acc.augment()
 
-path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever_2iter_05.mat').resolve()
+path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever.mat').resolve()
 data_test = load_mat(path_test)
 ds_test = Dataset_TopOpt(data_test)
 ds_test = ds_test.normalize_dataset()
@@ -190,12 +190,12 @@ initial_sample = dict_to_sample(ds_test[ID,0])
 #%% Load closest point
 # In this case (0.5 densities) the solution is calculated here
 
-
 idx_closest, dist, closest_sample = data_acc.closest_point(initial_sample)
 
 empty_sample = dict_to_sample(data_acc[idx_closest])
-    
-List_iterations, List_count_FEM = run_topology_optimization(
+
+
+List_iterations_FEM, List_count_FEM = run_topology_optimization(
         empty_sample,
         eng, 
         model, 
@@ -216,16 +216,15 @@ List_iterations, List_count_FEM = run_topology_optimization(
         end_FEM=True
         )
 
-first_guess_sample = List_iterations[-1]
-
-#%% Run loop
+first_guess_sample = List_iterations_FEM[-1]
 
 # classical process
-ds_iter = list_to_IterationDataset(List_iterations[:-1])
+ds_iter = list_to_IterationDataset(List_iterations_FEM[:-1])
 
-initial_sample.Relative_Vol_Frac=0.5
+
+#%% Run loop
 # Adaptate tractions
-first_guess_sample.Tractions = initial_sample.Tractions
+first_guess_sample.Tractions=initial_sample.Tractions
 
 List_iterations_acc, List_count_FEM = run_topology_optimization(
         first_guess_sample,
@@ -252,7 +251,7 @@ List_iterations_acc, List_count_FEM = run_topology_optimization(
 
 FEM_c, UNet_c = visualize_convergence(
     List_iterations_acc, 
-    ds_iter, 
+    ds_iter,
     List_count_FEM,
     NETWORK=NETWORK,
     PLOT=True,

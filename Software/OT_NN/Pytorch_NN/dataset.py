@@ -676,37 +676,34 @@ class IterationSample:
 
     def get_traction_distribution(self, width=1):
         """
-        Build 2D traction images tx and ty by linear interpolation
-        of nodal forces along the 4 edges of the square domain.
-        The 8 nodal points are distributed 2 per edge (corner + mid-edge).
+        Build the 2D traction images tx and ty (global components) along the 4
+        edges of the square domain, by linear interpolation of the boundary
+        nodes. The 8 nodes are distributed 2 per edge.
 
-        Each edge is drawn as a band of `width` pixels, replicated inward
-        toward the center. Contributions are accumulated (+=), so pixels that
-        belong to two edges (corners) sum the forces of both edges.
+        The stored tractions are per-edge (Tn, Tt) = (normal, tangential), so
+        they are converted to global (tx, ty) and each node placed at its true
+        physical boundary position (see `tractions_to_global` /
+        `node_positions_pixels`). This is BOTH the U-Net input builder and the
+        display source, and must stay consistent with `train._tractions_to_maps`.
+
+        Each edge is drawn as a band of `width` pixels, replicated inward toward
+        the center. Contributions accumulate (+=), so corner pixels sum both edges.
 
         Parameters:
             width (int): Border thickness in pixels (>= 1). Default: 1.
 
         Returns:
             ndarray: Stacked traction images, shape (2, img_size, img_size).
-                     Channel 0: tx, Channel 1: ty.
+                     Channel 0: tx (global), Channel 1: ty (global).
         """
         width     = max(1, int(round(width)))   # border thickness is in pixels
         img_size  = int(np.sqrt(self.Densities.shape[1]))
         tx        = np.zeros((img_size, img_size))
         ty        = np.zeros((img_size, img_size))
-        tractions = self.Tractions.squeeze().numpy()  # (2, 8)
 
-        Points = np.array([
-            [0,          img_size-1],
-            [img_size-1, img_size-1],
-            [img_size-1, img_size-1],
-            [img_size-1, 0         ],
-            [img_size-1, 0         ],
-            [0,          0         ],
-            [0,          0         ],
-            [0,          img_size-1],
-        ], dtype=float)
+        # per-edge (Tn, Tt) -> global (tx, ty); nodes at their physical positions
+        T_global = tractions_to_global(self.Tractions.squeeze().numpy())  # (2, 8)
+        Points   = node_positions_pixels(img_size, inclusive=False)       # (8, 2)
 
         center = (img_size - 1) / 2.0
         for k in range(0, 8, 2):
@@ -714,8 +711,8 @@ class IterationSample:
             p2 = Points[k+1]
             xs = np.round(np.linspace(p1[0], p2[0], img_size)).astype(int)
             ys = np.round(np.linspace(p1[1], p2[1], img_size)).astype(int)
-            prof_x = np.linspace(tractions[0, k], tractions[0, k+1], img_size)
-            prof_y = np.linspace(tractions[1, k], tractions[1, k+1], img_size)
+            prof_x = np.linspace(T_global[0, k], T_global[0, k+1], img_size)
+            prof_y = np.linspace(T_global[1, k], T_global[1, k+1], img_size)
 
             # Inward offset (perpendicular to the edge, toward the center)
             mid    = (p1 + p2) / 2.0
@@ -756,19 +753,11 @@ class IterationSample:
         cb = fig.colorbar(ax.images[0], ax=ax, ticks=np.arange(0, 1.2, 0.2))
         cb.mappable.set_clim(0, 1)
 
-        Points = np.array([
-            [0,        img_size],
-            [img_size, img_size],
-            [img_size, img_size],
-            [img_size, 0       ],
-            [img_size, 0       ],
-            [0,        0       ],
-            [0,        0       ],
-            [0,        img_size],
-        ], dtype=float)
-
-        T_scale = self.Tractions.squeeze().numpy() * scale_force  # (2, 8)
-        T_scale = T_scale.T                                        # (8, 2)
+        # Physical node positions and global (tx, ty) vectors (the stored rows
+        # are normal/tangential, not global x/y).
+        Points  = node_positions_pixels(img_size, inclusive=True)          # (8, 2)
+        T_scale = tractions_to_global(self.Tractions.squeeze().numpy())    # (2, 8)
+        T_scale = (T_scale * scale_force).T                                # (8, 2)
 
         q = None
         for k in range(8):
@@ -1252,12 +1241,11 @@ class AcceleratedDataset(Dataset):
 
         Every case is replicated under all 8 square symmetries — the 4 rotations
         (0/90/180/270 deg) each optionally preceded by a horizontal mirror.
-        Together {r^k} and {r^k . s_x} for k = 0..3 enumerate the 8 distinct
-        elements of D4, so this covers every possible configuration / combination.
+        Together {r^k} and {s_x . r^k} for k = 0..3 enumerate the 8 elements of D4.
 
-        Reuses the sample-level transforms symmetry_x and rotation_90
-        (rotation + symmetry), so Tractions, Densities and Ener are all
-        transformed consistently.
+        The sample-level transforms rotate/mirror Tractions, Densities and Ener
+        CONSISTENTLY (a fixed load-independent map, FEM-verified on bending/shear
+        across the full D4), so each augmented case is a true physical image.
 
         Returns:
             AcceleratedDataset: new dataset of size 8*N, with two extra
@@ -1273,7 +1261,7 @@ class AcceleratedDataset(Dataset):
             for flip in (False, True):
                 for k in (0, 1, 2, 3):
                     s = symmetry_x(base) if flip else base
-                    s = rotation_90(s, N_rot=k)   # also acts as identity for k=0
+                    s = rotation_90(s, N_rot=k)   # k=0 identity .. k=3 rot270
 
                     Ener_aug.append(s.Ener.numpy())                  # (NumEls, 6)
                     Tract_aug.append(s.Tractions.squeeze(0).numpy()) # (2, 8)
@@ -1329,37 +1317,34 @@ def get_dataloader(dataset: IterationDataset, batch_size: int = 32,
 
 def get_traction_distribution(Tractions, img_size=32):
     """
-    Build 2D traction images tx and ty by linear interpolation
-    of nodal forces along the 4 edges of the square domain.
+    Build 2D traction images tx and ty (global components) by linear
+    interpolation of the boundary nodes along the 4 edges of the square domain.
+
+    The input rows are per-edge (Tn, Tt) = (normal, tangential); they are
+    converted to global (tx, ty) and each node placed at its physical position
+    (see `tractions_to_global` / `node_positions_pixels`). Kept consistent with
+    the IterationSample method and `train._tractions_to_maps`.
 
     Parameters:
-        Tractions (ndarray) : nodal forces, shape (2, 8).
+        Tractions (ndarray) : nodal (Tn, Tt), shape (2, 8).
         img_size (int)      : square image size. Default: 32.
 
     Returns:
-        tuple: (tx, ty) two ndarrays of shape (img_size, img_size).
+        tuple: (tx, ty) two ndarrays of shape (img_size, img_size), global.
     """
     tx = np.zeros((img_size, img_size))
     ty = np.zeros((img_size, img_size))
 
-    Points = np.array([
-        [0,          img_size-1],
-        [img_size-1, img_size-1],
-        [img_size-1, img_size-1],
-        [img_size-1, 0         ],
-        [img_size-1, 0         ],
-        [0,          0         ],
-        [0,          0         ],
-        [0,          img_size-1],
-    ], dtype=float)
+    T_global = tractions_to_global(np.asarray(Tractions))          # (2, 8)
+    Points   = node_positions_pixels(img_size, inclusive=False)    # (8, 2)
 
     for k in range(0, 8, 2):
         p1 = Points[k]
         p2 = Points[k+1]
         xs = np.round(np.linspace(p1[0], p2[0], img_size)).astype(int)
         ys = np.round(np.linspace(p1[1], p2[1], img_size)).astype(int)
-        tx[ys, xs] += np.linspace(Tractions[0, k], Tractions[0, k+1], img_size)
-        ty[ys, xs] += np.linspace(Tractions[1, k], Tractions[1, k+1], img_size)
+        tx[ys, xs] += np.linspace(T_global[0, k], T_global[0, k+1], img_size)
+        ty[ys, xs] += np.linspace(T_global[1, k], T_global[1, k+1], img_size)
 
     return tx, ty
 
@@ -1457,26 +1442,22 @@ def sample_to_dict(sample):
 
 def random_augment(sample, rotation_90, symmetry_x, symmetry_y):
     """
-    Apply a random transform to a single IterationSample:
-    a rotation (1, 2, or 3 x 90 deg), a symmetry (horizontal or vertical),
-    or both combined.
+    Apply a random element of the square's symmetry group (dihedral D4) to a
+    sample: an optional horizontal mirror followed by a random 0/90/180/270 deg
+    rotation. The 8 elements {r^k} and {s_x . r^k}, k=0..3, enumerate all of D4.
 
-    The three transform functions are passed in as arguments rather than
-    imported directly, so this module stays decoupled from wherever the
-    user keeps them (topology_utils.py, a notebook cell, etc).
+    All transforms rotate/mirror density, tractions AND stress CONSISTENTLY (the
+    transform is a fixed load-independent linear map, FEM-verified on bending and
+    shear across the full D4). The augmented (rho, T, stress) is the true physical
+    image of the sample under the symmetry — a valid training example that teaches
+    the network the rotation/reflection equivariance of elasticity.
+
+    The transform functions are passed in as arguments rather than imported
+    directly, so this module stays decoupled from wherever they live.
     """
-    choice = np.random.choice(['rot', 'flip', 'both'])
-
-    if choice in ('flip', 'both'):
-        if np.random.rand() < 0.5:
-            sample = symmetry_x(sample)
-        else:
-            sample = symmetry_y(sample)
-
-    if choice in ('rot', 'both'):
-        N_rot = np.random.randint(1, 4)   # 1, 2, or 3 x 90 deg
-        sample = rotation_90(sample, N_rot=N_rot)
-
+    if np.random.rand() < 0.5:
+        sample = symmetry_x(sample)
+    sample = rotation_90(sample, N_rot=np.random.randint(0, 4))
     return sample
 
 class AugmentedIterationDataset(torch.utils.data.Dataset):
@@ -1538,6 +1519,121 @@ def permutation_tractions(sample, i , j):
     sample.Tractions[0][:,j] = t
 
 
+# ─── Traction transforms in the global frame ─────────────────────────────────
+#
+# The 8x2 Tractions store, per boundary node, (Tn, Tt) = (normal, tangential)
+# components in a per-EDGE local frame — NOT global (tx, ty). This is dictated by
+# the MATLAB solver (OT_Functions/VectorF_Line.m, OT_Software/GenerateTractions.m).
+# So a D4 symmetry cannot be applied by naive xy sign flips: we convert each node
+# to its global vector, apply the true geometric map (relocate nodes + rotate the
+# vector), then convert back to (Tn, Tt) in the node's NEW edge frame.
+#
+# Node index -> edge (0-based): 0,1 bottom | 2,3 right | 4,5 top | 6,7 left.
+# Positions in centred coords, outward normal and tangent per node.
+#
+# FRAME NOTE: these are first given in the solver's MESH frame (x right, y up,
+# from SolveFE.m). But the density/stress IMAGE handled in Python is the
+# TRANSPOSE of that frame — Python reshapes the element vector row-major whereas
+# MATLAB/the mesh order is column-major. So a torch.rot90/flip on the density
+# image is a transposed operation relative to the mesh. To keep the traction
+# transform (and the tx/ty maps) consistent with the density/stress images, we
+# express the node geometry in that same IMAGE frame by swapping x<->y.
+_NODE_POS_MESH = np.array([[-1, -1], [ 1, -1], [ 1,  1], [ 1, -1],
+                           [ 1,  1], [-1,  1], [-1, -1], [-1,  1]], dtype=float)
+_NODE_NRM_MESH = np.array([[ 0, -1], [ 0, -1], [ 1,  0], [ 1,  0],
+                           [ 0,  1], [ 0,  1], [-1,  0], [-1,  0]], dtype=float)
+_NODE_TAN_MESH = np.array([[ 1,  0], [ 1,  0], [ 0,  1], [ 0,  1],
+                           [-1,  0], [-1,  0], [ 0, -1], [ 0, -1]], dtype=float)
+
+# mesh frame -> image frame (swap x<->y, i.e. transpose the plane)
+_NODE_POS = _NODE_POS_MESH[:, ::-1].copy()
+_NODE_NRM = _NODE_NRM_MESH[:, ::-1].copy()
+_NODE_TAN = _NODE_TAN_MESH[:, ::-1].copy()
+
+_R_FLIP_X = np.array([[-1., 0.], [0., 1.]])   # horizontal mirror (x -> -x)
+_R_FLIP_Y = np.array([[1., 0.], [0., -1.]])   # vertical   mirror (y -> -y)
+
+
+def _R_rot(n_rot):
+    """2x2 physical rotation matching the density's torch.rot90(k_image=-n_rot):
+    a CCW rotation by 90*n_rot degrees."""
+    a = np.deg2rad(90 * n_rot)
+    c, s = np.cos(a), np.sin(a)
+    return np.array([[c, -s], [s, c]])
+
+
+def _node_permutation(R):
+    """Bijection old node index -> new node index induced by the map R on the
+    square (matches both the relocated corner AND the new outward normal, which
+    disambiguates the two nodes sharing each corner)."""
+    pi = np.empty(8, dtype=int)
+    for k in range(8):
+        pos, nrm = R @ _NODE_POS[k], R @ _NODE_NRM[k]
+        for m in range(8):
+            if np.allclose(_NODE_POS[m], pos) and np.allclose(_NODE_NRM[m], nrm):
+                pi[k] = m
+                break
+        else:
+            raise ValueError(f"no matching node for index {k} under R={R.tolist()}")
+    return pi
+
+
+def transform_tractions(T_tensor, R):
+    """
+    Transform the (2, 8) traction array under a D4 element given by the 2x2
+    orthogonal matrix R, working in the global frame.
+
+    Parameters
+    ----------
+    T_tensor : torch.Tensor — shape (2, 8), rows are (Tn, Tt) per node.
+    R        : np.ndarray   — 2x2 rotation/reflection matrix.
+
+    Returns
+    -------
+    torch.Tensor — transformed (2, 8) traction array, same dtype as input.
+    """
+    T  = T_tensor.detach().cpu().numpy().astype(float)          # (2, 8): [Tn; Tt]
+    G  = _NODE_NRM.T * T[0] + _NODE_TAN.T * T[1]                 # (2, 8) global [tx; ty]
+    pi = _node_permutation(R)
+
+    G_new = np.zeros_like(G)
+    for k in range(8):
+        G_new[:, pi[k]] = R @ G[:, k]                           # relocate + rotate vector
+
+    Tn = np.sum(G_new.T * _NODE_NRM, axis=1)                    # back to local (Tn, Tt)
+    Tt = np.sum(G_new.T * _NODE_TAN, axis=1)
+    return torch.from_numpy(np.stack([Tn, Tt], axis=0)).to(T_tensor.dtype)
+
+
+def tractions_to_global(T):
+    """
+    Convert a (2, 8) traction array from local per-edge (Tn, Tt) = (normal,
+    tangential) components to global (tx, ty). Needed for any *visualisation*,
+    since the stored rows are NOT global x/y (see transform_tractions).
+
+    Parameters
+    ----------
+    T : array-like — shape (2, 8), rows (Tn, Tt) per node.
+
+    Returns
+    -------
+    np.ndarray — shape (2, 8), rows (tx, ty) global.
+    """
+    T = np.asarray(T, dtype=float)
+    return _NODE_NRM.T * T[0] + _NODE_TAN.T * T[1]              # (2, 8) [tx; ty]
+
+
+def node_positions_pixels(img_size, inclusive=True):
+    """
+    Physical boundary-node positions (x, y) in pixel coordinates, shape (8, 2),
+    following the solver convention (node 0,1 bottom | 2,3 right | 4,5 top |
+    6,7 left). `inclusive=True` spans [0, img_size] (for quiver overlays on an
+    imshow extent); `False` spans [0, img_size-1] (raw pixel indices).
+    """
+    span = img_size if inclusive else img_size - 1
+    return (_NODE_POS + 1) / 2 * span                          # (8, 2), (x, y)
+
+
 def symmetry_x(sample):
     """
     Apply a horizontal mirror (reflection about the vertical axis) to a sample,
@@ -1564,18 +1660,8 @@ def symmetry_x(sample):
     new_sample.Densities = rho_flipped.reshape(1, -1)
 
 
-    # Traction nodes - permutations
-    Permutations = (
-        (0,1),
-        (7,2),
-        (6,3),
-        (5,4)
-    )
-    for (i,j) in Permutations:
-        permutation_tractions(new_sample, i, j)
-
-    # Traction nodes - sign change: tx' = -tx 
-    new_sample.Tractions[0][0,:] = -new_sample.Tractions[0][0,:]
+    # Traction nodes - full global-frame transform (relocation + tx sign flip)
+    new_sample.Tractions[0] = transform_tractions(sample.Tractions[0], _R_FLIP_X)
 
 
     # Stress - image symmetry
@@ -1651,18 +1737,8 @@ def symmetry_y(sample):
     new_sample.Densities = rho_flipped.reshape(1, -1)
 
 
-    # Traction nodes - permutations
-    Permutations = (
-        (7,6),
-        (0,5),
-        (1,4),
-        (2,3)
-    )
-    for (i,j) in Permutations:
-        permutation_tractions(new_sample, i, j)
-
-    # Traction nodes - sign change: ty' = -ty 
-    new_sample.Tractions[0][1,:] = -new_sample.Tractions[0][1,:]
+    # Traction nodes - full global-frame transform (relocation + ty sign flip)
+    new_sample.Tractions[0] = transform_tractions(sample.Tractions[0], _R_FLIP_Y)
 
 
     # Stress - image symmetry
@@ -1719,7 +1795,12 @@ def rotation_90(sample, N_rot=1):
     consistently. The image fields (density, stress, energy) rotate in the
     opposite direction to the traction nodes; on odd rotations the σx/σy (and
     energy xx/yy) channels swap and τxy changes sign, while the traction nodes
-    are both permuted and rotated ((tx, ty) → (-ty, tx)).
+    are permuted and their vectors rotated.
+
+    The density/stress image rotation and the traction node rotation use opposite
+    matrix signs because the element image is the transpose of the mesh frame (see
+    _NODE_POS); this makes all fields represent the SAME physical rotation. Verified
+    FEM-consistent for all N_rot on bending and shear (load-independent transform).
 
     Parameters
     ----------
@@ -1742,25 +1823,11 @@ def rotation_90(sample, N_rot=1):
     rho_rot = torch.rot90(rho_2d, k_image, dims=(0, 1))
     new_sample.Densities = rho_rot.reshape(1, -1)
 
-    # ── Traction nodes - permutation (direction unchanged, already validated) ──
-    Replacements = (
-        (0, 2), (7, 1), (6, 0), (5, 7),
-        (4, 6), (3, 5), (2, 4), (1, 3),
-    )
-    T_old = sample.Tractions[0].clone()
-    for _ in range(k):
-        T_new = T_old.clone()
-        for (i, j) in Replacements:
-            T_new[:, i] = T_old[:, j]
-        T_old = T_new
-    new_sample.Tractions[0] = T_old
-
-    # ── Traction nodes - sign change (direction unchanged, already validated) ──
-    for _ in range(k):
-        tx_old = new_sample.Tractions[0][0, :].clone()
-        ty_old = new_sample.Tractions[0][1, :].clone()
-        new_sample.Tractions[0][0, :] = -ty_old
-        new_sample.Tractions[0][1, :] =  tx_old
+    # ── Traction nodes - full global-frame transform (relocation + vector rot) ──
+    # _R_rot(-k): tractions rotate with the OPPOSITE matrix sign to the density's
+    # torch.rot90 because the element image is the transpose of the mesh frame, so
+    # both represent the same physical rotation (FEM-verified on bending/shear).
+    new_sample.Tractions[0] = transform_tractions(sample.Tractions[0], _R_rot(-k))
 
     # ── Stress - image rotation (same direction as the density) ────────────
     sx_2d  = new_sample.FEM_Stress[:, 0].reshape(img_size, img_size)
@@ -1832,26 +1899,15 @@ if __name__ == '__main__':
     BASE = Path(__file__).parents[3]
 
     # Reference Dataset
-    path = (BASE / 'HeavyFiles/data/dataset_macro_2iter_05.mat').resolve()
+    path = (BASE / 'HeavyFiles/data/dataset_128.mat').resolve()
     data = load_mat(path)
     ds_base = Dataset_TopOpt(data)
-    # data_iter = IterationDataset(ds_base)
-    data_acc = AcceleratedDataset(ds_base)
-    data_acc_aug = data_acc.augment()
-
-    path_test = (BASE / 'HeavyFiles/data/dataset_macro_cantilever_2iter_05.mat').resolve()
-    data_test = load_mat(path_test)
-    ds_test = Dataset_TopOpt(data_test)
-
-
-
-    ID = 20
-    initial_sample = dict_to_sample(ds_test[ID,0])
-
-    idx_closest, dist, _ = data_acc.closest_point(initial_sample)
-
-
-
+    data_iter = IterationDataset(ds_base)
+    sample = IterationSample(data_iter, 40)
+    
+    sample.plot(scale_force=100)
+    sample.plot_inputs(width=5)
+    sample.plot_outputs('FEM')
 
     
 
