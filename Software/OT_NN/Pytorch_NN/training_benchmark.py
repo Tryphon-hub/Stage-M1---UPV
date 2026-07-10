@@ -120,7 +120,7 @@ with open(RESULTS_ROOT / name_benchmark_file, TYPE_WRITE, newline='') as benchma
         aug_tag = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
 
         if NETWORK == 'U-Net':
-            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
+            tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
         else:
             tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
                 
