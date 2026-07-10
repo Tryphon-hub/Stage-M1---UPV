@@ -50,6 +50,76 @@ IterData_FEM = IterationDataset(ds_filtre)
 
 List_List_iterations=[]
 
+#%% Define model
+NETWORK = 'U-Net'
+NIF = 32
+USE_CBAM = False
+N_CONV = 2
+USE_AUGMENTATION = False
+PORTION_DATA = 1
+AUGMENTATION_P = 0.0
+BATCH_SIZE = 16
+
+
+
+#%% Load Model
+
+HIDDEN_LAYERS_MLP=[32,64]
+EMBED_OUT   = 128     # dimension de l'embedding
+
+if NETWORK=='BE_UNet':
+    N_in=1
+else:
+    N_in=3
+
+
+# ── Output directories for this configuration (mirrors main.py) ──
+RESULTS_ROOT        = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results'
+
+if NETWORK == 'U-Net':
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
+else:
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+
+RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
+ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
+BEST_PATH         = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
+
+
+# Load model
+if NETWORK=='BE_UNet':
+    model = BE_UNetTopo(
+        nif           = NIF,
+        n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
+        n_out         = 3,
+        use_cbam      = USE_CBAM,
+        hidden_layers_MLP = HIDDEN_LAYERS_MLP,
+        embed_out     = EMBED_OUT,
+        N_conv=N_CONV,
+    )
+    
+elif NETWORK=='U-Net':
+    model = UNetTopo(
+        nif=32, 
+        n_in=N_in, 
+        n_out=3, 
+        use_cbam=USE_CBAM,
+        N_conv=N_CONV,
+        )
+
+else:
+    raise ValueError("Invalid NETWORK value. Choose 'U-net' or 'BE_Unet'.")
+
+state_dict = torch.load(
+    BEST_PATH,
+    map_location='cpu'
+)
+
+model.load_state_dict(state_dict)
+model.eval()
+
+
+
 
 
 #%% Start MATLAB engine
@@ -114,11 +184,11 @@ if RESET_BENCHMARK:
 else: 
     TYPE_WRITE = 'a'
 
-SIZE_LOOP = 2
+SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
-RUN_BENCHMARK = False
+RUN_BENCHMARK = True
 
 
 #%% Run benchmark
@@ -137,65 +207,7 @@ if RUN_BENCHMARK:
         if RESET_BENCHMARK:
             writer.writerow(CONFIG_COLUMNS + RESULT_COLUMNS)
 
-        for STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA in list_benchmark:
-
-            HIDDEN_LAYERS_MLP=[32,64]
-            EMBED_OUT   = 128     # dimension de l'embedding
-
-            if NETWORK=='BE_UNet':
-                N_in=1
-            else:
-                N_in=3
-
-
-            if NETWORK == 'U-Net':
-                RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-                ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-                CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-                BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-                TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
-
-
-
-            else:
-                RESULTS_DIR     = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-                ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%'
-                CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
-                BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-                TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
-
-
-            # Load model
-            if NETWORK=='BE_UNet':
-                model = BE_UNetTopo(
-                    nif           = NIF,
-                    n_in          = N_in,          # ρ seul — tractions via BoundaryEmbedding
-                    n_out         = 3,
-                    use_cbam      = USE_CBAM,
-                    hidden_layers_MLP = HIDDEN_LAYERS_MLP,
-                    embed_out     = EMBED_OUT,
-                    N_conv=N_CONV,
-                )
-                
-            elif NETWORK=='U-Net':
-                model = UNetTopo(
-                    nif=32, 
-                    n_in=N_in, 
-                    n_out=3, 
-                    use_cbam=USE_CBAM,
-                    N_conv=N_CONV,
-                    )
-
-            else:
-                raise ValueError("Invalid NETWORK value. Choose 'U-net' or 'BE_Unet'.")
-
-            state_dict = torch.load(
-                BEST_PATH,
-                map_location='cpu'
-            )
-
-            model.load_state_dict(state_dict)
-            model.eval()
+        for STRATEGY, FIRST_STEP in list_benchmark:
                     
             for ID in range(SIZE_LOOP):
 
@@ -231,8 +243,7 @@ if RUN_BENCHMARK:
                 ds_iter    = IterationDataset(ds_filtre.get_series(ID))
 
                 writer.writerow([
-                    STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV,
-                    USE_CBAM, USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA,
+                    STRATEGY, FIRST_STEP,
                     ID, len(ds_iter), number_FEM,
                     number_FEM / len(ds_iter),
                     err_rel_c
