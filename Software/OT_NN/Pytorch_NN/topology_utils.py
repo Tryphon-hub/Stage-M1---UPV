@@ -22,6 +22,7 @@ from pathlib import Path
 from dataset import *
 import scipy.io
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 #%% Constants
 IMG_SIZE = 32
@@ -1296,10 +1297,13 @@ def _central_interval_err(data, mean, frac=0.67, axis=1):
     return np.clip(np.vstack([mean - lo, hi - mean]), 0, None)
 
 
-def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid'):
+def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid',
+                     up_legend=1.55):
     """
     Tab_ratio_FEM : (n_configs, SIZE_LOOP)
     Tab_err_rel_c  : (n_configs, SIZE_LOOP)
+    up_legend      : y-axis headroom factor above the tallest error bar; raise it
+                     to lift the (inside) legend higher above the bars.
     """
     n = len(list_benchmark)
     x = np.arange(n)
@@ -1316,6 +1320,8 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     # 67% central interval (16.5th-83.5th percentiles) as asymmetric error bars
     err_FEM      = _central_interval_err(data_FEM, mean_FEM)
     err_err_pct  = _central_interval_err(data_err_pct, mean_err_pct)
+    median_FEM   = np.median(data_FEM, axis=1)
+    median_err   = np.median(data_err_pct, axis=1)
 
     # Build x-axis labels and optional parameter table
     if TYPE_BENCHMARK == 'Hybrid':
@@ -1349,6 +1355,10 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
     ax2.tick_params(axis='y', labelcolor='tab:orange')
 
+    # Median markers (black dot at the median of each distribution)
+    ax1.scatter(x - width/2, median_FEM, color='black', s=18, zorder=5)
+    ax2.scatter(x + width/2, median_err, color='black', s=18, zorder=5)
+
     # Bar value labels
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.01,
@@ -1357,15 +1367,20 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         ax2.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.001,
                  f'{val:.2f}%', ha='left', va='bottom', fontsize=9, color='tab:orange')
 
-    ax1.set_ylim(bottom=0)
-    ax2.set_ylim(bottom=0)
+    # Extra headroom so the (inside) legend does not overlap the error bars
+    ax1.set_ylim(0, (mean_FEM + err_FEM[1]).max() * up_legend)
+    ax2.set_ylim(0, (mean_err_pct + err_err_pct[1]).max() * up_legend)
 
     ax1.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
     ax1.set_xticklabels(labels, fontsize=13, rotation=rotation, ha='right' if rotation else 'center')
 
-    ax1.legend([bars1, bars2], ['Ratio of FEM iterations', 'Relative error (%)'],
-                fontsize=11, loc='upper left')
+    err_handle = Line2D([0], [0], color='black', lw=1.2, marker='_', markersize=8)
+    med_handle = Line2D([0], [0], color='black', marker='o', linestyle='None', markersize=5)
+    ax1.legend([bars1, bars2, err_handle, med_handle],
+               ['Ratio of FEM iterations', 'Relative error (%)',
+                'Error bars: central 67% interval', 'Median'],
+               fontsize=11, loc='upper left')
 
     if table_data is not None:
         table = ax1.table(
@@ -1606,7 +1621,7 @@ def _aggregate_smape(list_benchmark, csv_path):
     return np.array(mean_smape), np.array(std_smape), n_samples, vals_smape
 
 
-def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'):
+def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture', up_legend=1.45):
     """
     Read the CSV written by `save_smape_benchmark` and draw a bar chart of the
     mean total sMAPE (± std) over the `ds_iter` samples, one bar per model.
@@ -1626,7 +1641,8 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     """
     mean_smape, _, n_samples, vals_smape = _aggregate_smape(list_benchmark, csv_path)
     # 67% central interval (16.5th-83.5th percentiles) as asymmetric error bars
-    err_smape = _central_interval_err(vals_smape, mean_smape)
+    err_smape    = _central_interval_err(vals_smape, mean_smape)
+    median_smape = np.array([np.median(v) for v in vals_smape])
 
     n = len(list_benchmark)
     x = np.arange(n)
@@ -1659,11 +1675,20 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     ax.set_ylabel('Mean total sMAPE', fontsize=13, color='tab:green')
     ax.tick_params(axis='y', labelcolor='tab:green')
 
+    ax.scatter(x, median_smape, color='black', s=18, zorder=5)
+
+    err_handle = Line2D([0], [0], color='black', lw=1.2, marker='_', markersize=8)
+    med_handle = Line2D([0], [0], color='black', marker='o', linestyle='None', markersize=5)
+    ax.legend([bars, err_handle, med_handle],
+              ['Mean total sMAPE', 'Error bars: central 67% interval', 'Median'],
+              fontsize=11, loc='upper left')
+
     for bar, val in zip(bars, mean_smape):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
                 f'{val:.3f}', ha='center', va='bottom', fontsize=9, color='tab:green')
 
-    ax.set_ylim(bottom=0)
+    # Extra headroom so the (inside) legend does not overlap the error bars
+    ax.set_ylim(0, (mean_smape + err_smape[1]).max() * up_legend)
     ax.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
     ax.set_xticklabels(labels, fontsize=13, rotation=rotation,
@@ -1719,7 +1744,7 @@ def _model_param_count(b):
 
 
 def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
-                     TYPE_BENCHMARK='Architecture'):
+                     TYPE_BENCHMARK='Architecture', up_legend=1.7):
     """
     Fused comparison chart merging `plot_FEM_error_c` and `plot_smape_benchmark`:
     three grouped bars per configuration, each on its own y-axis.
@@ -1755,10 +1780,13 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     # 67% central interval (16.5th-83.5th percentiles) as asymmetric error bars
     err_FEM      = _central_interval_err(data_FEM, mean_FEM)
     err_err_pct  = _central_interval_err(data_err_pct, mean_err_pct)
+    median_FEM   = np.median(data_FEM, axis=1)
+    median_err   = np.median(data_err_pct, axis=1)
     mean_smape, _, n_smp, vals_smape = _aggregate_smape(list_benchmark, smape_csv)
     mean_smape = mean_smape * 100   # sMAPE as a percentage
     vals_smape = [v * 100 for v in vals_smape]
-    err_smape  = _central_interval_err(vals_smape, mean_smape)
+    err_smape    = _central_interval_err(vals_smape, mean_smape)
+    median_smape = np.array([np.median(v) for v in vals_smape])
 
     # Build x-axis labels and optional parameter table (same logic as plot_FEM_error_c)
     if TYPE_BENCHMARK == 'Hybrid':
@@ -1808,6 +1836,11 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     ax3.set_ylabel('Mean total sMAPE (%)', fontsize=13, color='tab:green')
     ax3.tick_params(axis='y', labelcolor='tab:green')
 
+    # Median markers (black dot at the median of each distribution)
+    ax1.scatter(x - width, median_FEM,   color='black', s=18, zorder=5)
+    ax2.scatter(x,         median_err,   color='black', s=18, zorder=5)
+    ax3.scatter(x + width, median_smape, color='black', s=18, zorder=5)
+
     # Bar value labels
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
@@ -1819,17 +1852,21 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
         ax3.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
                  f'{val:.1f}', ha='center', va='bottom', fontsize=8, color='tab:green')
 
-    ax1.set_ylim(bottom=0)
-    ax2.set_ylim(bottom=0)
-    ax3.set_ylim(bottom=0)
+    # Extra headroom so the (inside) legend does not overlap the error bars
+    ax1.set_ylim(0, (mean_FEM + err_FEM[1]).max() * up_legend)
+    ax2.set_ylim(0, (mean_err_pct + err_err_pct[1]).max() * up_legend)
+    ax3.set_ylim(0, (mean_smape + err_smape[1]).max() * up_legend)
 
     ax1.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
     ax1.set_xticklabels(labels, fontsize=13, rotation=rotation,
                         ha='right' if rotation else 'center')
 
-    ax1.legend([bars1, bars2, bars3],
-               ['Ratio of FEM iterations (%)', 'Relative error (%)', 'Mean total sMAPE (%)'],
+    err_handle = Line2D([0], [0], color='black', lw=1.2, marker='_', markersize=8)
+    med_handle = Line2D([0], [0], color='black', marker='o', linestyle='None', markersize=5)
+    ax1.legend([bars1, bars2, bars3, err_handle, med_handle],
+               ['Ratio of FEM iterations (%)', 'Relative error (%)', 'Mean total sMAPE (%)',
+                'Error bars: central 67% interval', 'Median'],
                fontsize=11, loc='upper left')
 
     if table_data is not None:

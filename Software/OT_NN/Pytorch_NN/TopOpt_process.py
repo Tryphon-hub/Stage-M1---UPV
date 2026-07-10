@@ -51,10 +51,12 @@ GMSH_EXE = BASE.parent / 'gmsh' / 'gmsh.exe'
 
 DATA_PATH       = BASE / 'HeavyFiles' / 'data' / (name_data + '.mat')
 
+aug_tag = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
+
 if NETWORK == 'U-Net':
-    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
 else:
-    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
 RESULTS_DIR       = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / NETWORK / tag
 ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
@@ -161,7 +163,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=46
+ID_distrib=2
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -175,8 +177,8 @@ List_iterations, List_count_FEM = run_topology_optimization(
         model, 
         N_in = N_in,
         N_max_iterations = 100, 
-        # RULE = 'Only UNet',
-        RULE = '10 Unet - 1 FEM',
+        RULE = 'Only UNet',
+        # RULE = '10 Unet - 1 FEM',
         # RULE = 'Decreasing compliance', 
         # RULE = 'Only FEM',
         TYPE_FIRST = 'UNet',

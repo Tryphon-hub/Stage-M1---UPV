@@ -290,7 +290,7 @@ for bench in list_benchmark:
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c)
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, up_legend=1.15)
 
 
 
