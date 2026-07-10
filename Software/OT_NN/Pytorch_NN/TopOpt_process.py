@@ -161,7 +161,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=2
+ID_distrib=46
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -197,7 +197,8 @@ FEM_c, UNet_c = visualize_convergence(
     List_count_FEM,
     NETWORK=NETWORK,
     PLOT=True,
-    SCALE='linear'
+    SCALE='linear',
+    eng=eng   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
     )
 
 

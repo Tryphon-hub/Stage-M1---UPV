@@ -159,8 +159,8 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 list_benchmark = [
     ['Only UNet', 'UNet'],
     ['Only UNet', 'FEM'],
-    ['10 Unet - 1 FEM', 'UNet'],
-    ['10 Unet - 1 FEM', 'FEM'],
+    # ['10 Unet - 1 FEM', 'UNet'],
+    # ['10 Unet - 1 FEM', 'FEM'],
     ['10 Unet - 3 FEM', 'UNet'],
     ['10 Unet - 3 FEM', 'FEM'],
     ['Decreasing compliance', 'UNet'],
@@ -188,7 +188,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
-RUN_BENCHMARK = True
+RUN_BENCHMARK = False
 
 
 #%% Run benchmark
@@ -236,9 +236,13 @@ if RUN_BENCHMARK:
                 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
                 c_FEM  = FEM_sample.c.item()
-                c_Unet = List_iterations[-1].c.item()
+                # Re-evaluate the final density with FEM: List_iterations[-1].c
+                # may hold a U-Net *predicted* pseudo-compliance when the run
+                # ends on a U-Net step (e.g. '10 Unet - 1 FEM' hitting the cap),
+                # which would otherwise give errors of thousands of %.
+                c_Unet = compliance_FEM(eng, List_iterations[-1])
 
-                err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
+                err_rel_c  = (c_Unet - c_FEM) / c_FEM
                 number_FEM = len(List_count_FEM)
                 ds_iter    = IterationDataset(ds_filtre.get_series(ID))
 

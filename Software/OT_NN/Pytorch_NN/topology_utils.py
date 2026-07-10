@@ -110,6 +110,39 @@ def predict_stress_FEM(eng, sample):
     return Stress_FEM
 
 
+def compliance_FEM(eng, sample):
+    """
+    Evaluate the true (FEM) compliance of a sample's *current* density,
+    without advancing the optimization one step.
+
+    Needed because `sample.c` set in `GenTopology` holds a compliance computed
+    from whatever stress fed the last step: for a U-Net step it is a *predicted
+    pseudo-compliance*, not a physical one. Reporting `List_iterations[-1].c`
+    directly is therefore only meaningful when the last step was FEM; otherwise
+    (e.g. a '10 Unet - 1 FEM' run that hits the iteration cap on a U-Net step)
+    it produces absurd relative errors of thousands of %.
+
+    Parameters
+    ----------
+    eng    : matlab.engine — MATLAB engine.
+    sample : IterationSample — its Densities are scored as-is.
+
+    Returns
+    -------
+    float — the FEM compliance of the density.
+    """
+    Rel_Density = sample.Densities.squeeze().numpy().flatten()  # (NumEls,)
+    Stress      = predict_stress_FEM(eng, sample)               # true FEM stress
+
+    eng.workspace['Rel_Density'] = matlab.double(Rel_Density.tolist())
+    eng.workspace['Stress_py']   = matlab.double(Stress.tolist())
+    eng.eval(
+        f"[c, dc, ce, InfVol] = Opt_Stress(Rel_Density, Stress_py, D, {PENAL}, MeshData, true, true, 2, 4);",
+        nargout=0
+    )
+    return float(eng.workspace['c'])
+
+
 def GenTopology(sample: IterationSample, eng, model, TYPE, N_in=3) -> IterationSample:
     """
     Compute one topology optimization iteration using the U-Net for stress prediction.
@@ -923,7 +956,7 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
 
 
 # %% Convergence study
-def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear'):
+def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None):
     """
     Plot the compliance convergence of a single optimization: the full-FEM
     reference curve against the hybrid U-Net/FEM run, with the FEM steps of the
@@ -938,6 +971,11 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     NETWORK              : str — network name, used in labels.
     PLOT                 : bool — kept for API symmetry (figure always drawn).
     SCALE                : str — y-axis scale ('linear' or 'log').
+    eng                  : matlab.engine or None — if provided, each iterate's
+        compliance is re-evaluated with FEM (`compliance_FEM`). This removes the
+        pseudo-compliance spikes seen at U-Net steps, where `sample.c` holds a
+        compliance computed from the network's *predicted* stress rather than a
+        physical one. If None, the stored `sample.c` is plotted as-is.
 
     Returns
     -------
@@ -957,9 +995,12 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     FEM_step_c=[]
 
     for i,sample in enumerate(List_Iterations_Unet):
-        UNet_c.append([i, sample.c.item()])
+        # A U-Net step stores a *predicted* pseudo-compliance in sample.c; when
+        # an engine is available, score the density with FEM for an honest curve.
+        c_i = compliance_FEM(eng, sample) if (eng is not None and i not in List_count_FEM) else sample.c.item()
+        UNet_c.append([i, c_i])
         if i in List_count_FEM:
-            FEM_step_c.append((i, sample.c.item()))
+            FEM_step_c.append((i, c_i))
 
     FEM_c=np.array(FEM_c)
 
@@ -1234,6 +1275,27 @@ def compare_NN_FEM(sample_NN, sample_FEM):
 
 
 #%% Strategy comparison
+def _central_interval_err(data, mean, frac=0.67, axis=1):
+    """
+    Asymmetric error-bar heights spanning the central `frac` of the values.
+
+    Returns a (2, n) array [[below], [above]] suitable for matplotlib's `yerr`,
+    based on the (50-frac/2)*100 and (50+frac/2)*100 percentiles.
+    Heights are clipped to be non-negative (a hard matplotlib requirement).
+
+    `data` may be a rectangular array (percentiles taken along `axis`) or a list
+    of 1-D arrays with possibly different lengths (percentiles taken per array).
+    """
+    half = frac / 2 * 100
+    if isinstance(data, (list, tuple)):
+        lo = np.array([np.percentile(v, 50 - half) for v in data])
+        hi = np.array([np.percentile(v, 50 + half) for v in data])
+    else:
+        lo = np.percentile(data, 50 - half, axis=axis)
+        hi = np.percentile(data, 50 + half, axis=axis)
+    return np.clip(np.vstack([mean - lo, hi - mean]), 0, None)
+
+
 def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid'):
     """
     Tab_ratio_FEM : (n_configs, SIZE_LOOP)
@@ -1247,10 +1309,13 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     FONT_SIZE = 13  # font size of the parameter table cells
 
     # Aggregate over SIZE_LOOP
-    mean_FEM     = (Tab_ratio_FEM*100).mean(axis=1)
-    std_FEM      = (Tab_ratio_FEM*100).std(axis=1)
-    mean_err_pct = (Tab_err_rel_c * 100).mean(axis=1)
-    std_err_pct  = (Tab_err_rel_c * 100).std(axis=1)
+    data_FEM     = Tab_ratio_FEM * 100
+    data_err_pct = Tab_err_rel_c * 100
+    mean_FEM     = data_FEM.mean(axis=1)
+    mean_err_pct = data_err_pct.mean(axis=1)
+    # 67% central interval (16.5th-83.5th percentiles) as asymmetric error bars
+    err_FEM      = _central_interval_err(data_FEM, mean_FEM)
+    err_err_pct  = _central_interval_err(data_err_pct, mean_err_pct)
 
     # Build x-axis labels and optional parameter table
     if TYPE_BENCHMARK == 'Hybrid':
@@ -1272,14 +1337,14 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
     # FEM iterations — left axis
-    bars1 = ax1.bar(x - width/2, mean_FEM, width, yerr=std_FEM,
+    bars1 = ax1.bar(x - width/2, mean_FEM, width, yerr=err_FEM,
                      capsize=4, color='tab:blue', alpha=0.8)
     ax1.set_ylabel(r'Ratio of FEM iterations: $N_{Hybrid}/N_{FEM}$ (%)', fontsize=13, color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Relative error (%) — right axis
     ax2 = ax1.twinx()
-    bars2 = ax2.bar(x + width/2, mean_err_pct, width, yerr=std_err_pct,
+    bars2 = ax2.bar(x + width/2, mean_err_pct, width, yerr=err_err_pct,
                      capsize=4, color='tab:orange', alpha=0.8)
     ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
     ax2.tick_params(axis='y', labelcolor='tab:orange')
@@ -1520,22 +1585,25 @@ def _aggregate_smape(list_benchmark, csv_path):
 
     Returns
     -------
-    tuple(np.ndarray, np.ndarray, int) — (mean_smape, std_smape, n_samples).
+    tuple(np.ndarray, np.ndarray, int, list[np.ndarray]) —
+        (mean_smape, std_smape, n_samples, vals_smape), where `vals_smape`
+        holds the raw per-config sMAPE samples (one array per configuration).
     """
     import pandas as pd
 
     df = pd.read_csv(csv_path)
 
-    mean_smape, std_smape, n_samples = [], [], 0
+    mean_smape, std_smape, vals_smape, n_samples = [], [], [], 0
     for bench in list_benchmark:
         mask = (df[BENCHMARK_CONFIG_COLUMNS] ==
                 pd.Series(bench, index=BENCHMARK_CONFIG_COLUMNS)).all(axis=1)
         vals = df[mask]['sMAPE'].values
         mean_smape.append(vals.mean())
         std_smape.append(vals.std())
+        vals_smape.append(vals)
         n_samples = max(n_samples, len(vals))
 
-    return np.array(mean_smape), np.array(std_smape), n_samples
+    return np.array(mean_smape), np.array(std_smape), n_samples, vals_smape
 
 
 def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'):
@@ -1556,7 +1624,9 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     -------
     None — displays a matplotlib figure.
     """
-    mean_smape, std_smape, n_samples = _aggregate_smape(list_benchmark, csv_path)
+    mean_smape, _, n_samples, vals_smape = _aggregate_smape(list_benchmark, csv_path)
+    # 67% central interval (16.5th-83.5th percentiles) as asymmetric error bars
+    err_smape = _central_interval_err(vals_smape, mean_smape)
 
     n = len(list_benchmark)
     x = np.arange(n)
@@ -1584,7 +1654,7 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
 
     fig, ax = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
-    bars = ax.bar(x, mean_smape, width, yerr=std_smape,
+    bars = ax.bar(x, mean_smape, width, yerr=err_smape,
                   capsize=4, color='tab:green', alpha=0.85)
     ax.set_ylabel('Mean total sMAPE', fontsize=13, color='tab:green')
     ax.tick_params(axis='y', labelcolor='tab:green')
@@ -1678,13 +1748,17 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     FONT_SIZE = 10  # font size of the parameter table cells
 
     # Aggregate the three metrics
-    mean_FEM     = (Tab_ratio_FEM * 100).mean(axis=1)
-    std_FEM      = (Tab_ratio_FEM * 100).std(axis=1)
-    mean_err_pct = (Tab_err_rel_c * 100).mean(axis=1)
-    std_err_pct  = (Tab_err_rel_c * 100).std(axis=1)
-    mean_smape, std_smape, n_smp = _aggregate_smape(list_benchmark, smape_csv)
+    data_FEM     = Tab_ratio_FEM * 100
+    data_err_pct = Tab_err_rel_c * 100
+    mean_FEM     = data_FEM.mean(axis=1)
+    mean_err_pct = data_err_pct.mean(axis=1)
+    # 67% central interval (16.5th-83.5th percentiles) as asymmetric error bars
+    err_FEM      = _central_interval_err(data_FEM, mean_FEM)
+    err_err_pct  = _central_interval_err(data_err_pct, mean_err_pct)
+    mean_smape, _, n_smp, vals_smape = _aggregate_smape(list_benchmark, smape_csv)
     mean_smape = mean_smape * 100   # sMAPE as a percentage
-    std_smape  = std_smape * 100
+    vals_smape = [v * 100 for v in vals_smape]
+    err_smape  = _central_interval_err(vals_smape, mean_smape)
 
     # Build x-axis labels and optional parameter table (same logic as plot_FEM_error_c)
     if TYPE_BENCHMARK == 'Hybrid':
@@ -1716,20 +1790,20 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     ax3.spines['right'].set_position(('outward', 60))
 
     # FEM iteration ratio — left axis (blue)
-    bars1 = ax1.bar(x - width, mean_FEM, width, yerr=std_FEM,
+    bars1 = ax1.bar(x - width, mean_FEM, width, yerr=err_FEM,
                     capsize=4, color='tab:blue', alpha=0.85)
     ax1.set_ylabel(r'Ratio of FEM iterations: $N_{Hybrid}/N_{FEM}$ (%)',
                    fontsize=13, color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Relative compliance error — right axis (orange)
-    bars2 = ax2.bar(x, mean_err_pct, width, yerr=std_err_pct,
+    bars2 = ax2.bar(x, mean_err_pct, width, yerr=err_err_pct,
                     capsize=4, color='tab:orange', alpha=0.85)
     ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
     ax2.tick_params(axis='y', labelcolor='tab:orange')
 
     # Mean total sMAPE — far-right axis (green)
-    bars3 = ax3.bar(x + width, mean_smape, width, yerr=std_smape,
+    bars3 = ax3.bar(x + width, mean_smape, width, yerr=err_smape,
                     capsize=4, color='tab:green', alpha=0.85)
     ax3.set_ylabel('Mean total sMAPE (%)', fontsize=13, color='tab:green')
     ax3.tick_params(axis='y', labelcolor='tab:green')
@@ -1780,3 +1854,4 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     plt.show()
 
 
+#%%
