@@ -100,7 +100,6 @@ list_benchmark = [
     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1 , 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True, 0.2 , 1 , 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
 ]
 
