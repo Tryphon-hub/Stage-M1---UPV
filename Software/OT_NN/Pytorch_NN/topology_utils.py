@@ -995,6 +995,7 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
+    plt.ylim(0, 1.1)
 
     # Set x-axis ticks: integers only, step of 5
     max_iter = max(FEM_c[-1, 0], UNet_c[-1, 0])
@@ -1225,6 +1226,7 @@ def compare_NN_FEM(sample_NN, sample_FEM):
     cbar_ax = fig.add_axes([0.48, 0.2, 0.02, 0.6])  # [left, bottom, width, height]
     cb = fig.colorbar(im, cax=cbar_ax, ticks=np.arange(0, 1.2, 0.2))
     cb.mappable.set_clim(0, 1)
+    
     cb.ax.tick_params(labelsize=16)
 
     plt.tight_layout()

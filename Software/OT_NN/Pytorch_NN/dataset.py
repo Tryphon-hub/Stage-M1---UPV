@@ -976,7 +976,7 @@ class IterationSample:
         fig, axes = plt.subplots(1, 3, figsize=(12, 4))
 
         for ax, img_data, title in zip(
-            axes, img_data_list, ['σ_xx', 'σ_yy', 'τ_xy']
+            axes, img_data_list, ['$\sigma_{xx}$', '$\sigma_{yy}$', r'$\tau_{xy}$']
         ):
             im = ax.imshow(img_data, cmap='RdBu', origin='lower',
                         extent=[0, img_size, 0, img_size],
@@ -1903,7 +1903,7 @@ if __name__ == '__main__':
     data = load_mat(path)
     ds_base = Dataset_TopOpt(data)
     data_iter = IterationDataset(ds_base)
-    sample = IterationSample(data_iter, 40)
+    sample = dict_to_sample(ds_base[0,-1])
     
     sample.plot(scale_force=100)
     sample.plot_inputs(width=5)
