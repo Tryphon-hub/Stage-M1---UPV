@@ -99,7 +99,7 @@ list_benchmark = [
     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1 , 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1 , 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
 ]
 
@@ -214,7 +214,7 @@ if RUN_BENCHMARK:
                     TYPE_FIRST=FIRST_STEP,
                     threshold=0.0, 
                     N_end_FEM_iterations=0,
-                    window_Unet=5, 
+                    window_Unet=3, 
                     window_FEM=1,
                     tol_c=1e-3, 
                     tol_rho=0.1, 

@@ -12,8 +12,6 @@ from model         import *
 from dataset       import *
 from topology_utils import *
 
-user      = 'laptop'
-# user      = 'server'
 
 name_file = 'dataset_1k'
 name_data = 'dataset_test'
@@ -76,10 +74,13 @@ else:
 # ── Output directories for this configuration (mirrors main.py) ──
 RESULTS_ROOT        = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results'
 
+aug_tag = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
+
 if NETWORK == 'U-Net':
-    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 else:
-    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={USE_AUGMENTATION if not USE_AUGMENTATION else int(100*AUGMENTATION_P)}%_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+
 
 RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
 ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag
@@ -159,8 +160,6 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 list_benchmark = [
     ['Only UNet', 'UNet'],
     ['Only UNet', 'FEM'],
-    # ['10 Unet - 1 FEM', 'UNet'],
-    # ['10 Unet - 1 FEM', 'FEM'],
     ['10 Unet - 3 FEM', 'UNet'],
     ['10 Unet - 3 FEM', 'FEM'],
     ['Decreasing compliance', 'UNet'],
@@ -188,7 +187,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
-RUN_BENCHMARK = False
+RUN_BENCHMARK = True
 
 
 #%% Run benchmark
@@ -223,7 +222,7 @@ if RUN_BENCHMARK:
                     TYPE_FIRST=FIRST_STEP,
                     threshold=0.0, 
                     N_end_FEM_iterations=0,
-                    window_Unet=5, 
+                    window_Unet=3, 
                     window_FEM=1,
                     tol_c=1e-3, 
                     tol_rho=0.1, 

@@ -163,7 +163,8 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 #%% One sample
 
-ID_distrib=2
+ID_distrib = 67
+
 idx_FEM_sol = IterData_FEM.last_iteration_index[ID_distrib]
 FEM_sample  = IterationSample(IterData_FEM, idx_FEM_sol)
 
@@ -181,17 +182,18 @@ List_iterations, List_count_FEM = run_topology_optimization(
         # RULE = '10 Unet - 1 FEM',
         # RULE = 'Decreasing compliance', 
         # RULE = 'Only FEM',
-        TYPE_FIRST = 'UNet',
-        # TYPE_FIRST = 'FEM',
+        # TYPE_FIRST = 'UNet',
+        TYPE_FIRST = 'FEM',
         threshold = 0.0,
         N_end_FEM_iterations = 0,
-        window_Unet = 3,
+        window_Unet = 5,
         window_FEM = 1, 
         tol_c=1e-3, 
         tol_rho=0.1,
         end_FEM=True
         )
 
+print(f'ID : {ID_distrib}')
 
 FEM_c, UNet_c = visualize_convergence(
     List_iterations, 
@@ -199,7 +201,7 @@ FEM_c, UNet_c = visualize_convergence(
     List_count_FEM,
     NETWORK=NETWORK,
     PLOT=True,
-    SCALE='linear',
+    SCALE='log',
     eng=eng   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
     )
 
@@ -207,6 +209,12 @@ FEM_c, UNet_c = visualize_convergence(
 compare_NN_FEM(List_iterations[-1], FEM_sample)
 
 density_evolution(List_iterations,List_count_FEM, 1)
+
+c_FEM  = FEM_sample.c.item()
+
+c_Unet = compliance_FEM(eng, List_iterations[-1])
+
+err_rel_c  = (c_Unet - c_FEM) / c_FEM
 
 
 #%%

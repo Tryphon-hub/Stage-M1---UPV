@@ -692,11 +692,17 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
                      List_mean_densities, List_count_FEM, count_unet,
                      eng, model, N_in, N_max_iterations,
                      match_FEM, match_Periodic, n_unet, m_fem, match_decreasing, threshold,
-                     N_end_FEM_iterations=0, window_Unet=5, window_FEM=2, tol_c=1e-3, tol_rho=0.01, 
+                     N_end_FEM_iterations=0, window_Unet=5, window_FEM=2, tol_c=1e-3, tol_rho=0.01,
                      end_FEM='False'):
     """
     Run the main optimization loop until max iterations, convergence, or final compliance reached.
     Mutates and returns the tracking lists and state variables.
+
+    If the iteration cap is hit before convergence, the loop does not stop:
+    it switches permanently to full-FEM and keeps iterating until the
+    compliance itself converges, up to `N_max_iterations` extra steps
+    (same cap as the U-Net phase, as a safety net in case full-FEM never
+    converges either).
     """
     NEXT_TYPE = 'UNet'
     
@@ -810,8 +816,31 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
             window = window_FEM
             enabled_rho_criteria = False
 
+    # Iteration cap hit without convergence: keep going in full-FEM until the
+    # compliance itself converges, bounded by the same cap as the U-Net phase.
+    # Only applies when end_FEM requests a FEM-verified result.
+    if (end_FEM and i >= N_max_iterations
+            and not is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho, enabled=enabled_rho_criteria)):
+        match_FEM = True
+        enabled_rho_criteria = False
+        window = window_FEM
+        fem_mode = True
+
+        n_extra = 0
+        while (n_extra < N_max_iterations
+               and not is_converged_combined(List_iterations, window=window, tol_c=tol_c, tol_rho=tol_rho, enabled=enabled_rho_criteria)):
+            next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
+            List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
+            List_mean_densities.append(sample.Densities.numpy().mean())
+            List_iterations.append(sample)
+            List_count_FEM.append(i)
+
+            sample = next_sample
+            i += 1
+            n_extra += 1
+
     # Final FEM iterations
-    
+
     for j in range(N_end_FEM_iterations):
         next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)
         List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
@@ -929,8 +958,8 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
         eng, model, N_in, N_max_iterations,
         match_FEM, match_Periodic, n_unet, m_fem, match_decreasing, threshold,
         N_end_FEM_iterations,
-        window_Unet=window_Unet, window_FEM=window_FEM, 
-        tol_c=tol_c, tol_rho=tol_rho, 
+        window_Unet=window_Unet, window_FEM=window_FEM,
+        tol_c=tol_c, tol_rho=tol_rho,
         end_FEM=end_FEM,
     )
 
@@ -1032,12 +1061,14 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     plt.xlabel('Iterations', fontsize=f_text*14,)
     plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
     
-    # plt.yscale(SCALE)
-    # plt.ylim(0,1.1)
+    plt.yscale(SCALE)
+    if SCALE == 'linear':
+        plt.ylim(0,1.1)
+        
     plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
-    plt.ylim(0, 1.1)
+    
 
     # Set x-axis ticks: integers only, step of 5
     max_iter = max(FEM_c[-1, 0], UNet_c[-1, 0])
