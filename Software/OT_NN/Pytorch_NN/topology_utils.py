@@ -986,7 +986,7 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
 
 
 # %% Convergence study
-def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None):
+def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None, SHOW_FEM_C=False, SAVE_PATH=None):
     """
     Plot the compliance convergence of a single optimization: the full-FEM
     reference curve against the hybrid U-Net/FEM run, with the FEM steps of the
@@ -1006,6 +1006,10 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
         pseudo-compliance spikes seen at U-Net steps, where `sample.c` holds a
         compliance computed from the network's *predicted* stress rather than a
         physical one. If None, the stored `sample.c` is plotted as-is.
+    SHOW_FEM_C           : bool — when True, the orange U-Net curve is kept as
+        the *predicted* compliance and, if `eng` is provided, green triangles
+        overlay the FEM-recomputed compliance at the U-Net iterations, showing
+        the gap between the network's prediction and the physical value.
 
     Returns
     -------
@@ -1023,14 +1027,23 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
         FEM_c.append([i,sample.c])
 
     FEM_step_c=[]
+    UNet_step_c=[]
 
     for i,sample in enumerate(List_Iterations_Unet):
         # A U-Net step stores a *predicted* pseudo-compliance in sample.c; when
         # an engine is available, score the density with FEM for an honest curve.
-        c_i = compliance_FEM(eng, sample) if (eng is not None and i not in List_count_FEM) else sample.c.item()
+        # With SHOW_FEM_C the orange curve is kept *predicted* on purpose, so the
+        # green FEM triangles stand off from it.
+        if SHOW_FEM_C:
+            c_i = sample.c.item()
+        else:
+            c_i = compliance_FEM(eng, sample) if (eng is not None and i not in List_count_FEM) else sample.c.item()
         UNet_c.append([i, c_i])
         if i in List_count_FEM:
             FEM_step_c.append((i, c_i))
+        elif SHOW_FEM_C and eng is not None:
+            # Green triangles = FEM-recomputed compliance at the U-Net iterations.
+            UNet_step_c.append((i, compliance_FEM(eng, sample)))
 
     FEM_c=np.array(FEM_c)
 
@@ -1042,11 +1055,11 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     UNet_c=np.array(UNet_c)
     UNet_c[:, 1] = UNet_c[:, 1] / c0_FEM # normalize by initial compliance
 
-    MARKERSIZE = 7
+    MARKERSIZE = 5
 
     plt.figure(figsize=(10, 6))
-    plt.plot(FEM_c[:, 0], FEM_c[:, 1], 'o-', linewidth=2.5, markersize=MARKERSIZE, label=f'FEM: {len(IterationDataset_FEM)} steps')
-    plt.plot(UNet_c[:, 0], UNet_c[:, 1], 's-', linewidth=2.5, markersize=MARKERSIZE, label=f'{NETWORK}: {len(List_Iterations_Unet)-len(List_count_FEM)} steps')
+    plt.plot(FEM_c[:, 0], FEM_c[:, 1], 'o-', linewidth=2.5, markersize=MARKERSIZE, label=f'Full-FEM: {len(IterationDataset_FEM)} steps')
+    plt.plot(UNet_c[:, 0], UNet_c[:, 1], 's-', linewidth=2.5, markersize=MARKERSIZE, label=f'Hybrid strategy: {len(List_Iterations_Unet)-len(List_count_FEM)} {NETWORK} steps')
     
     # last FEM compliance
     plt.plot( (0, FEM_c[-1,0]) , (FEM_c[-1,1], FEM_c[-1,1]), color='tab:blue', linestyle='-', linewidth=2, dashes=(3, 2) )
@@ -1057,14 +1070,19 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
         FEM_step_c=np.array(FEM_step_c)
         FEM_step_c[:, 1] = FEM_step_c[:, 1] / c0_FEM # normalize by initial FEM compliance
         plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=MARKERSIZE, label = f'Hybrid strategy: {len(List_count_FEM)} FEM steps')
-        
+
+    if len(UNet_step_c)>0:
+        UNet_step_c=np.array(UNet_step_c)
+        UNet_step_c[:, 1] = UNet_step_c[:, 1] / c0_FEM # normalize by initial FEM compliance
+        plt.plot(UNet_step_c[:, 0], UNet_step_c[:, 1], '--s', color='tab:green', markersize=MARKERSIZE, label = f'{NETWORK} steps ({len(UNet_step_c)}): FEM-recomputed compliance')
+
     plt.xlabel('Iterations', fontsize=f_text*14,)
     plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
-    
+
     plt.yscale(SCALE)
     if SCALE == 'linear':
         plt.ylim(0,1.1)
-        
+
     plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=f_text*16, )
     plt.legend(fontsize=f_text*13)
     plt.grid(True, alpha=0.3)
@@ -1075,9 +1093,126 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=f_text*12)
     plt.yticks(fontsize=f_text*12)
     plt.tight_layout()
+
+    if SAVE_PATH is not None:
+        plt.savefig(SAVE_PATH, dpi=300)
+        print(f"Figure saved to {SAVE_PATH}")
+
     plt.show()
 
     return FEM_c, UNet_c
+
+def visualize_unet_FEM_compliance(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None, SAVE_PATH=None):
+    """
+    Plot two compliance curves for the hybrid U-Net run so the U-Net's
+    *predicted* compliance can be compared against its *physical* one:
+
+    - ``UNet_c_pred`` : the pseudo-compliance stored in ``sample.c`` (the
+      ``eng=None`` case), i.e. the compliance the U-Net predicts.
+    - ``UNet_c_FEM``  : the same iterates re-scored with FEM
+      (``compliance_FEM(eng, sample)``, the ``eng=eng`` case), i.e. the
+      physical compliance of the U-Net densities.
+
+    Both are normalized by the initial FEM compliance. The full-FEM reference
+    curve is drawn as well. Requires ``eng`` to be a matlab.engine for the
+    recomputed curve to be available.
+
+    Returns
+    -------
+    tuple(np.ndarray, np.ndarray, np.ndarray) — the normalized
+        (FEM_c, UNet_c_pred, UNet_c_FEM) curves. ``UNet_c_FEM`` is None when
+        no engine is provided.
+    """
+    f_text=1.25 # text size multiplicator
+
+
+    FEM_c=[]
+    UNet_c_pred=[]   # eng=None case: U-Net predicted (pseudo-)compliance
+    UNet_c_FEM=[]    # eng=eng case: U-Net densities re-scored with FEM
+
+    for i in range(len(IterationDataset_FEM)):
+        sample=IterationSample(IterationDataset_FEM, i)
+        FEM_c.append([i,sample.c])
+
+    FEM_step_c=[]
+
+    for i,sample in enumerate(List_Iterations_Unet):
+        # Predicted curve: the pseudo-compliance stored by the network.
+        c_pred = sample.c.item()
+        UNet_c_pred.append([i, c_pred])
+
+        # Recomputed curve: a U-Net step stores a *predicted* pseudo-compliance
+        # in sample.c; when an engine is available, score the density with FEM
+        # for an honest curve. FEM steps already hold a physical compliance.
+        if eng is not None:
+            c_fem = compliance_FEM(eng, sample) if i not in List_count_FEM else c_pred
+            UNet_c_FEM.append([i, c_fem])
+            if i in List_count_FEM:
+                FEM_step_c.append((i, c_fem))
+
+    FEM_c=np.array(FEM_c)
+
+    c0_FEM = FEM_c[0, 1]
+
+    FEM_c[:, 1] = FEM_c[:, 1] / c0_FEM # normalize by initial FEM compliance
+
+
+    UNet_c_pred=np.array(UNet_c_pred)
+    UNet_c_pred[:, 1] = UNet_c_pred[:, 1] / c0_FEM # normalize by initial compliance
+
+    if eng is not None:
+        UNet_c_FEM=np.array(UNet_c_FEM)
+        UNet_c_FEM[:, 1] = UNet_c_FEM[:, 1] / c0_FEM # normalize by initial compliance
+    else:
+        UNet_c_FEM=None
+
+    MARKERSIZE = 7
+
+    n_unet_steps = len(List_Iterations_Unet)-len(List_count_FEM)
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(FEM_c[:, 0], FEM_c[:, 1], 'o-', linewidth=2.5, markersize=MARKERSIZE, label=f'Full-FEM: {len(IterationDataset_FEM)} steps')
+    plt.plot(UNet_c_pred[:, 0], UNet_c_pred[:, 1], 's-', linewidth=2.5, markersize=MARKERSIZE, label=f'{NETWORK} ({n_unet_steps} steps): predicted compliance')
+
+    # last FEM compliance
+    plt.plot( (0, FEM_c[-1,0]) , (FEM_c[-1,1], FEM_c[-1,1]), color='tab:blue', linestyle='-', linewidth=2, dashes=(3, 2) )
+    plt.plot((0, UNet_c_pred[-1,0]), (UNet_c_pred[-1,1], UNet_c_pred[-1,1]), color='tab:orange', linewidth=2, dashes=(6, 4))
+
+    if UNet_c_FEM is not None:
+        plt.plot(UNet_c_FEM[:, 0], UNet_c_FEM[:, 1], '^-', linewidth=2.5, markersize=MARKERSIZE, color='tab:green', label=f'{NETWORK} ({n_unet_steps} steps): FEM-recomputed compliance')
+        plt.plot((0, UNet_c_FEM[-1,0]), (UNet_c_FEM[-1,1], UNet_c_FEM[-1,1]), color='tab:green', linewidth=2, dashes=(6, 4))
+
+    if len(FEM_step_c)>0:
+        FEM_step_c=np.array(FEM_step_c)
+        FEM_step_c[:, 1] = FEM_step_c[:, 1] / c0_FEM # normalize by initial FEM compliance
+        plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=MARKERSIZE, label = f'{NETWORK} strategy: {len(List_count_FEM)} FEM steps')
+
+    plt.xlabel('Iterations', fontsize=f_text*14,)
+    plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
+
+    plt.yscale(SCALE)
+    if SCALE == 'linear':
+        plt.ylim(0,1.1)
+
+    plt.title(f'Compliance approximation: full-FEM vs {NETWORK} strategy', fontsize=f_text*16, )
+    plt.legend(fontsize=f_text*13)
+    plt.grid(True, alpha=0.3)
+
+
+    # Set x-axis ticks: integers only, step of 5
+    max_iter = max(FEM_c[-1, 0], UNet_c_pred[-1, 0])
+    plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=f_text*12)
+    plt.yticks(fontsize=f_text*12)
+    plt.tight_layout()
+
+    if SAVE_PATH is not None:
+        plt.savefig(SAVE_PATH, dpi=300)
+        print(f"Figure saved to {SAVE_PATH}")
+
+    plt.show()
+
+    return FEM_c, UNet_c_pred, UNet_c_FEM
+
 
 
 def statistical_convergence(List_List_Iterations_UNet, IterData_FEM:IterationDataset, NETWORK='U-Net', PLOT=True, TYPE='std'):
@@ -1225,7 +1360,7 @@ def density_evolution(List_iterations, List_count_FEM, step=5):
 
 #%% Compare NN and FEM results for a given force distribution
 
-def compare_NN_FEM(sample_NN, sample_FEM):
+def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None):
     """
     Display the optimized densities of a U-Net run and a FEM run side by side,
     each overlaid with its boundary traction arrows, sharing a common density
@@ -1258,7 +1393,7 @@ def compare_NN_FEM(sample_NN, sample_FEM):
         ax.set_ylim(-cadre, img_size + cadre)
         ax.set_aspect('equal')
         ax.axis('off')
-        ax.set_title(title, fontsize=24)
+        ax.set_title(title, fontsize=24, pad=-50)
 
         T_scale = sample.Tractions.squeeze().numpy() * scale_force
         T_scale = T_scale.T
@@ -1282,8 +1417,8 @@ def compare_NN_FEM(sample_NN, sample_FEM):
 
         return im
 
-    im = plot_density(axes[0], sample_NN,  'U-Net density')
-    plot_density(axes[1], sample_FEM, 'FEM density')
+    im = plot_density(axes[0], sample_NN,  'Hybrid solution')
+    plot_density(axes[1], sample_FEM, 'FEM solution')
 
     # Common reference arrow on axes[0]
     pos_x=40
@@ -1303,6 +1438,10 @@ def compare_NN_FEM(sample_NN, sample_FEM):
     cb.ax.tick_params(labelsize=16)
 
     plt.tight_layout()
+
+    if SAVE_PATH:
+        plt.savefig(SAVE_PATH, dpi=300, bbox_inches='tight')
+
     plt.show()
 
 

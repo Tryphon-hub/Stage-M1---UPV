@@ -172,49 +172,74 @@ sample_start = IterationSample(IterationDataset(ds_filtre.get_series(ID_distrib)
 
 ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
-List_iterations, List_count_FEM = run_topology_optimization(
-        sample_start,
-        eng, 
-        model, 
-        N_in = N_in,
-        N_max_iterations = 100, 
-        RULE = 'Only UNet',
-        # RULE = '10 Unet - 1 FEM',
-        # RULE = 'Decreasing compliance', 
-        # RULE = 'Only FEM',
-        # TYPE_FIRST = 'UNet',
-        TYPE_FIRST = 'FEM',
-        threshold = 0.0,
-        N_end_FEM_iterations = 0,
-        window_Unet = 5,
-        window_FEM = 1, 
-        tol_c=1e-3, 
-        tol_rho=0.1,
-        end_FEM=True
+list_images=[
+    ['Only UNet', 'UNet', 3, False],
+    ['Only UNet', 'UNet', 3, True],
+    ['Only UNet', 'FEM',  3, True],
+    ['10 Unet - 1 FEM', 'UNet', 3, True],
+    ['10 Unet - 1 FEM', 'FEM',  3, True],
+    ['Decreasing compliance', 'UNet', 3, True],
+    ['Decreasing compliance', 'FEM',  3, True],
+]
+
+COMPUTE_FEM_COMPLIANCE = True
+
+if COMPUTE_FEM_COMPLIANCE:
+    ENG = eng
+else:
+    ENG = None
+
+for Strategy, Type_First, window_Unet, end_FEM in list_images:
+    print(f"Running strategy: {Strategy}, Type_First: {Type_First}, window_Unet: {window_Unet}, end_FEM: {end_FEM}")
+
+
+    List_iterations, List_count_FEM = run_topology_optimization(
+            sample_start,
+            eng, 
+            model, 
+            N_in = N_in,
+            N_max_iterations = 100, 
+            RULE = Strategy,
+            TYPE_FIRST = Type_First,
+            threshold = 0.0,
+            N_end_FEM_iterations = 0,
+            window_Unet = window_Unet,
+            window_FEM = 1, 
+            tol_c=1e-3, 
+            tol_rho=0.1,
+            end_FEM=end_FEM,
+            )
+
+
+    save_path = Path(r'C:\Users\maxen\Pictures\Screenshots\Hybrid strategy\ID=67')
+    save_path.mkdir(parents=True, exist_ok=True)
+
+    img_convergence_path = save_path / f'convergence_{NETWORK}_ID={ID_distrib}_{Strategy}_TypeFirst={Type_First}_windowUnet={window_Unet}_endFEM={end_FEM}.png'
+
+    FEM_c, UNet_c = visualize_convergence(
+        List_iterations, 
+        ds_iter, 
+        List_count_FEM,
+        NETWORK=NETWORK,
+        PLOT=True,
+        SCALE='linear',
+        eng=ENG,   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
+        SAVE_PATH= img_convergence_path,
+        SHOW_FEM_C=True,
         )
 
-print(f'ID : {ID_distrib}')
 
-FEM_c, UNet_c = visualize_convergence(
-    List_iterations, 
-    ds_iter, 
-    List_count_FEM,
-    NETWORK=NETWORK,
-    PLOT=True,
-    SCALE='log',
-    eng=eng   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
-    )
+    img_comparison_path = save_path / f'comparison_{NETWORK}_ID={ID_distrib}_{Strategy}_TypeFirst={Type_First}_windowUnet={window_Unet}_endFEM={end_FEM}.png'
 
+    compare_NN_FEM(List_iterations[-1], FEM_sample, SAVE_PATH=img_comparison_path)
 
-compare_NN_FEM(List_iterations[-1], FEM_sample)
+    density_evolution(List_iterations,List_count_FEM, 1)
 
-density_evolution(List_iterations,List_count_FEM, 1)
+    c_FEM  = FEM_sample.c.item()
 
-c_FEM  = FEM_sample.c.item()
+    c_Unet = compliance_FEM(eng, List_iterations[-1])
 
-c_Unet = compliance_FEM(eng, List_iterations[-1])
-
-err_rel_c  = (c_Unet - c_FEM) / c_FEM
+    err_rel_c  = (c_Unet - c_FEM) / c_FEM
 
 
 #%%
