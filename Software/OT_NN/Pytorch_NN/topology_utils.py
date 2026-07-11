@@ -33,6 +33,28 @@ NGPpL = 2   # number of 1D integration points
 PENAL = 3
 RMIN  = 1.5
 
+#%% Helpers
+
+def _central_interval_err(data, mean, frac=0.67, axis=1):
+    """
+    Asymmetric error-bar heights spanning the central `frac` of the values.
+
+    Returns a (2, n) array [[below], [above]] suitable for matplotlib's `yerr`,
+    based on the (50-frac/2)*100 and (50+frac/2)*100 percentiles.
+    Heights are clipped to be non-negative (a hard matplotlib requirement).
+
+    `data` may be a rectangular array (percentiles taken along `axis`) or a list
+    of 1-D arrays with possibly different lengths (percentiles taken per array).
+    """
+    half = frac / 2 * 100
+    if isinstance(data, (list, tuple)):
+        lo = np.array([np.percentile(v, 50 - half) for v in data])
+        hi = np.array([np.percentile(v, 50 + half) for v in data])
+    else:
+        lo = np.percentile(data, 50 - half, axis=axis)
+        hi = np.percentile(data, 50 + half, axis=axis)
+    return np.clip(np.vstack([mean - lo, hi - mean]), 0, None)
+
 #%% Stress prediction and Topology generation
 
 def predict_stress(model, sample, N_in=3):
@@ -1446,27 +1468,6 @@ def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None):
 
 
 #%% Strategy comparison
-def _central_interval_err(data, mean, frac=0.67, axis=1):
-    """
-    Asymmetric error-bar heights spanning the central `frac` of the values.
-
-    Returns a (2, n) array [[below], [above]] suitable for matplotlib's `yerr`,
-    based on the (50-frac/2)*100 and (50+frac/2)*100 percentiles.
-    Heights are clipped to be non-negative (a hard matplotlib requirement).
-
-    `data` may be a rectangular array (percentiles taken along `axis`) or a list
-    of 1-D arrays with possibly different lengths (percentiles taken per array).
-    """
-    half = frac / 2 * 100
-    if isinstance(data, (list, tuple)):
-        lo = np.array([np.percentile(v, 50 - half) for v in data])
-        hi = np.array([np.percentile(v, 50 + half) for v in data])
-    else:
-        lo = np.percentile(data, 50 - half, axis=axis)
-        hi = np.percentile(data, 50 + half, axis=axis)
-    return np.clip(np.vstack([mean - lo, hi - mean]), 0, None)
-
-
 def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid',
                      up_legend=1.55):
     """
@@ -1540,14 +1541,14 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     # 67% interval bounds above (upper) and below (lower) the error bars, in black
     for bar, m, lo, hi in zip(bars1, mean_FEM, err_FEM[0], err_FEM[1]):
         xc = bar.get_x() + bar.get_width() / 2
-        ax1.text(xc, m + hi, f'{m + hi:.1f}', ha='center', va='bottom',
-                 fontsize=8, color='black')
+        ax1.annotate(f'{m + hi:.1f}', (xc, m + hi), textcoords='offset points',
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
         ax1.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
                      xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
     for bar, m, lo, hi in zip(bars2, mean_err_pct, err_err_pct[0], err_err_pct[1]):
         xc = bar.get_x() + bar.get_width() / 2
-        ax2.text(xc, m + hi, f'{m + hi:.2f}', ha='center', va='bottom',
-                 fontsize=8, color='black')
+        ax2.annotate(f'{m + hi:.2f}', (xc, m + hi), textcoords='offset points',
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
         ax2.annotate(f'{m - lo:.2f}', (xc, m - lo), textcoords='offset points',
                      xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
 
@@ -1709,12 +1710,14 @@ def _build_model_from_config(bench, RESULTS_ROOT, name_file,
 
     N_in = 1 if NETWORK == 'BE_UNet' else 3
 
+    aug_tag = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
+
     if NETWORK == 'U-Net':
         tag = (f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}'
-               f'_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}')
+               f'_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}')
     else:
         tag = (f'{name_file}_NIF={NIF}_{N_CONV}_conv_{list(hidden_layers_MLP)}_CBAM={USE_CBAM}'
-               f'_aug={USE_AUGMENTATION}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}')
+               f'_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}')
 
     BEST_PATH = RESULTS_ROOT / NETWORK / tag / ('unet_' + name_file + '_best.pth')
 
@@ -2051,15 +2054,21 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     # 67% interval bounds above (upper) and below (lower) the error bars, in black
     for bar, m, lo, hi in zip(bars1, mean_FEM, err_FEM[0], err_FEM[1]):
         xc = bar.get_x() + bar.get_width() / 2
-        ax1.text(xc, m + hi, f'{m + hi:.1f}', ha='center', va='bottom',
-                 fontsize=8, color='black')
+        ax1.annotate(f'{m + hi:.1f}', (xc, m + hi), textcoords='offset points',
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
         ax1.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
                      xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
     for bar, m, lo, hi in zip(bars2, mean_err_pct, err_err_pct[0], err_err_pct[1]):
         xc = bar.get_x() + bar.get_width() / 2
-        ax2.text(xc, m + hi, f'{m + hi:.2f}', ha='center', va='bottom',
-                 fontsize=8, color='black')
+        ax2.annotate(f'{m + hi:.2f}', (xc, m + hi), textcoords='offset points',
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
         ax2.annotate(f'{m - lo:.2f}', (xc, m - lo), textcoords='offset points',
+                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+    for bar, m, lo, hi in zip(bars3, mean_smape, err_smape[0], err_smape[1]):
+        xc = bar.get_x() + bar.get_width() / 2
+        ax3.annotate(f'{m + hi:.1f}', (xc, m + hi), textcoords='offset points',
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
+        ax3.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
                      xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
 
     # Extra headroom so the (inside) legend does not overlap the error bars
@@ -2075,8 +2084,10 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     bot_FEM = -frac_below / (1 - frac_below) * top_FEM
     ax1.set_ylim(bot_FEM, top_FEM)
     ax2.set_ylim(err_bot, err_top)
-    ax3.set_ylim(0, (mean_smape + err_smape[1]).max() * up_legend)
-    # Black reference line at Y=0 (ax1 and ax2 share the same zero height).
+    top_smape = (mean_smape + err_smape[1]).max() * up_legend
+    bot_smape = -frac_below / (1 - frac_below) * top_smape
+    ax3.set_ylim(bot_smape, top_smape)
+    # Black reference line at Y=0 (ax1, ax2 and ax3 share the same zero height).
     ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
 
     ax1.set_xticks(x)

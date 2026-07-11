@@ -126,7 +126,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -304,7 +304,7 @@ ds_iter_smape = IterationDataset(ds_filtre)
 name_smape_file = 'benchmark_smape_architecture.csv'
 smape_csv       = RESULTS_ROOT / name_smape_file
 
-RUN_SMAPE = True  # Set to False to skip the computation and only read/plot the csv
+RUN_SMAPE = False  # Set to False to skip the computation and only read/plot the csv
 
 if RUN_SMAPE:
     save_smape_benchmark(
