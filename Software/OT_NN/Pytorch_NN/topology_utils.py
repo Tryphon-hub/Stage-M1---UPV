@@ -1522,7 +1522,7 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     ax2 = ax1.twinx()
     bars2 = ax2.bar(x + width/2, mean_err_pct, width, yerr=err_err_pct,
                      capsize=4, color='tab:orange', alpha=0.8)
-    ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
+    ax2.set_ylabel('Relative compliance difference (%)', fontsize=13, color='tab:orange')
     ax2.tick_params(axis='y', labelcolor='tab:orange')
 
     # Median markers (black dot at the median of each distribution)
@@ -1532,14 +1532,40 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     # Bar value labels
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.01,
-                 f'{val:.1f}%', ha='left', va='bottom', fontsize=9, color='tab:blue')
+                 f'{val:.1f}', ha='left', va='bottom', fontsize=9, color='tab:blue')
     for bar, val in zip(bars2, mean_err_pct):
         ax2.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.001,
-                 f'{val:.2f}%', ha='left', va='bottom', fontsize=9, color='tab:orange')
+                 f'{val:.2f}', ha='left', va='bottom', fontsize=9, color='tab:orange')
+
+    # 67% interval bounds above (upper) and below (lower) the error bars, in black
+    for bar, m, lo, hi in zip(bars1, mean_FEM, err_FEM[0], err_FEM[1]):
+        xc = bar.get_x() + bar.get_width() / 2
+        ax1.text(xc, m + hi, f'{m + hi:.1f}', ha='center', va='bottom',
+                 fontsize=8, color='black')
+        ax1.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
+                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+    for bar, m, lo, hi in zip(bars2, mean_err_pct, err_err_pct[0], err_err_pct[1]):
+        xc = bar.get_x() + bar.get_width() / 2
+        ax2.text(xc, m + hi, f'{m + hi:.2f}', ha='center', va='bottom',
+                 fontsize=8, color='black')
+        ax2.annotate(f'{m - lo:.2f}', (xc, m - lo), textcoords='offset points',
+                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
 
     # Extra headroom so the (inside) legend does not overlap the error bars
-    ax1.set_ylim(0, (mean_FEM + err_FEM[1]).max() * up_legend)
-    ax2.set_ylim(0, (mean_err_pct + err_err_pct[1]).max() * up_legend)
+    top_FEM = (mean_FEM + err_FEM[1]).max() * up_legend
+    # The relative compliance difference can be negative, so let the axis dip
+    # below 0 with a margin (5% of the span) instead of clipping the bars/error bars.
+    # Factor 4 quarters the visual scale of the error (bars appear 4x smaller).
+    err_top = (mean_err_pct + err_err_pct[1]).max() * up_legend * 4
+    err_bot = min((mean_err_pct - err_err_pct[0]).min(), 0.0)
+    err_bot -= 0.05 * (err_top - err_bot)
+    # Align the two zero lines: put 0 at the same fractional height on both axes.
+    frac_below = -err_bot / (err_top - err_bot)          # fraction of ax2 span below 0
+    bot_FEM = -frac_below / (1 - frac_below) * top_FEM
+    ax1.set_ylim(bot_FEM, top_FEM)
+    ax2.set_ylim(err_bot, err_top)
+    # Black reference line at Y=0 (the two axes share the same zero height).
+    ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
 
     ax1.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
@@ -2022,10 +2048,36 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
         ax3.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
                  f'{val:.1f}', ha='center', va='bottom', fontsize=8, color='tab:green')
 
+    # 67% interval bounds above (upper) and below (lower) the error bars, in black
+    for bar, m, lo, hi in zip(bars1, mean_FEM, err_FEM[0], err_FEM[1]):
+        xc = bar.get_x() + bar.get_width() / 2
+        ax1.text(xc, m + hi, f'{m + hi:.1f}', ha='center', va='bottom',
+                 fontsize=8, color='black')
+        ax1.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
+                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+    for bar, m, lo, hi in zip(bars2, mean_err_pct, err_err_pct[0], err_err_pct[1]):
+        xc = bar.get_x() + bar.get_width() / 2
+        ax2.text(xc, m + hi, f'{m + hi:.2f}', ha='center', va='bottom',
+                 fontsize=8, color='black')
+        ax2.annotate(f'{m - lo:.2f}', (xc, m - lo), textcoords='offset points',
+                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+
     # Extra headroom so the (inside) legend does not overlap the error bars
-    ax1.set_ylim(0, (mean_FEM + err_FEM[1]).max() * up_legend)
-    ax2.set_ylim(0, (mean_err_pct + err_err_pct[1]).max() * up_legend)
+    top_FEM = (mean_FEM + err_FEM[1]).max() * up_legend
+    # The relative compliance error can be negative, so let the axis dip below 0
+    # with a margin (5% of the span) instead of clipping the bars/error bars.
+    # Factor 4 quarters the visual scale of the error (bars appear 4x smaller).
+    err_top = (mean_err_pct + err_err_pct[1]).max() * up_legend * 4
+    err_bot = min((mean_err_pct - err_err_pct[0]).min(), 0.0)
+    err_bot -= 0.05 * (err_top - err_bot)
+    # Align the two zero lines: put 0 at the same fractional height on both axes.
+    frac_below = -err_bot / (err_top - err_bot)          # fraction of ax2 span below 0
+    bot_FEM = -frac_below / (1 - frac_below) * top_FEM
+    ax1.set_ylim(bot_FEM, top_FEM)
+    ax2.set_ylim(err_bot, err_top)
     ax3.set_ylim(0, (mean_smape + err_smape[1]).max() * up_legend)
+    # Black reference line at Y=0 (ax1 and ax2 share the same zero height).
+    ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
 
     ax1.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0

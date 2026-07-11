@@ -187,7 +187,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
-RUN_BENCHMARK = True
+RUN_BENCHMARK = False
 
 
 #%% Run benchmark
