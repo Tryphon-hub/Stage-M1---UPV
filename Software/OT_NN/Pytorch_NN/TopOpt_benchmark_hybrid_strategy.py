@@ -189,7 +189,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
-RUN_BENCHMARK = False
+RUN_BENCHMARK = True
 
 
 
