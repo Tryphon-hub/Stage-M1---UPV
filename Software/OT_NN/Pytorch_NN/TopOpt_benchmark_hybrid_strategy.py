@@ -158,12 +158,14 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion]
 list_benchmark = [
-    ['Only UNet', 'UNet'],
-    ['Only UNet', 'FEM'],
-    ['10 Unet - 3 FEM', 'UNet'],
-    ['10 Unet - 3 FEM', 'FEM'],
-    ['Decreasing compliance', 'UNet'],
-    ['Decreasing compliance', 'FEM'],
+    # ['Only UNet', 'UNet'],
+    # ['Only UNet', 'FEM'],
+    ['10 Unet - 1 FEM', 'UNet'],
+    ['10 Unet - 1 FEM', 'FEM'],
+    # ['10 Unet - 3 FEM', 'UNet'],
+    # ['10 Unet - 3 FEM', 'FEM'],
+    # ['Decreasing compliance', 'UNet'],
+    # ['Decreasing compliance', 'FEM'],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -176,7 +178,7 @@ RESULT_COLUMNS = ['Input ID',
                   'Ratio of FEM iterations (Hybrid / full-FEM)',
                   'Relative compliance error']
 
-RESET_BENCHMARK = True # deletes old benchmark csv file
+RESET_BENCHMARK = False # deletes old benchmark csv file
 
 if RESET_BENCHMARK:
     TYPE_WRITE = 'w'
@@ -188,6 +190,7 @@ SIZE_LOOP = 100
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
 RUN_BENCHMARK = False
+
 
 
 #%% Run benchmark

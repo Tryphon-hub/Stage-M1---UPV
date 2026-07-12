@@ -247,6 +247,25 @@ if RUN_BENCHMARK:
 
 #%% Read File Benchmark
 
+list_benchmark = [
+    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
+    # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
+]
+
+
 df = pd.read_csv(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file)
 
 # Agrégation par configuration
@@ -296,7 +315,7 @@ plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
 
 
 
-#%% SMAPE Benchmark
+# SMAPE Benchmark
 
 # Samples on which the sMAPE is evaluated (full filtered dataset).
 ds_iter_smape = IterationDataset(ds_filtre)

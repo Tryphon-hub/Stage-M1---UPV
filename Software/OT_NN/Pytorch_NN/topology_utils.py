@@ -2019,7 +2019,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     # FEM iteration ratio — left axis (blue)
     bars1 = ax1.bar(x - width, mean_FEM, width, yerr=err_FEM,
                     capsize=4, color='tab:blue', alpha=0.85)
-    ax1.set_ylabel(r'Ratio of FEM iterations: $N_{Hybrid}/N_{FEM}$ (%)',
+    ax1.set_ylabel('Ratio of FEM iterations\n' r'$N_{Hybrid}/N_{FEM}$ (%)',
                    fontsize=13, color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
@@ -2071,6 +2071,8 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
         ax3.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
                      xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
 
+    # Vertical extent of the black frame: expand every y-axis span by 20%.
+    Y_EXPAND = 1.2
     # Extra headroom so the (inside) legend does not overlap the error bars
     top_FEM = (mean_FEM + err_FEM[1]).max() * up_legend
     # The relative compliance error can be negative, so let the axis dip below 0
@@ -2081,10 +2083,14 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     err_bot -= 0.05 * (err_top - err_bot)
     # Align the two zero lines: put 0 at the same fractional height on both axes.
     frac_below = -err_bot / (err_top - err_bot)          # fraction of ax2 span below 0
+    # Grow the span by Y_EXPAND while keeping the zero line at its fractional height.
+    top_FEM *= Y_EXPAND
+    err_top *= Y_EXPAND
+    err_bot *= Y_EXPAND
     bot_FEM = -frac_below / (1 - frac_below) * top_FEM
     ax1.set_ylim(bot_FEM, top_FEM)
     ax2.set_ylim(err_bot, err_top)
-    top_smape = (mean_smape + err_smape[1]).max() * up_legend
+    top_smape = (mean_smape + err_smape[1]).max() * up_legend * Y_EXPAND
     bot_smape = -frac_below / (1 - frac_below) * top_smape
     ax3.set_ylim(bot_smape, top_smape)
     # Black reference line at Y=0 (ax1, ax2 and ax3 share the same zero height).
@@ -2117,7 +2123,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
         ax1.set_xticklabels([])
         ax1.set_xlabel('')
 
-    plt.title(f'Model comparison — FEM ratio, compliance error & sMAPE '
+    plt.title(f'Model comparison — FEM ratio, compliance error & sMAPE\n'
               f'({len(Tab_ratio_FEM[0])} distributions, {n_smp} sMAPE samples)',
               fontsize=FONT)
     plt.tight_layout()
