@@ -54,7 +54,7 @@ data_energy    = load_mat(BASE / 'HeavyFiles' / 'data' / (name_data_energy + '.m
 ds_energy = Dataset_TopOpt(data_energy)
 ds_energy_filtre = ds_energy.filtre_dataset(rho_min=0.15, rho_max=0.85)
 ds_acc = AcceleratedDataset(ds_energy_filtre)
-# ds_acc_aug    = ds_acc.augment()
+ds_acc_aug    = ds_acc.augment()
 
 
 
@@ -109,6 +109,8 @@ list_benchmark = [
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
+
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -132,7 +134,7 @@ else:
 
 SIZE_LOOP = 100
 
-name_benchmark_file = 'benchmark_model.csv'
+name_benchmark_file = 'benchmark_architecture.csv'
 
 RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
 

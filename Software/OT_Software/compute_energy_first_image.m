@@ -1,12 +1,12 @@
-% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
-% addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
+addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Functions'
+addpath 'D:\Maxence\Stage-M1---UPV\Software\OT_Software'
 
-% DatasetFile = 'D:\Maxence\Stage-M1---UPV\HeavyFiles\data\dataset_macro_cantilever.mat';
+DatasetFile = 'D:\Maxence\Stage-M1---UPV\HeavyFiles\data\dataset_10k.mat';
 
-addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
-addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
+% addpath C:\Users\maxen\Documents\Stage\Software\OT_Functions
+% addpath C:\Users\maxen\Documents\Stage\Software\OT_Software
 
-DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_macro_cantilever.mat';
+% DatasetFile = 'C:\Users\maxen\Documents\Stage\HeavyFiles\data\dataset_10k.mat';
 
 fprintf('Chargement du dataset...\n');
 data = load(DatasetFile);
