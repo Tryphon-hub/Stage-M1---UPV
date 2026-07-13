@@ -54,7 +54,7 @@ data_energy    = load_mat(BASE / 'HeavyFiles' / 'data' / (name_data_energy + '.m
 ds_energy = Dataset_TopOpt(data_energy)
 ds_energy_filtre = ds_energy.filtre_dataset(rho_min=0.15, rho_max=0.85)
 ds_acc = AcceleratedDataset(ds_energy_filtre)
-# ds_acc_aug    = ds_acc.augment()
+ds_acc_aug    = ds_acc.augment()
 
 
 
@@ -92,7 +92,7 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 #%% Define benchmark
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
-# list_benchmark = [
+list_benchmark = [
     # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
@@ -104,21 +104,22 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
     # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
     # ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
-    # ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
-
-# ]
-
-
-list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
-    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
 ]
+
+
+# list_benchmark = [
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+#     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
+#     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+# ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
 # the per-run rows and the aggregation at the end.
@@ -143,7 +144,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
+RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -178,10 +179,11 @@ if RUN_BENCHMARK:
             else:
 
                 aug_tag = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
-                tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
-            
+                
                 # Load model
                 if NETWORK=='BE_UNet':
+                    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+
                     model = BE_UNetTopo(
                         nif           = NIF,
                         n_in          = N_in,          # ρ only — tractions via BoundaryEmbedding
@@ -193,8 +195,8 @@ if RUN_BENCHMARK:
                     )
                     
                 elif NETWORK=='U-Net':
-                    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
-
+                    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+            
                     model = UNetTopo(
                         nif=NIF,
                         n_in=N_in,
