@@ -190,11 +190,6 @@ Monitor training:
 tensorboard --logdir results/runs
 ```
 
-> Retraining is required after the traction-representation and augmentation
-> changes: the **U-Net** input `(tx, ty)` builder changed, so old checkpoints are
-> stale. **BE_UNet** uses the raw nodal scalars (unchanged) and only needs
-> retraining to benefit from the corrected ×8 augmentation.
-
 ---
 
 ## Loss function
