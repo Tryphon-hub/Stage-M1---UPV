@@ -54,7 +54,7 @@ data_energy    = load_mat(BASE / 'HeavyFiles' / 'data' / (name_data_energy + '.m
 ds_energy = Dataset_TopOpt(data_energy)
 ds_energy_filtre = ds_energy.filtre_dataset(rho_min=0.15, rho_max=0.85)
 ds_acc = AcceleratedDataset(ds_energy_filtre)
-ds_acc_aug    = ds_acc.augment()
+# ds_acc_aug    = ds_acc.augment()
 
 
 
@@ -92,25 +92,32 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 #%% Define benchmark
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
-list_benchmark = [
-    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.0, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.0, 1  , 16], # reference configuration
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.0, 1  ,  8], # batch size 8
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.0, 1  , 32], # batch size 32
+# list_benchmark = [
+    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
     # ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.0, 1  , 16], # N_conv = 3
+    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
     # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.0, 1 , 16], # reference BE_UNet configuration
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
-    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
-    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
+    # ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+    # ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
 
+# ]
+
+
+list_benchmark = [
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -136,7 +143,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -231,7 +238,7 @@ if RUN_BENCHMARK:
                     N_max_iterations=100,
                     RULE=STRATEGY,
                     TYPE_FIRST=FIRST_STEP,
-                    threshold=0.0, 
+                    threshold=0.2, 
                     N_end_FEM_iterations=0,
                     window_Unet=3, 
                     window_FEM=1,
@@ -248,7 +255,7 @@ if RUN_BENCHMARK:
                 c_FEM  = FEM_sample.c.item()
                 c_Unet = List_iterations[-1].c.item()
 
-                err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
+                err_rel_c  = (c_Unet - c_FEM) / c_FEM
                 number_FEM = len(List_count_FEM)
                 ds_iter    = IterationDataset(ds_filtre.get_series(ID))
 
@@ -265,6 +272,12 @@ if RUN_BENCHMARK:
     
 
 #%% Read File Benchmark
+
+list_benchmark = [
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+]
 
 
 df = pd.read_csv(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file)
@@ -288,9 +301,33 @@ print(summary.to_string())
 Tab_ratio_FEM = []
 Tab_err_rel_c = []
 
+
+def _config_mask(df, bench):
+    """Dtype-robust match of one list_benchmark config against the CSV rows.
+
+    FEM-only rows leave the numeric config columns blank, which forces those
+    columns to object (string) dtype on read. A plain `df[cols] == bench`
+    would then compare e.g. '32' == 32 and never match, so we coerce numeric
+    fields to numbers and compare everything else as trimmed strings.
+    """
+    mask = pd.Series(True, index=df.index)
+    for col, val in zip(CONFIG_COLUMNS, bench):
+        if isinstance(val, bool):
+            mask &= df[col].astype(str).str.strip() == str(val)
+        elif isinstance(val, (int, float)):
+            mask &= pd.to_numeric(df[col], errors='coerce') == val
+        else:
+            # val is a string; blank placeholders (' ' in the FEM-only config)
+            # must match blank CSV cells, which pandas reads as NaN. Normalise
+            # NaN/whitespace to '' on both sides before comparing.
+            col_norm = df[col].where(df[col].notna(), '').astype(str).str.strip()
+            mask &= col_norm == str(val).strip()
+    return mask
+
+
 counts = []
 for bench in list_benchmark:
-    mask = (df[CONFIG_COLUMNS] == pd.Series(bench, index=CONFIG_COLUMNS)).all(axis=1)
+    mask = _config_mask(df, bench)
     row  = df[mask]
     counts.append(len(row))
 

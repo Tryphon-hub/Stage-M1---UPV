@@ -1380,6 +1380,72 @@ def density_evolution(List_iterations, List_count_FEM, step=5):
     plt.tight_layout()
     plt.show()
 
+
+def save_density_video(List_iterations, SAVE_DIR, FPS=5):
+    """
+    Save a video of the density evolution across iterations, using the exact
+    same per-frame rendering as `density_evolution` (one iteration per frame
+    instead of a grid of subplots). Tractions arrows are only shown on the
+    first frame.
+
+    Parameters
+    ----------
+    List_iterations : list[IterationSample] — optimization history; one frame
+        per sample.
+    SAVE_DIR        : str | Path — directory the video is written to (created if
+        needed), or a full path ending in '.mp4'/'.gif'.
+    FPS             : int — frames per second of the output video.
+
+    Returns
+    -------
+    Path — the path of the written video file.
+    """
+    import matplotlib
+    from matplotlib.animation import FuncAnimation, FFMpegWriter
+
+    # Use the ffmpeg binary shipped by imageio-ffmpeg if matplotlib can't find a
+    # system ffmpeg on PATH, so the .mp4 export works out of the box.
+    if not FFMpegWriter.isAvailable():
+        try:
+            import imageio_ffmpeg
+            matplotlib.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()
+        except ImportError:
+            pass
+
+    # Resolve the output path: SAVE_DIR may be a directory or a full file path.
+    SAVE_DIR = Path(SAVE_DIR)
+    if SAVE_DIR.suffix.lower() == '.mp4':
+        out_path = SAVE_DIR
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        SAVE_DIR.mkdir(parents=True, exist_ok=True)
+        out_path = SAVE_DIR / 'density_evolution.mp4'
+
+    fig, ax = plt.subplots(figsize=(4, 4))
+    # Make the axes fill the whole figure: no white border around the image.
+    ax.set_position([0, 0, 1, 1])
+
+    def _update(iter_idx):
+        ax.clear()
+        sample = List_iterations[iter_idx]
+
+        topo     = sample.Densities.squeeze().numpy()
+        img_size = int(np.sqrt(len(topo)))
+        img      = topo.reshape(img_size, img_size)
+
+        ax.imshow(img, cmap='gray_r', origin='lower',
+                  extent=[0, img_size, 0, img_size], vmin=0, vmax=1)
+        ax.set_aspect('equal')
+        ax.axis('off')
+
+    anim = FuncAnimation(fig, _update, frames=len(List_iterations), blit=False)
+
+    anim.save(str(out_path), writer=FFMpegWriter(fps=FPS), dpi=150)
+
+    plt.close(fig)
+    print(f"Density evolution video saved to {out_path}")
+    return out_path
+
 #%% Compare NN and FEM results for a given force distribution
 
 def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None):
@@ -1511,6 +1577,12 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
 
         table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
 
+        # Model name (first row) and parameter count (last row)
+        model_row  = [_model_display_name(b) for b in list_benchmark]
+        nparam_row = [_model_param_count(b)  for b in list_benchmark]
+        table_data = [model_row] + table_data + [nparam_row]
+        row_labels = ['Model'] + param_names + ['# params']
+
     fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
     # FEM iterations — left axis
@@ -1582,7 +1654,7 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     if table_data is not None:
         table = ax1.table(
             cellText=table_data,
-            rowLabels=param_names,
+            rowLabels=row_labels,
             colLabels=labels,
             cellLoc='center',
             rowLoc='center',
@@ -1916,7 +1988,10 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
 
 def _model_display_name(b):
     """Human-readable model name for a benchmark row (b[1] = network id)."""
-    return 'BE U-Net' if b[1] == 'BE_UNet' else 'U-Net'
+    # b[1] is already the display id ('U-Net', 'Energy', ...); only 'BE_UNet'
+    # needs prettifying. Falling back to b[1] keeps non-UNet methods (e.g. the
+    # energy-based FEM config) from being mislabelled 'U-Net'.
+    return 'BE U-Net' if b[1] == 'BE_UNet' else b[1]
 
 
 def _model_param_count(b):

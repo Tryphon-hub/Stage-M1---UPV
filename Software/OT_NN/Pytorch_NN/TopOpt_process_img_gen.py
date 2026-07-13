@@ -174,6 +174,12 @@ ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
 list_images=[
     ['Only UNet', 'UNet', 3, False],
+    ['Only UNet', 'UNet', 3, True],
+    ['Only UNet', 'FEM',  3, True],
+    ['10 Unet - 1 FEM', 'UNet', 3, True],
+    ['10 Unet - 1 FEM', 'FEM',  3, True],
+    ['Decreasing compliance', 'UNet', 3, True],
+    ['Decreasing compliance', 'FEM',  3, True],
 ]
 
 COMPUTE_FEM_COMPLIANCE = True
@@ -218,14 +224,14 @@ for Strategy, Type_First, window_Unet, end_FEM in list_images:
         PLOT=True,
         SCALE='linear',
         eng=ENG,   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
-        SAVE_PATH= None,
+        SAVE_PATH= img_convergence_path,
         SHOW_FEM_C=True,
         )
 
 
     img_comparison_path = save_path / f'comparison_{NETWORK}_ID={ID_distrib}_{Strategy}_TypeFirst={Type_First}_windowUnet={window_Unet}_endFEM={end_FEM}.png'
 
-    compare_NN_FEM(List_iterations[-1], FEM_sample, SAVE_PATH=None)
+    compare_NN_FEM(List_iterations[-1], FEM_sample, SAVE_PATH=img_comparison_path)
 
     density_evolution(List_iterations,List_count_FEM, 1)
 
@@ -234,11 +240,6 @@ for Strategy, Type_First, window_Unet, end_FEM in list_images:
     c_Unet = compliance_FEM(eng, List_iterations[-1])
 
     err_rel_c  = (c_Unet - c_FEM) / c_FEM
-
-    save_video = save_path / f'video_{NETWORK}_ID={ID_distrib}_{Strategy}_TypeFirst={Type_First}_windowUnet={window_Unet}_endFEM={end_FEM}.mp4'
-
-    # save_density_video(List_iterations, save_video, FPS=4)
-
 
 
 #%%
