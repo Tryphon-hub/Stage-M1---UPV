@@ -229,7 +229,7 @@ if RUN_BENCHMARK:
                 c_FEM  = FEM_sample.c.item()
                 c_Unet = List_iterations[-1].c.item()
 
-                err_rel_c  = abs(c_FEM - c_Unet) / c_FEM
+                err_rel_c  = (c_Unet - c_FEM) / c_FEM
                 number_FEM = len(List_count_FEM)
                 ds_iter    = IterationDataset(ds_filtre.get_series(ID))
 
@@ -287,9 +287,33 @@ print(summary.to_string())
 Tab_ratio_FEM = []
 Tab_err_rel_c = []
 
+
+def _config_mask(df, bench):
+    """Dtype-robust match of one list_benchmark config against the CSV rows.
+
+    FEM-only rows leave the numeric config columns blank, which forces those
+    columns to object (string) dtype on read. A plain `df[cols] == bench`
+    would then compare e.g. '32' == 32 and never match, so we coerce numeric
+    fields to numbers and compare everything else as trimmed strings.
+    """
+    mask = pd.Series(True, index=df.index)
+    for col, val in zip(CONFIG_COLUMNS, bench):
+        if isinstance(val, bool):
+            mask &= df[col].astype(str).str.strip() == str(val)
+        elif isinstance(val, (int, float)):
+            mask &= pd.to_numeric(df[col], errors='coerce') == val
+        else:
+            # val is a string; blank placeholders (' ' in the FEM-only config)
+            # must match blank CSV cells, which pandas reads as NaN. Normalise
+            # NaN/whitespace to '' on both sides before comparing.
+            col_norm = df[col].where(df[col].notna(), '').astype(str).str.strip()
+            mask &= col_norm == str(val).strip()
+    return mask
+
+
 counts = []
 for bench in list_benchmark:
-    mask = (df[CONFIG_COLUMNS] == pd.Series(bench, index=CONFIG_COLUMNS)).all(axis=1)
+    mask = _config_mask(df, bench)
     row  = df[mask]
     counts.append(len(row))
 
