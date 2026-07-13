@@ -164,6 +164,34 @@ solved case covers all 8 orientations. See `TopOpt_accelerated.py`.
 
 ---
 
+## Benchmarks
+
+The `TopOpt_benchmark_*.py` scripts provide a **common yardstick for any accelerated
+topology-optimisation method**. Each method is run against a set of test problems
+and compared to a full-FEM optimisation on two axes:
+
+- **Cost** — `Ratio of FEM iterations (Hybrid / full-FEM)`: how many expensive FEM
+  solves the accelerated method still needs, relative to pure FEM. Lower = faster.
+- **Quality** — `Relative compliance error`: how far the accelerated design's
+  compliance is from the full-FEM optimum. Lower = more accurate.
+
+The ideal method sits in the bottom-left corner (few FEM iterations, low error).
+
+| Script | Compares | Output CSV |
+|---|---|---|
+| `TopOpt_benchmark_hybrid_strategy.py` | hybrid `RULE` strategies (Only UNet, `n Unet - m FEM`, Decreasing compliance, …) for a fixed model | `results/benchmark_hybrid_strategy.csv` |
+| `TopOpt_benchmark_architecture.py` | network configurations (NIF, N_conv, CBAM, augmentation, dataset portion, …) | `results/benchmark_architecture.csv` |
+| `TopOpt_benchmark_model.py` | full methods head-to-head, incl. the **energy-distance warm start** | `results/benchmark_model.csv` |
+
+Each CSV row is one `(method, test problem)` pair, storing the configuration plus
+the two metrics above (and the raw FEM-iteration counts), so results can be
+aggregated per method. New accelerated methods only need to report these same two
+numbers to be directly comparable. (`training_benchmark.py` and
+`benchmark_smape_architecture.csv` additionally log the pure stress-prediction
+accuracy — sMAPE — per architecture.)
+
+---
+
 ## Installation
 
 ```bash
