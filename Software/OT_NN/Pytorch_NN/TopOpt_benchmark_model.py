@@ -139,7 +139,7 @@ RESULT_COLUMNS = ['Input ID',
                   'Ratio of FEM iterations (Hybrid / full-FEM)',
                   'Relative compliance error']
 
-RESET_BENCHMARK = False # deletes old benchmark csv file
+RESET_BENCHMARK = True # deletes old benchmark csv file
 
 if RESET_BENCHMARK:
     TYPE_WRITE = 'w'
@@ -148,7 +148,7 @@ else:
 
 SIZE_LOOP = 100
 
-name_benchmark_file = 'benchmark_architecture.csv'
+name_benchmark_file = 'benchmark_architecture_normalised.csv'
 
 RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
 
@@ -281,11 +281,11 @@ if RUN_BENCHMARK:
 
 #%% Read File Benchmark
 
-list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
-    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
-]
+# list_benchmark = [
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+#     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
+#     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+# ]
 
 
 df = pd.read_csv(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file)
