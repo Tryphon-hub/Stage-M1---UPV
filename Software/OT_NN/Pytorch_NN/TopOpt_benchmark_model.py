@@ -44,6 +44,9 @@ NU       = 0.3
 #%% Load dataset
 data    = load_mat(DATA_PATH)
 ds_base = Dataset_TopOpt(data)
+
+ds_base = ds_base.normalize_dataset() # data normalisation per sample
+
 ds_filtre = ds_base.filtre_dataset(rho_min=0.15, rho_max=0.85)
 IterData_FEM = IterationDataset(ds_filtre)
 
@@ -52,6 +55,9 @@ List_List_iterations=[]
 # Bigger dataset for the energy-based method
 data_energy    = load_mat(BASE / 'HeavyFiles' / 'data' / (name_data_energy + '.mat'))
 ds_energy = Dataset_TopOpt(data_energy)
+
+ds_energy = ds_energy.normalize_dataset() # data normalisation per sample
+
 ds_energy_filtre = ds_energy.filtre_dataset(rho_min=0.15, rho_max=0.85)
 ds_acc = AcceleratedDataset(ds_energy_filtre)
 ds_acc_aug    = ds_acc.augment()
@@ -110,7 +116,7 @@ list_benchmark = [
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
-    # ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
 ]
 
@@ -182,7 +188,7 @@ if RUN_BENCHMARK:
                 
                 # Load model
                 if NETWORK=='BE_UNet':
-                    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                    tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
                     model = BE_UNetTopo(
                         nif           = NIF,
@@ -195,7 +201,7 @@ if RUN_BENCHMARK:
                     )
                     
                 elif NETWORK=='U-Net':
-                    tag = f'{name_file}_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                    tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
             
                     model = UNetTopo(
                         nif=NIF,

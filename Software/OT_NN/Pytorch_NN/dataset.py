@@ -1902,12 +1902,12 @@ if __name__ == '__main__':
     path = (BASE / 'HeavyFiles/data/dataset_128.mat').resolve()
     data = load_mat(path)
     ds_base = Dataset_TopOpt(data)
+    ds_norm = ds_base.normalize_dataset()
     data_iter = IterationDataset(ds_base)
     sample = dict_to_sample(ds_base[0,-1])
+    sample_norm = dict_to_sample(ds_norm[0,-1])
     
-    sample.plot(scale_force=100)
-    sample.plot_inputs(width=5)
-    sample.plot_outputs('FEM')
+    
 
     
 
