@@ -249,7 +249,7 @@ if RUN_BENCHMARK:
 
 list_benchmark = [
     ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
@@ -258,8 +258,10 @@ list_benchmark = [
     ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
     ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
     # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],

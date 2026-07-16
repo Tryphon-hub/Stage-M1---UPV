@@ -1565,23 +1565,7 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
         table_data = None
     else:
-        labels = [f"Config {i+1}" for i in range(n)]
-        param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
-        aug_idx = param_names.index('aug')
-
-        def cell(b, k):
-            # Hide p_aug value when aug is False
-            if param_names[k] == 'p_aug' and not b[3 + aug_idx]:
-                return ''
-            return str(b[3 + k])
-
-        table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
-
-        # Model name (first row) and parameter count (last row)
-        model_row  = [_model_display_name(b) for b in list_benchmark]
-        nparam_row = [_model_param_count(b)  for b in list_benchmark]
-        table_data = [model_row] + table_data + [nparam_row]
-        row_labels = ['Model'] + param_names + ['# params']
+        row_labels, labels, table_data = _benchmark_table_content(list_benchmark)
 
     fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
@@ -1670,6 +1654,123 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
               fontsize=FONT)
     plt.tight_layout()
     plt.show()
+
+
+def _pareto_mask(x, y):
+    """
+    Boolean mask of the non-dominated points of the (x, y) cloud, both minimised.
+
+    Point i is dominated when some j is at least as good on both objectives and
+    strictly better on one; ties (identical points) are all kept.
+    """
+    n = len(x)
+    keep = np.ones(n, dtype=bool)
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            if (x[j] <= x[i] and y[j] <= y[i]) and (x[j] < x[i] or y[j] < y[i]):
+                keep[i] = False
+                break
+    return keep
+
+
+def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
+                        TYPE_BENCHMARK='Architecture', use_abs_error=False,
+                        show_error=True, low_margin=0.05, SAVE_PATH=None):
+    """
+    Cost/quality trade-off of the same data as `plot_FEM_error_c`, as a Pareto front.
+
+    Tab_ratio_FEM : (n_configs, SIZE_LOOP) — FEM iteration ratio, minimised (x)
+    Tab_err_rel_c : (n_configs, SIZE_LOOP) — relative compliance difference, minimised (y)
+    use_abs_error : compare |error| instead of the signed difference. Use it when a
+                    compliance *below* the FEM reference should count as a deviation
+                    rather than as a win.
+    show_error    : draw the central-67% error bars. Turn it off for a clean read of
+                    the front itself; the dominance test uses the means either way.
+    low_margin    : extra y-range below the data, as a fraction of the autoscaled
+                    span, so the labels under the lowest point stay inside the axes.
+
+    Each config is one point (mean over SIZE_LOOP); non-dominated configs are filled,
+    connected by the dominance staircase, and dominated ones are hollow.
+    """
+    FONT = 18
+
+    # Same aggregation as plot_FEM_error_c so both figures tell the same story
+    data_FEM     = Tab_ratio_FEM * 100
+    data_err_pct = np.abs(Tab_err_rel_c) * 100 if use_abs_error else Tab_err_rel_c * 100
+    mean_FEM     = data_FEM.mean(axis=1)
+    mean_err_pct = data_err_pct.mean(axis=1)
+
+    if TYPE_BENCHMARK == 'Hybrid':
+        labels = [f"{b[0]} / {b[1]} start" for b in list_benchmark]
+    else:
+        # labels = [f"Config {i+1} ({_model_display_name(b)})"
+        #           for i, b in enumerate(list_benchmark)]
+
+        labels = [f"({i+1})"
+                  for i, b in enumerate(list_benchmark)]
+
+    front = _pareto_mask(mean_FEM, mean_err_pct)
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+
+    if show_error:
+        ax.errorbar(mean_FEM, mean_err_pct,
+                    xerr=_central_interval_err(data_FEM, mean_FEM),
+                    yerr=_central_interval_err(data_err_pct, mean_err_pct),
+                    fmt='none', ecolor='gray', elinewidth=1, capsize=3,
+                    alpha=0.7, zorder=2)
+
+    # Dominance staircase: hold the best error until the next cheaper-in-x config
+    order = np.argsort(mean_FEM[front])
+    fx = mean_FEM[front][order]
+    fy = mean_err_pct[front][order]
+    ax.step(fx, fy, where='post', color='tab:green', linewidth=1.5,
+            alpha=0.8, zorder=3, label='Pareto front')
+
+    ax.scatter(mean_FEM[front], mean_err_pct[front], s=90, color='tab:green',
+               edgecolor='black', zorder=4, label='Non-dominated')
+    ax.scatter(mean_FEM[~front], mean_err_pct[~front], s=70, facecolor='none',
+               edgecolor='tab:red', linewidth=1.5, zorder=4, label='Dominated')
+
+    for i, lab in enumerate(labels):
+        ax.annotate(lab, (mean_FEM[i], mean_err_pct[i]), textcoords='offset points',
+                    xytext=(0, -20), ha='center', fontsize=15,
+                    color='black' if front[i] else 'dimgray')
+
+    if not use_abs_error and mean_err_pct.min() < 0:
+        ax.axhline(0, color='black', linewidth=0.8, zorder=1)
+
+    # The point labels hang below their marker, and autoscaling ignores annotation
+    # text, so the lowest one would sit outside the axes: open room under it.
+    y0, y1 = ax.get_ylim()
+    ax.set_ylim(y0 - low_margin * (y1 - y0), y1)
+
+    # Both objectives are minimised: the front sits at the bottom-left
+    ax.set_xlabel(r'Ratio of FEM iterations: $N_{Hybrid}~/~N_{FEM}$ (%) — lower is cheaper',
+                  fontsize=15)
+    ax.set_ylabel(('Absolute' if use_abs_error else 'Relative') +
+                  ' compliance difference (%) — lower is better', fontsize=15)
+    ax.tick_params(axis='both', labelsize=13)
+    ax.grid(alpha=0.3)
+
+    handles, leg_labels = ax.get_legend_handles_labels()
+    if show_error:
+        handles.append(Line2D([0], [0], color='gray', lw=1.2, marker='_', markersize=8))
+        leg_labels.append('Error bars: central 67% interval')
+    ax.legend(handles, leg_labels, fontsize=13, loc='best')
+
+    ax.set_title(f'Cost / quality trade-off — {Tab_ratio_FEM.shape[1]} traction distributions',
+                 fontsize=FONT)
+    plt.tight_layout()
+
+    if SAVE_PATH:
+        plt.savefig(SAVE_PATH, dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+    return front
 
 
 #%% Window showing the progress of the process
@@ -2017,6 +2118,160 @@ def _model_param_count(b):
     return f'{n_params / 1e6:.2f}M'
 
 
+def _benchmark_table_content(list_benchmark):
+    """
+    Per-config description shared by the matplotlib table under `plot_FEM_error_c`
+    and the LaTeX export, so both always show the same thing.
+
+    Returns (row_labels, col_labels, table_data) where table_data[k][j] is the
+    value of attribute `row_labels[k]` for config `col_labels[j]`.
+    """
+    col_labels  = [f"Config {i+1}" for i in range(len(list_benchmark))]
+    param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
+    aug_idx     = param_names.index('aug')
+
+    def cell(b, k):
+        # Hide p_aug value when aug is False
+        if param_names[k] == 'p_aug' and not b[3 + aug_idx]:
+            return ''
+        return str(b[3 + k])
+
+    table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
+
+    # Model name (first row) and parameter count (last row)
+    model_row  = [_model_display_name(b) for b in list_benchmark]
+    nparam_row = [_model_param_count(b)  for b in list_benchmark]
+
+    return (['Model'] + param_names + ['# params'],
+            col_labels,
+            [model_row] + table_data + [nparam_row])
+
+
+_LATEX_SPECIALS = {'&': r'\&', '%': r'\%', '$': r'\$', '#': r'\#', '_': r'\_',
+                   '{': r'\{', '}': r'\}', '~': r'\textasciitilde{}',
+                   '^': r'\textasciicircum{}', '\\': r'\textbackslash{}'}
+
+
+def _latex_escape(s):
+    """Escape the LaTeX special characters of a cell (e.g. 'N_conv', '# params')."""
+    return ''.join(_LATEX_SPECIALS.get(c, c) for c in str(s))
+
+
+def _as_percent(v):
+    """'0.2' -> '20%'. Blank cells (augmentation off) and non-numbers pass through."""
+    try:
+        return f'{float(v) * 100:g}%'
+    except (TypeError, ValueError):
+        return v
+
+
+def _show_benchmark_table(blocks, caption):
+    """
+    Preview of the LaTeX table as a matplotlib figure: one stacked sub-table per
+    block, with the same cells the LaTeX rows are built from (unescaped).
+    """
+    heights = [len(body) + 1 for _, body in blocks]   # + header row
+    widest  = max(len(header) for header, _ in blocks)
+
+    # Width follows the column count; height leaves room for the stretched cells
+    fig, axes = plt.subplots(len(blocks), 1,
+                             figsize=(min(2 + 1.8 * widest, 22), 0.75 * sum(heights) + 1),
+                             gridspec_kw={'height_ratios': heights})
+    axes = np.atleast_1d(axes)
+
+    for ax, (header, body) in zip(axes, blocks):
+        ax.axis('off')
+        table = ax.table(cellText=body, colLabels=header,
+                         cellLoc='center', loc='center')
+        table.auto_set_font_size(False)
+        table.set_fontsize(18)
+        # Cell heights are derived from the default 10 pt font, so the larger text
+        # would overflow them: stretch them vertically only (1 keeps the widths).
+        table.scale(1, 2.6)
+        # Row 0 holds colLabels; bold it to match \textbf{} in the LaTeX header
+        for j in range(len(header)):
+            table[0, j].set_text_props(fontweight='bold')
+
+    fig.suptitle(caption, fontsize=18)
+    plt.tight_layout()
+    plt.show()
+
+
+def benchmark_latex_table(list_benchmark, transpose=False, max_cols=8, show=False,
+                          caption='Benchmark configurations',
+                          label='tab:benchmark'):
+    """
+    LaTeX version of the parameter table drawn under `plot_FEM_error_c`, including
+    the model name and its parameter count.
+
+    transpose : False (default) mirrors the figure — one column per config, one row
+                per attribute. True puts one row per config instead.
+    max_cols  : how many configs fit across the page. Beyond that the configs are
+                split into successive blocks, stacked inside the same tabular with
+                the attribute labels repeated. Ignored when `transpose` is True,
+                where configs go down the page and cannot overflow.
+    show      : also draw the table as a matplotlib figure, to preview the blocks
+                without a LaTeX round-trip. The string is returned either way.
+    caption   : inserted verbatim (not escaped), so it may contain math.
+
+    Returns a full-width `table*` float in the same style as tab:augmentation
+    (\\hline rules, bold header, \\label after the tabular). No extra package needed.
+    """
+    row_labels, col_labels, table_data = _benchmark_table_content(list_benchmark)
+
+    # Drop the 'aug' row: p_aug is already blanked when augmentation is off, so a
+    # filled probability says the same thing. Both ratios read better as percents.
+    drop       = row_labels.index('aug')
+    row_labels = [lab for k, lab in enumerate(row_labels) if k != drop]
+    table_data = [r   for k, r   in enumerate(table_data) if k != drop]
+    for name in ('p_aug', 'portion'):
+        k = row_labels.index(name)
+        table_data[k] = [_as_percent(v) for v in table_data[k]]
+
+    if transpose:
+        blocks = [(['Config'] + row_labels,
+                   [[col_labels[j]] + [table_data[k][j] for k in range(len(row_labels))]
+                    for j in range(len(col_labels))])]
+    else:
+        blocks = []
+        for s in range(0, len(col_labels), max_cols):
+            cols = range(s, min(s + max_cols, len(col_labels)))
+            blocks.append((
+                [''] + [col_labels[j] for j in cols],
+                [[row_labels[k]] + [table_data[k][j] for j in cols]
+                 for k in range(len(row_labels))],
+            ))
+
+    if show:
+        _show_benchmark_table(blocks, caption)
+
+    def row(cells):
+        return ' & '.join(_latex_escape(c) for c in cells) + r' \\'
+
+    def head_row(header):
+        # The corner cell of the non-transposed table stays empty (no \textbf{})
+        return ' & '.join(rf'\textbf{{{_latex_escape(c)}}}' if c else ''
+                          for c in header) + r' \\'
+
+    lines = []
+    for header, body in blocks:
+        lines += [head_row(header), r'\hline', *[row(c) for c in body], r'\hline']
+
+    # A trailing block may be narrower; the widest one sets the column count
+    align = 'l' + 'c' * (max(len(h) for h, _ in blocks) - 1)
+    return '\n'.join([
+        r'\begin{table*}[t]',
+        r'\centering',
+        rf'\caption{{{caption}}}',
+        rf'\begin{{tabular}}{{{align}}}',
+        r'\hline',
+        *lines,
+        r'\end{tabular}',
+        rf'\label{{{label}}}',
+        r'\end{table*}',
+    ])
+
+
 def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
                      TYPE_BENCHMARK='Architecture', up_legend=1.7):
     """
@@ -2172,6 +2427,10 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     ax1.axhline(0, color='black', linewidth=0.8, zorder=1)
 
     ax1.set_xticks(x)
+    # The table below spans the full axes width, so its n columns are centred on
+    # (j+0.5)/n. Pinning the x-limits to [-0.5, n-0.5] puts bar group j at exactly
+    # that fraction; with the default autoscale margins the two would drift apart.
+    ax1.set_xlim(-0.5, n - 0.5)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
     ax1.set_xticklabels(labels, fontsize=13, rotation=rotation,
                         ha='right' if rotation else 'center')

@@ -56,12 +56,15 @@ List_List_iterations=[]
 data_energy    = load_mat(BASE / 'HeavyFiles' / 'data' / (name_data_energy + '.mat'))
 ds_energy = Dataset_TopOpt(data_energy)
 
-ds_energy = ds_energy.normalize_dataset() # data normalisation per sample
-
 ds_energy_filtre = ds_energy.filtre_dataset(rho_min=0.15, rho_max=0.85)
 ds_acc = AcceleratedDataset(ds_energy_filtre)
 ds_acc_aug    = ds_acc.augment()
 
+
+NORMALIZE_DATASET = True
+
+if NORMALIZE_DATASET:
+    ds_energy = ds_energy.normalize_dataset() # data normalisation per sample
 
 
 #%% Start MATLAB engine
@@ -99,23 +102,23 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
+    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # data augmentation
 ]
@@ -150,7 +153,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = True  # Set to False to skip the benchmark and only read the results file
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -184,11 +187,13 @@ if RUN_BENCHMARK:
 
             else:
 
-                aug_tag = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
                 
-                # Load model
+                aug_tag    = f'{int(100*AUGMENTATION_P)}%' if USE_AUGMENTATION else 'False'
+                norm_tag   = 'normalised_' if NORMALIZE_DATASET else ''
+
+
                 if NETWORK=='BE_UNet':
-                    tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+                    tag = f'{name_file}_{norm_tag}NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
                     model = BE_UNetTopo(
                         nif           = NIF,
@@ -201,8 +206,8 @@ if RUN_BENCHMARK:
                     )
                     
                 elif NETWORK=='U-Net':
-                    tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
-            
+                    tag = f'{name_file}_{norm_tag}NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}_batch={BATCH_SIZE}'
+
                     model = UNetTopo(
                         nif=NIF,
                         n_in=N_in,
@@ -281,10 +286,22 @@ if RUN_BENCHMARK:
 
 #%% Read File Benchmark
 
+
+# [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
+    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
-    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
 ]
 
 
@@ -359,5 +376,7 @@ Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
 plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
 
-
+plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
+                        TYPE_BENCHMARK='Architecture', use_abs_error=False,
+                        show_error=False, SAVE_PATH=None)
 #%%
