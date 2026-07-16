@@ -52,24 +52,24 @@ print(f"Device: {device}")
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    # ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
-    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1 , 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True, 0.2 , 1 , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    # # ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+    # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
+    # # ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
+    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16],
+    # # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
+    # # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
+    # # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1 , 16],
+    # # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True, 0.2 , 1 , 16],
     ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
 ]
 
@@ -127,7 +127,8 @@ with open(RESULTS_ROOT / name_benchmark_file, TYPE_WRITE, newline='') as benchma
         if NETWORK == 'U-Net':
             tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
         else:
-            tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_{HIDDEN_LAYERS_MLP}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
+            mlp_tag = '-'.join(str(h) for h in HIDDEN_LAYERS_MLP)
+            tag = f'{name_file}_normalised_NIF={NIF}_{N_CONV}_conv_{mlp_tag}_CBAM={USE_CBAM}_aug={aug_tag}_portion={int(PORTION_DATA*100)}%_batch={BATCH_SIZE}'
 
         RESULTS_DIR       = RESULTS_ROOT / NETWORK / tag
         ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / NETWORK / tag

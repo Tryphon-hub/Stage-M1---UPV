@@ -158,7 +158,7 @@ if RUN_TRAINING:
         ILLUSTRATIONS_DIR = BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'illustrations' / 'U-Net' / 'seed_benchmark' / tag
         CHECKPOINT_PATH = RESULTS_DIR / ('unet_' + name_file + '_checkpoint.pth')
         BEST_PATH       = RESULTS_DIR / ('unet_' + name_file + '_best.pth')
-        TB_LOG_DIR      = RESULTS_DIR / ('runs_' + name_file) / ('unet_' + name_file)
+        TB_LOG_DIR      = RESULTS_DIR / 'tb'
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Split — separate generator, but derived from the same seed so the
