@@ -120,8 +120,8 @@ RESULT_COLUMNS = ['Input ID',
 name_benchmark_file = 'benchmark_seed.csv'
 BENCHMARK_CSV       = SEED_BENCH_DIR / name_benchmark_file
 
-RUN_TRAINING  = True   # Phase 1 — train one model per seed
-RUN_BENCHMARK = True   # Phase 2 — evaluate each model with the TopOpt benchmark
+RUN_TRAINING  = False   # Phase 1 — train one model per seed
+RUN_BENCHMARK = False   # Phase 2 — evaluate each model with the TopOpt benchmark
 RESET_BENCHMARK = False # overwrite benchmark_seed.csv (False -> append)
 
 
@@ -352,5 +352,10 @@ for label, col in [('FEM-iteration ratio', 'mean_ratio'),
     print(f"{label:28s}: mean={m:.4f}  std={sd:.4f}  "
           f"CV={100*cv:5.1f}%  (min={per_seed[col].min():.4f}, "
           f"max={per_seed[col].max():.4f})")
+
+
+#%% Phase 3b — visualise the seed-to-seed variability
+
+plot_seed_benchmark(BENCHMARK_CSV, save_path=SEED_BENCH_DIR / 'seed_benchmark.png')
 
 # %%
