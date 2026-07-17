@@ -1993,6 +1993,89 @@ def _aggregate_smape(list_benchmark, csv_path):
     return np.array(mean_smape), np.array(std_smape), n_samples, vals_smape
 
 
+def plot_seed_benchmark(csv_path, save_path=None):
+    """
+    Visualise the seed-to-seed (retraining) noise from a benchmark_seed CSV.
+
+    One coloured boxplot per seed shows the within-seed spread over the test
+    samples; the dot on top is that seed's mean. The black line is the mean over
+    seeds and the light-grey band is mean ± 1σ of the per-seed means — the
+    retraining noise, i.e. the reference error bar below which two
+    configurations of the main benchmark cannot be told apart.
+
+    Parameters
+    ----------
+    csv_path  : path-like — CSV written by TopOpt_benchmark_seed.py, i.e. with a
+                'seed' column plus the FEM-ratio and compliance-error columns.
+    save_path : path-like | None — where to save the PNG. If None (default) the
+                figure is only displayed, not written to disk.
+
+    Returns
+    -------
+    None — displays (and optionally saves) a matplotlib figure.
+    """
+    import pandas as pd
+
+    RATIO_COL = 'Ratio of FEM iterations (Hybrid / full-FEM)'
+    ERR_COL   = 'Relative compliance error'
+
+    df    = pd.read_csv(csv_path)
+    seeds = sorted(df['seed'].unique().tolist())
+
+    ratio_by_seed = [df.loc[df['seed'] == s, RATIO_COL].values * 100 for s in seeds]
+    err_by_seed   = [df.loc[df['seed'] == s, ERR_COL].values   * 100 for s in seeds]
+    mean_ratio    = np.array([r.mean() for r in ratio_by_seed])
+    mean_err      = np.array([e.mean() for e in err_by_seed])
+
+    def _panel(ax, data_by_seed, per_seed_mean_pct, ylabel, color):
+        positions = np.arange(len(seeds))
+
+        # One boxplot per seed = within-seed spread over the test samples.
+        ax.boxplot(data_by_seed, positions=positions, widths=0.6, showfliers=False,
+                   patch_artist=True,
+                   boxprops=dict(facecolor=color, alpha=0.25, color=color),
+                   medianprops=dict(color=color),
+                   whiskerprops=dict(color=color), capprops=dict(color=color))
+        ax.scatter(positions, per_seed_mean_pct, color=color, s=32, zorder=5,
+                   label='per-seed mean')
+
+        # Seed-to-seed noise: black line = mean over seeds, grey band = mean ± 1σ.
+        m  = float(np.mean(per_seed_mean_pct))
+        sd = float(np.std(per_seed_mean_pct, ddof=1))
+        ax.axhspan(m - sd, m + sd, color='gray', alpha=0.20,
+                   label=fr'mean $\pm\,1\sigma$ = {m:.2f} $\pm$ {sd:.2f}')
+        ax.axhline(m, color='black', lw=1.3)
+
+        ax.set_xticks(positions)
+        ax.set_xticklabels(seeds, fontsize=13)
+        ax.tick_params(axis='y', labelsize=13)
+        ax.set_ylabel(ylabel, fontsize=15)
+
+        # 20% extra headroom at the top so the (upper-left) legend clears the boxes.
+        lo, hi = ax.get_ylim()
+        ax.set_ylim(lo, hi + 0.20 * (hi - lo))
+        ax.legend(fontsize=12, loc='upper left', framealpha=0.9)
+
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1, figsize=(max(8, len(seeds) * 0.9), 9), sharex=True)
+    _panel(ax1, ratio_by_seed, mean_ratio, 'FEM-iteration ratio (%)', 'tab:blue')
+    _panel(ax2, err_by_seed, mean_err, 'Relative compliance error (%)', 'tab:orange')
+    ax2.set_xlabel('seed', fontsize=14)
+
+    # Title from the configuration stored in the CSV (constant across seeds).
+    nif       = df['NIF'].iloc[0]
+    n_conv    = df['N_conv'].iloc[0]
+    n_samples = len(ratio_by_seed[0]) if ratio_by_seed else 0
+    fig.suptitle(f'Seed-to-seed variability — U-Net NIF={nif}, N_conv={n_conv} '
+                 f'({n_samples} samples/seed, {len(seeds)} seeds)', fontsize=15)
+    fig.tight_layout()
+
+    if save_path is not None:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f"Figure saved to {save_path}")
+    plt.show()
+
+
 def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture', up_legend=1.45):
     """
     Read the CSV written by `save_smape_benchmark` and draw a bar chart of the
