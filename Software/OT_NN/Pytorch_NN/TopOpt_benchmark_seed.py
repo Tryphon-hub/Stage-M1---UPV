@@ -88,7 +88,7 @@ print(f"Device: {device}")
 # The one configuration under test (fixed across every seed):
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation,
 #  probability of augmentation, dataset portion, batch size]
-CONFIG = ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1, 16]
+CONFIG = ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16]
 
 (STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM,
  USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE) = CONFIG
