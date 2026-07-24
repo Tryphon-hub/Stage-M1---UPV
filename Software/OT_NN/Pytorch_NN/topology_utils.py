@@ -1565,7 +1565,8 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
         table_data = None
     else:
-        row_labels, labels, table_data = _benchmark_table_content(list_benchmark)
+        row_labels, labels, table_data = _benchmark_table_content(
+            list_benchmark, merge_aug=(TYPE_BENCHMARK == 'model'))
 
     fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
 
@@ -1650,7 +1651,8 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         ax1.set_xticklabels([])
         ax1.set_xlabel('')
 
-    plt.title(f'Hybrid strategies comparison — {len(Tab_ratio_FEM[0])} traction distributions',
+    title = 'Model comparison' if TYPE_BENCHMARK == 'model' else 'Hybrid strategies comparison'
+    plt.title(f'{title} — {len(Tab_ratio_FEM[0])} traction distributions',
               fontsize=FONT)
     plt.tight_layout()
     plt.show()
@@ -1677,7 +1679,8 @@ def _pareto_mask(x, y):
 
 def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         TYPE_BENCHMARK='Architecture', use_abs_error=False,
-                        show_error=True, low_margin=0.05, SAVE_PATH=None):
+                        show_error=True, low_margin=0.05, left_margin=0.05, right_margin=0.05, 
+                        SAVE_PATH=None, scale_font=1.0, scale_dot=1.0):
     """
     Cost/quality trade-off of the same data as `plot_FEM_error_c`, as a Pareto front.
 
@@ -1690,12 +1693,15 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                     the front itself; the dominance test uses the means either way.
     low_margin    : extra y-range below the data, as a fraction of the autoscaled
                     span, so the labels under the lowest point stay inside the axes.
+    scale_font    : multiplies the size of every text element (1.0 = default).
+    scale_dot     : multiplies the size of every scatter marker (1.0 = default).
 
     Each config is one point (mean over SIZE_LOOP); non-dominated configs are filled,
     connected by the dominance staircase, and dominated ones are hollow.
     """
-    FONT = 18
+    FONT = 18 * scale_font
 
+    down_shift = 0 # vertical offset of the labels under the points
     # Same aggregation as plot_FEM_error_c so both figures tell the same story
     data_FEM     = Tab_ratio_FEM * 100
     data_err_pct = np.abs(Tab_err_rel_c) * 100 if use_abs_error else Tab_err_rel_c * 100
@@ -1703,7 +1709,8 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
     mean_err_pct = data_err_pct.mean(axis=1)
 
     if TYPE_BENCHMARK == 'Hybrid':
-        labels = [f"{b[0]} / {b[1]} start" for b in list_benchmark]
+        labels = [f"{b[0]}\n{b[1]} start" for b in list_benchmark]
+        down_shift = -20
     else:
         # labels = [f"Config {i+1} ({_model_display_name(b)})"
         #           for i, b in enumerate(list_benchmark)]
@@ -1729,14 +1736,14 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
     ax.step(fx, fy, where='post', color='tab:green', linewidth=1.5,
             alpha=0.8, zorder=3, label='Pareto front')
 
-    ax.scatter(mean_FEM[front], mean_err_pct[front], s=90, color='tab:green',
+    ax.scatter(mean_FEM[front], mean_err_pct[front], s=90 * scale_dot, color='tab:green',
                edgecolor='black', zorder=4, label='Non-dominated')
-    ax.scatter(mean_FEM[~front], mean_err_pct[~front], s=70, facecolor='none',
+    ax.scatter(mean_FEM[~front], mean_err_pct[~front], s=70 * scale_dot, facecolor='none',
                edgecolor='tab:red', linewidth=1.5, zorder=4, label='Dominated')
 
     for i, lab in enumerate(labels):
         ax.annotate(lab, (mean_FEM[i], mean_err_pct[i]), textcoords='offset points',
-                    xytext=(0, -20), ha='center', fontsize=15,
+                    xytext=(0, -20 + down_shift), ha='center', fontsize=10 * scale_font,
                     color='black' if front[i] else 'dimgray')
 
     if not use_abs_error and mean_err_pct.min() < 0:
@@ -1747,21 +1754,24 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
     y0, y1 = ax.get_ylim()
     ax.set_ylim(y0 - low_margin * (y1 - y0), y1)
 
+    x0, x1 = ax.get_xlim()
+    ax.set_xlim(x0 - left_margin * (x1 - x0), x1 + right_margin * (x1 - x0))
+
     # Both objectives are minimised: the front sits at the bottom-left
-    ax.set_xlabel(r'Ratio of FEM iterations: $N_{Hybrid}~/~N_{FEM}$ (%) — lower is cheaper',
-                  fontsize=15)
+    ax.set_xlabel(r'Ratio of FEM iterations: $N_{Hybrid}~/~N_{FEM}$ (%)',
+                  fontsize=15 * scale_font)
     ax.set_ylabel(('Absolute' if use_abs_error else 'Relative') +
-                  ' compliance difference (%) — lower is better', fontsize=15)
-    ax.tick_params(axis='both', labelsize=13)
+                  ' compliance difference (%)', fontsize=15 * scale_font)
+    ax.tick_params(axis='both', labelsize=13 * scale_font)
     ax.grid(alpha=0.3)
 
     handles, leg_labels = ax.get_legend_handles_labels()
     if show_error:
         handles.append(Line2D([0], [0], color='gray', lw=1.2, marker='_', markersize=8))
         leg_labels.append('Error bars: central 67% interval')
-    ax.legend(handles, leg_labels, fontsize=13, loc='best')
+    ax.legend(handles, leg_labels, fontsize=13 * scale_font, loc='best')
 
-    ax.set_title(f'Cost / quality trade-off — {Tab_ratio_FEM.shape[1]} traction distributions',
+    ax.set_title(f'Cost / quality compromise \n({Tab_ratio_FEM.shape[1]} traction distributions)',
                  fontsize=FONT)
     plt.tight_layout()
 
@@ -1993,7 +2003,44 @@ def _aggregate_smape(list_benchmark, csv_path):
     return np.array(mean_smape), np.array(std_smape), n_samples, vals_smape
 
 
-def plot_seed_benchmark(csv_path, save_path=None):
+SEED_RATIO_COL = 'Ratio of FEM iterations (Hybrid / full-FEM)'
+SEED_ERR_COL   = 'Relative compliance error'
+SEED_PORTION_COL = 'dataset portion'
+
+
+def _seed_portion_label(p):
+    """'dataset portion' value -> display label, e.g. 0.5 -> '50%'."""
+    return f'{int(round(100 * float(p)))}%'
+
+
+def _select_seed_portion(df, portion):
+    """Restrict a benchmark_seed dataframe to one 'dataset portion'.
+
+    The portion column is matched numerically: blank cells elsewhere in the CSV
+    force the config columns to object dtype on read, so a plain `== portion`
+    would compare '1' with 1 and silently return no row.
+    """
+    import pandas as pd
+
+    portions  = pd.to_numeric(df[SEED_PORTION_COL], errors='coerce')
+    available = sorted(portions.dropna().unique().tolist())
+
+    if portion is None:
+        if len(available) > 1:
+            raise ValueError(
+                f"'{SEED_PORTION_COL}' takes several values in this CSV "
+                f"({available}); pass portion=... to pick one, otherwise the "
+                f"seed noise of different dataset sizes would be pooled.")
+        return df, (available[0] if available else None)
+
+    sub = df[portions == float(portion)]
+    if sub.empty:
+        raise ValueError(f"No row with {SEED_PORTION_COL}={portion}. "
+                         f"Available: {available}.")
+    return sub, float(portion)
+
+
+def plot_seed_benchmark(csv_path, portion=None, save_path=None):
     """
     Visualise the seed-to-seed (retraining) noise from a benchmark_seed CSV.
 
@@ -2007,6 +2054,9 @@ def plot_seed_benchmark(csv_path, save_path=None):
     ----------
     csv_path  : path-like — CSV written by TopOpt_benchmark_seed.py, i.e. with a
                 'seed' column plus the FEM-ratio and compliance-error columns.
+    portion   : float | None — 'dataset portion' to plot (e.g. 0.5 or 1). Required
+                as soon as the CSV holds several portions, since pooling them
+                would mix the seed noise of different dataset sizes.
     save_path : path-like | None — where to save the PNG. If None (default) the
                 figure is only displayed, not written to disk.
 
@@ -2016,10 +2066,11 @@ def plot_seed_benchmark(csv_path, save_path=None):
     """
     import pandas as pd
 
-    RATIO_COL = 'Ratio of FEM iterations (Hybrid / full-FEM)'
-    ERR_COL   = 'Relative compliance error'
+    RATIO_COL = SEED_RATIO_COL
+    ERR_COL   = SEED_ERR_COL
 
-    df    = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path)
+    df, portion = _select_seed_portion(df, portion)
     seeds = sorted(df['seed'].unique().tolist())
 
     ratio_by_seed = [df.loc[df['seed'] == s, RATIO_COL].values * 100 for s in seeds]
@@ -2066,13 +2117,110 @@ def plot_seed_benchmark(csv_path, save_path=None):
     nif       = df['NIF'].iloc[0]
     n_conv    = df['N_conv'].iloc[0]
     n_samples = len(ratio_by_seed[0]) if ratio_by_seed else 0
-    fig.suptitle(f'Seed-to-seed variability — U-Net NIF={nif}, N_conv={n_conv} '
+    portion_txt = f', portion={_seed_portion_label(portion)}' if portion is not None else ''
+    fig.suptitle(f'Seed-to-seed variability — U-Net NIF={nif}, N_conv={n_conv}'
+                 f'{portion_txt} '
                  f'({n_samples} samples/seed, {len(seeds)} seeds)', fontsize=15)
     fig.tight_layout()
 
     if save_path is not None:
         fig.savefig(save_path, dpi=150, bbox_inches='tight')
         print(f"Figure saved to {save_path}")
+    plt.show()
+
+
+def plot_seed_quality_cost(csv_path, save_path=None, use_abs_error=False, n_std=1.0,
+                           scale_font=1.0, scale_dot=1.0):
+    """
+    Cost/quality scatter of the per-seed results, one colour per dataset portion.
+
+    Each point is ONE trained model (one seed): x = its mean FEM-iteration ratio
+    (cost), y = its mean relative compliance difference (quality). Both axes are
+    minimised, so the best models sit at the bottom-left — same convention as
+    `plot_pareto_front_c`. For every portion, the cross marks the centroid of its
+    seeds and the ellipse is the n_std-σ covariance ellipse of the seed cloud:
+    its size is the retraining noise, its tilt the cost/quality correlation.
+
+    Parameters
+    ----------
+    csv_path      : path-like — CSV written by TopOpt_benchmark_seed.py.
+    save_path     : path-like | None — where to save the PNG (None: display only).
+    use_abs_error : bool — compare |error| instead of the signed difference. Use it
+                    when a compliance *below* the FEM reference should count as a
+                    deviation rather than as a win.
+    n_std         : float — ellipse radius in standard deviations (1.0 = 1σ).
+    scale_font    : float — multiplies the size of every text element (1.0 = default).
+    scale_dot     : float — multiplies the size of every scatter marker (1.0 = default).
+
+    Returns
+    -------
+    None — displays (and optionally saves) a matplotlib figure.
+    """
+    import pandas as pd
+    from matplotlib.patches import Ellipse, Patch
+
+    df       = pd.read_csv(csv_path)
+    portions = pd.to_numeric(df[SEED_PORTION_COL], errors='coerce')
+    values   = sorted(portions.dropna().unique().tolist())
+
+    cmap = plt.get_cmap('tab10')
+    fig, ax = plt.subplots(figsize=(10, 7))
+
+    for i, p in enumerate(values):
+        sub = df[portions == p]
+        # One point per seed: the seed's mean over its test distributions.
+        g = sub.groupby('seed').agg(x=(SEED_RATIO_COL, 'mean'),
+                                    y=(SEED_ERR_COL,   'mean'))
+        x     = g['x'].values * 100
+        y     = (np.abs(g['y'].values) if use_abs_error else g['y'].values) * 100
+        color = cmap(i % 10)
+
+        ax.scatter(x, y, s=45 * scale_dot, color=color, alpha=0.75, edgecolor='white',
+                   linewidth=0.6, zorder=4,
+                   label=f'portion {_seed_portion_label(p)} ({len(x)} seeds)')
+        ax.scatter(x.mean(), y.mean(), s=170 * scale_dot, marker='X', color=color,
+                   edgecolor='black', linewidth=1.0, zorder=5)
+
+        # n_std-σ covariance ellipse: eigen-decomposition of the 2x2 covariance
+        # orients it along the principal axes of the seed cloud.
+        if len(x) >= 3:
+            cov        = np.cov(x, y)
+            vals, vecs = np.linalg.eigh(cov)
+            order      = vals.argsort()[::-1]
+            vals, vecs = vals[order], vecs[:, order]
+            angle      = np.degrees(np.arctan2(vecs[1, 0], vecs[0, 0]))
+            w, h       = 2 * n_std * np.sqrt(np.maximum(vals, 0))
+            ax.add_patch(Ellipse((x.mean(), y.mean()), width=w, height=h,
+                                 angle=angle, facecolor=color, alpha=0.15,
+                                 edgecolor=color, lw=1.5, zorder=2))
+
+    if not use_abs_error:
+        ax.axhline(0, color='black', linewidth=0.8, zorder=1)
+
+    # Both objectives are minimised: the best models sit at the bottom-left.
+    ax.set_xlabel(r'Ratio of FEM iterations: $N_{Hybrid}~/~N_{FEM}$ (%)',
+                  fontsize=15 * scale_font)
+    ax.set_ylabel(('Absolute' if use_abs_error else 'Relative') +
+                  ' compliance difference (%)', fontsize=15 * scale_font)
+    ax.tick_params(axis='both', labelsize=13 * scale_font)
+    ax.grid(alpha=0.3)
+
+    handles, leg_labels = ax.get_legend_handles_labels()
+    handles.append(Line2D([0], [0], marker='X', color='none',
+                          markerfacecolor='0.4', markeredgecolor='black',
+                          markersize=11 * scale_dot))
+    leg_labels.append('Centroid over seeds')
+    handles.append(Patch(facecolor='0.6', alpha=0.3, edgecolor='0.4'))
+    leg_labels.append(fr'{n_std:g}$\sigma$ ellipse (retraining noise)')
+    ax.legend(handles, leg_labels, fontsize=10 * scale_font, loc='best')
+
+    ax.set_title('Cost / quality of each seed, by dataset portion',
+                 fontsize=16 * scale_font)
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
     plt.show()
 
 
@@ -2201,10 +2349,14 @@ def _model_param_count(b):
     return f'{n_params / 1e6:.2f}M'
 
 
-def _benchmark_table_content(list_benchmark):
+def _benchmark_table_content(list_benchmark, merge_aug=False):
     """
     Per-config description shared by the matplotlib table under `plot_FEM_error_c`
     and the LaTeX export, so both always show the same thing.
+
+    merge_aug : replace the separate 'aug' and 'p_aug' rows with a single 'aug (%)'
+                row holding the augmentation probability in percent when aug is on
+                (blank otherwise). Used by the 'model' benchmark layout.
 
     Returns (row_labels, col_labels, table_data) where table_data[k][j] is the
     value of attribute `row_labels[k]` for config `col_labels[j]`.
@@ -2220,12 +2372,26 @@ def _benchmark_table_content(list_benchmark):
         return str(b[3 + k])
 
     table_data = [[cell(b, k) for b in list_benchmark] for k in range(len(param_names))]
+    row_names  = list(param_names)
+
+    if merge_aug:
+        # Collapse 'aug'/'p_aug' into one probability row: p_aug as % when aug is on.
+        # The Energy model augments by a fixed factor rather than a probability.
+        def aug_cell(b):
+            if not b[3 + aug_idx]:
+                return ''
+            if b[1] == 'Energy':
+                return 'x 8'
+            return _as_percent(b[3 + aug_idx + 1])
+        merged = [aug_cell(b) for b in list_benchmark]
+        row_names  = param_names[:aug_idx]  + ['aug'] + param_names[aug_idx + 2:]
+        table_data = table_data[:aug_idx]   + [merged] + table_data[aug_idx + 2:]
 
     # Model name (first row) and parameter count (last row)
     model_row  = [_model_display_name(b) for b in list_benchmark]
     nparam_row = [_model_param_count(b)  for b in list_benchmark]
 
-    return (['Model'] + param_names + ['# params'],
+    return (['Model'] + row_names + ['# params'],
             col_labels,
             [model_row] + table_data + [nparam_row])
 

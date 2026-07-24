@@ -58,10 +58,10 @@ ds_energy = Dataset_TopOpt(data_energy)
 
 ds_energy_filtre = ds_energy.filtre_dataset(rho_min=0.15, rho_max=0.85)
 ds_acc = AcceleratedDataset(ds_energy_filtre)
-ds_acc_aug    = ds_acc.augment()
+# ds_acc_aug    = ds_acc.augment()
 
 
-NORMALIZE_DATASET = True
+NORMALIZE_DATASET = False
 
 if NORMALIZE_DATASET:
     ds_energy = ds_energy.normalize_dataset() # data normalisation per sample
@@ -124,11 +124,7 @@ list_benchmark = [
 ]
 
 
-# list_benchmark = [
-#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-#     ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
-#     ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
-# ]
+
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
 # the per-run rows and the aggregation at the end.
@@ -151,7 +147,7 @@ else:
 
 SIZE_LOOP = 100
 
-name_benchmark_file = 'benchmark_architecture_normalised.csv'
+name_benchmark_file = 'benchmark_architecture.csv'
 
 RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
@@ -288,22 +284,30 @@ if RUN_BENCHMARK:
 
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
-list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
-]
+# list_benchmark = [
+#     ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+#     ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
+#     ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
+#     ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
+# ]
 
+list_benchmark = [
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', False, ' ', ' ' , ' '], # reference energy-based method
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True, False, 0.2, 1  , 16], # reference configuration
+    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False, 0.2, 1 , 16], # reference BE_UNet configuration
+    ['Only FEM', 'Energy', 'FEM', ' ', ' ', ' ', True, ' ', ' ' , ' '], # reference energy-based method
+]
 
 df = pd.read_csv(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file)
 
@@ -374,9 +378,10 @@ if len(set(counts)) != 1 or counts[0] == 0:
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'model')
 
 plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         TYPE_BENCHMARK='Architecture', use_abs_error=False,
-                        show_error=False, SAVE_PATH=None)
+                        show_error=False, SAVE_PATH=None,
+                        scale_font = 1.5, scale_dot = 2)
 #%%

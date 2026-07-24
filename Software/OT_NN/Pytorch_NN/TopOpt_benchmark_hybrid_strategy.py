@@ -159,14 +159,14 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion]
 list_benchmark = [
-    # ['Only UNet', 'UNet'],
-    # ['Only UNet', 'FEM'],
-    ['10 Unet - 1 FEM', 'UNet'],
-    ['10 Unet - 1 FEM', 'FEM'],
-    # ['10 Unet - 3 FEM', 'UNet'],
-    # ['10 Unet - 3 FEM', 'FEM'],
-    # ['Decreasing compliance', 'UNet'],
-    # ['Decreasing compliance', 'FEM'],
+    ['Only UNet', 'UNet'],
+    ['Only UNet', 'FEM'],
+    # ['10 Unet - 1 FEM', 'UNet'],
+    # ['10 Unet - 1 FEM', 'FEM'],
+    ['10 Unet - 3 FEM', 'UNet'],
+    ['10 Unet - 3 FEM', 'FEM'],
+    ['Decreasing compliance', 'UNet'],
+    ['Decreasing compliance', 'FEM'],
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -190,7 +190,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_hybrid_strategy.csv'
 
-RUN_BENCHMARK = True
+RUN_BENCHMARK = False
 
 
 
@@ -296,5 +296,9 @@ Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, up_legend=1.15)
 
 
-
+plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
+                        TYPE_BENCHMARK='Hybrid', use_abs_error=False,
+                        show_error=False, SAVE_PATH=None,
+                        scale_font = 1.5, scale_dot = 2,
+                        low_margin=0.1, right_margin=0.1,left_margin=0.05)
 #%%

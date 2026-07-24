@@ -88,7 +88,7 @@ print(f"Device: {device}")
 # The one configuration under test (fixed across every seed):
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation,
 #  probability of augmentation, dataset portion, batch size]
-CONFIG = ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.2, 16]
+CONFIG = ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16]
 
 (STRATEGY, NETWORK, FIRST_STEP, NIF, N_CONV, USE_CBAM,
  USE_AUGMENTATION, AUGMENTATION_P, PORTION_DATA, BATCH_SIZE) = CONFIG
@@ -356,6 +356,12 @@ for label, col in [('FEM-iteration ratio', 'mean_ratio'),
 
 #%% Phase 3b — visualise the seed-to-seed variability
 
-plot_seed_benchmark(BENCHMARK_CSV, save_path=SEED_BENCH_DIR / 'seed_benchmark.png')
+# Per-seed boxplots + mean ± 1σ band, for one dataset portion.
+plot_seed_benchmark(BENCHMARK_CSV, portion=0.5,
+                    save_path=SEED_BENCH_DIR / 'seed_benchmark.png')
+
+# Cost/quality plane: one point per seed, one colour and one 1σ ellipse per portion.
+plot_seed_quality_cost(BENCHMARK_CSV,
+                       save_path=SEED_BENCH_DIR / 'seed_quality_cost.png', scale_font=1.5, scale_dot=2)
 
 # %%
