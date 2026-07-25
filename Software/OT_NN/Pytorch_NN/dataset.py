@@ -405,6 +405,123 @@ class Dataset_TopOpt(Dataset):
         plt.tight_layout()
         plt.show()
 
+    def plot_all_densities_step(self, step, sample=None, one_by_one=False,
+                                band_in=0.5):
+        """
+        Plot every `step`-th iteration of every sample (a thinned
+        `plot_all_densities`). The converged (last) iteration is always shown, so
+        the final geometry of each case appears whatever the step.
+
+        Parameters:
+            step (int): iteration stride, >= 1. step=1 reproduces plot_all_densities.
+            sample (int|None): if given, only that case's iterations are plotted,
+                showing the SIMP evolution of a single series; None plots every case.
+            one_by_one (bool): False (default) renders all frames as one film strip;
+                True shows each iteration in its own figure, one after another.
+            band_in (float): height in inches of the film strip's top/bottom sprocket
+                borders (one_by_one=False only); lower it for thinner borders.
+        """
+        if step < 1:
+            raise ValueError(f'step must be >= 1, got {step}')
+
+        N = len(self)
+        cases = range(N) if sample is None else [sample]
+
+        # Iterations 0, step, 2*step, ... plus the last one (avoid a duplicate
+        # when the last iteration already lands on the stride).
+        pairs = []
+        for i in cases:
+            ni = self.n_iter(i)
+            js = list(range(0, ni, step))
+            if js[-1] != ni - 1:
+                js.append(ni - 1)
+            pairs += [(i, j) for j in js]
+        n_plots = len(pairs)
+
+        def draw(ax, i, j, title=True):
+            topo = self.get_density(i, j)
+            img_size = int(np.sqrt(len(topo)))
+            ax.imshow(topo.reshape(img_size, img_size),
+                      cmap='gray_r', origin='lower', vmin=0, vmax=1)
+            ax.set_aspect('equal')
+            ax.axis('off')
+            if title:
+                ax.set_title(f'sample {i}\niteration {j}', fontsize=8)
+
+        if one_by_one:
+            # One figure per frame, shown in sequence, without any title.
+            for i, j in pairs:
+                _, ax = plt.subplots(figsize=(3, 3))
+                draw(ax, i, j, title=False)
+                plt.tight_layout()
+                plt.show()
+            return
+
+        # Global view: a single-row film strip — smooth density frames with white
+        # borders on a black film body carrying white sprocket holes top and bottom.
+        self._filmstrip(pairs, band_in=band_in)
+
+    def _filmstrip(self, pairs, margin_in=0.18, band_in=0.5, fig_h=3.0):
+        """
+        Draw the (sample, iteration) frames as one film strip: a row of
+        white-bordered density frames over a black film body with white sprocket
+        holes running along the top and bottom edges (see the reference image).
+
+        Sizes are in inches: `fig_h` is the fixed total strip height, `band_in` the
+        height of each sprocket band (lower it for thinner borders — the frames grow
+        to fill the freed height, keeping `fig_h` constant), `margin_in` the black
+        gap between frames.
+        """
+        from matplotlib.patches import Rectangle
+
+        FILM_COLOR = '#057A8D'               # film body colour (was black)
+
+        n = len(pairs)
+        frame_in = fig_h - 2 * band_in       # square frame side, so fig_h stays fixed
+        fig_w = margin_in + n * (frame_in + margin_in)
+        fig = plt.figure(figsize=(fig_w, fig_h), facecolor=FILM_COLOR)
+
+        # Figure-fraction geometry. Frames stay square (side `frame_in`); the
+        # top/bottom strips of height `fb` (= band_in) carry the sprocket holes.
+        fw, mw = frame_in / fig_w, margin_in / fig_w
+        fh     = frame_in / fig_h
+        fb     = band_in / fig_h
+
+        for k, (i, j) in enumerate(pairs):
+            topo = self.get_density(i, j)
+            s = int(np.sqrt(len(topo)))
+            ax = fig.add_axes([mw + k * (fw + mw), fb, fw, fh])
+            ax.imshow(topo.reshape(s, s), cmap='gray_r', origin='lower',
+                      vmin=0, vmax=1)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for sp in ax.spines.values():          # white frame border
+                sp.set_color('white')
+                sp.set_linewidth(2)
+
+        # Sprocket holes: white squares centred in the top and bottom black bands.
+        bg = fig.add_axes([0, 0, 1, 1], zorder=-1)
+        bg.set_xlim(0, 1)
+        bg.set_ylim(0, 1)
+        bg.axis('off')
+        # Hole size follows the band so it never overflows; the height is a further
+        # 30% shorter than the width, and the holes hug the outer edges (small
+        # `edge_gap`) so more of the film body separates them from the frames.
+        sq_w_in = 0.6 * band_in
+        sq_h_in = 0.7 * sq_w_in
+        edge_gap = 0.06 / fig_h
+        sq_w, sq_h = sq_w_in / fig_w, sq_h_in / fig_h
+        pitch = 2 * sq_w_in / fig_w
+        y_t = 1 - edge_gap - sq_h        # top band: flush to the top edge
+        y_b = edge_gap                   # bottom band: flush to the bottom edge
+        x = mw
+        while x < 1 - sq_w:
+            bg.add_patch(Rectangle((x, y_t), sq_w, sq_h, color='white'))
+            bg.add_patch(Rectangle((x, y_b), sq_w, sq_h, color='white'))
+            x += pitch
+
+        plt.show()
+
     def normalize_dataset(self):
         """
         Return a new Dataset_TopOpt with Tractions, Stress, c, FEMc, and Ener
@@ -1907,7 +2024,7 @@ if __name__ == '__main__':
     sample = dict_to_sample(ds_base[0,-1])
     sample_norm = dict_to_sample(ds_norm[0,-1])
     
-    
+    ds_base.plot_all_densities_step(5, sample=0, one_by_one=False)
 
     
 
@@ -1916,8 +2033,8 @@ if __name__ == '__main__':
     # sample = IterationSample(IterationDataset(dataset.get_series(ID)), -1)
     # sample.plot_inputs(width=5)
     # sample.plot_outputs('FEM')
-    # sample.plot_inputs_3d(width=5, gap=0.2, angle=45)
-    # sample.plot_outputs_3d('FEM', width=1, gap=0.2, angle=45)
+    sample.plot_inputs_3d(width=5, gap=0.2, angle=45)
+    sample.plot_outputs_3d('FEM', width=1, gap=0.2, angle=45)
  
 
     # ── Extraire toutes les tractions du dataset ──────────────────────────────────

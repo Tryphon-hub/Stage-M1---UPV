@@ -411,15 +411,15 @@ for CONFIG in CONFIGS:
               f"CV={100*cv:5.1f}%  (min={per_seed[col].min():.4f}, "
               f"max={per_seed[col].max():.4f})")
 
-    #%% Phase 3b — visualise the seed-to-seed variability
-    # plot_seed_benchmark reads a CSV path, so the per-config slice of the
-    # shared BENCHMARK_CSV is written to a small derived file just for the
-    # plot (this is a disposable, always-regenerated view — not the raw data).
-    plot_csv = SEED_BENCH_DIR / f'.plot_{label}.csv'
-    df.to_csv(plot_csv, index=False)
-    plot_seed_benchmark(
-        plot_csv,
-        save_path=SEED_BENCH_DIR / f'seed_benchmark_{label}.png',
-    )
+
+#%% Phase 3b — visualise the seed-to-seed variability
+
+# Per-seed boxplots + mean ± 1σ band, for one dataset portion.
+plot_seed_benchmark(BENCHMARK_CSV, portion=0.5,
+                    save_path=SEED_BENCH_DIR / 'seed_benchmark.png')
+
+# Cost/quality plane: one point per seed, one colour and one 1σ ellipse per portion.
+plot_seed_quality_cost(BENCHMARK_CSV,
+                       save_path=SEED_BENCH_DIR / 'seed_quality_cost.png', scale_font=1.5, scale_dot=2)
 
 # %%
