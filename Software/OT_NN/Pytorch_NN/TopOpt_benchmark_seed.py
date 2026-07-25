@@ -100,7 +100,7 @@ CONFIGS = [
     # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, True, 0.2, 1, 16],
 ]
 
-SEEDS = list(range(10,20))   # 10 seeds: 0..9
+SEEDS = list(range(0,10))   # 10 seeds: 0..9
 
 # Training hyperparameters (shared by every seed) — from training_benchmark.py
 VAL_SPLIT   = 0.15
