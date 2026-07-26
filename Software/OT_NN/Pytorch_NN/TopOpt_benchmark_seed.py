@@ -100,7 +100,7 @@ CONFIGS = [
     # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, True, 0.2, 1, 16],
 ]
 
-SEEDS = list(range(0,10))   # 10 seeds: 0..9
+SEEDS = list(range(0,20))   # 10 seeds: 0..9
 
 # Training hyperparameters (shared by every seed) — from training_benchmark.py
 VAL_SPLIT   = 0.15
@@ -129,9 +129,9 @@ RESULT_COLUMNS = ['Input ID',
 name_benchmark_file = 'benchmark_seed.csv'
 BENCHMARK_CSV        = SEED_BENCH_DIR / name_benchmark_file
 
-RUN_TRAINING  = True   # Phase 1 — train one model per (config, seed)
+RUN_TRAINING  = False   # Phase 1 — train one model per (config, seed)
 RUN_BENCHMARK = True   # Phase 2 — evaluate each model with the TopOpt benchmark
-RESET_BENCHMARK = False # overwrite BENCHMARK_CSV once at the start of the run (False -> append)
+RESET_BENCHMARK = True # overwrite BENCHMARK_CSV once at the start of the run (False -> append)
 
 # If a config's checkpoint already exists, skip retraining it. Useful when
 # several configs share the same model-relevant fields (NIF, N_conv, cbam,
