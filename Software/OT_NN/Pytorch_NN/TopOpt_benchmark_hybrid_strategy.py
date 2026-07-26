@@ -301,4 +301,138 @@ plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         show_error=False, SAVE_PATH=None,
                         scale_font = 1.5, scale_dot = 2,
                         low_margin=0.1, right_margin=0.1,left_margin=0.05)
-#%%
+
+#%% Paired comparison of hybrid strategies (Section 5.2)
+from scipy import stats
+
+COL_PERF = 'Ratio of FEM iterations (Hybrid / full-FEM)'
+COL_PREC = 'Relative compliance error'
+
+
+def paired_stats(metric, config_a, config_b, alpha=0.05):
+    """Paired difference (A - B) on common samples.
+
+    config_a / config_b : [Strategy, First step], as in list_benchmark.
+    Returns mean, CI bounds, win count and sample size, in pp.
+    """
+    piv = df.pivot_table(index='Input ID',
+                         columns=CONFIG_COLUMNS,
+                         values=metric)
+    d = (piv[tuple(config_a)] - piv[tuple(config_b)]).dropna() * 100  # -> pp
+    n = len(d)
+    mean = d.mean()
+    half = stats.t.ppf(1 - alpha / 2, n - 1) * d.std(ddof=1) / np.sqrt(n)
+    wins = int((d < 0).sum())      # A better than B (lower is better)
+    p_wilcoxon = stats.wilcoxon(d).pvalue if (d != 0).any() else 1.0
+    return mean, mean - half, mean + half, wins, n, p_wilcoxon
+
+
+def compare_configs(config_a, config_b):
+    print(f"\n--- {config_a} vs {config_b} ---")
+    for metric, label in [(COL_PERF, 'Performance'), (COL_PREC, 'Precision')]:
+        mean, lo, hi, wins, n, p_w = paired_stats(metric, config_a, config_b)
+        signif = 'significant' if (lo > 0 or hi < 0) else 'within sampling noise'
+        print(f"{label:12s}: {mean:+.2f} pp  (95% CI [{lo:+.2f}; {hi:+.2f}])  "
+              f"{signif:22s} wins {wins}/{n}  Wilcoxon p={p_w:.3f}")
+
+
+#%% Comparisons quoted in the text (Sections 5.2.6 and 5.2.7)
+compare_configs(['Only UNet', 'UNet'], ['Only UNet', 'FEM'])
+compare_configs(['Decreasing compliance', 'UNet'], ['Only UNet', 'UNet'])
+compare_configs(['Decreasing compliance', 'FEM'],  ['Only UNet', 'FEM'])
+compare_configs(['10 Unet - 3 FEM', 'UNet'], ['Only UNet', 'UNet'])
+
+
+#%% Forest plot of paired comparisons
+
+
+def plot_forest_paired(df, comparisons, labels=None,
+                       COL_PERF='Ratio of FEM iterations (Hybrid / full-FEM)',
+                       COL_PREC='Relative compliance error',
+                       SAVE_PATH=None, scale_font=1.0):
+    """Forest plot of paired mean differences with 95% confidence intervals.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Benchmark results, one row per (configuration, sample).
+    comparisons : list of (config_a, config_b)
+        Each config is a [Strategy, First step] pair, as in list_benchmark.
+        Differences are computed as A - B (negative = A better).
+    labels : list of str, optional
+        Short display name for each comparison. Defaults to 'A vs B'.
+    SAVE_PATH : Path, optional
+        If given, saves the figure as PDF.
+    """
+    metrics = [(COL_PERF, 'Performance difference (pp)',
+                r'$\leftarrow$ A cheaper $\quad|\quad$ A costlier $\rightarrow$'),
+               (COL_PREC, 'Precision difference (pp)',
+                r'$\leftarrow$ A closer to FEM $\quad|\quad$ A further $\rightarrow$')]
+
+    if labels is None:
+        labels = [f'{a[0]} ({a[1]}) vs {b[0]} ({b[1]})'
+                  for a, b in comparisons]
+
+    fs = 10 * scale_font
+    n = len(comparisons)
+    fig, axes = plt.subplots(1, 2, figsize=(11, 0.6 * n + 2), sharey=True)
+
+    for ax, (metric, xlabel, direction) in zip(axes, metrics):
+        for i, (config_a, config_b) in enumerate(comparisons):
+            mean, lo, hi, wins, n_s, _ = paired_stats(metric, config_a, config_b)
+            y = n - 1 - i                      # first comparison on top
+
+            significant = (lo > 0) or (hi < 0)
+            if not significant:
+                color, marker = 'gray', 'o'
+            elif mean < 0:                     # improvement (lower is better)
+                color, marker = 'tab:green', 'o'
+            else:                              # degradation
+                color, marker = 'tab:red', 's'
+
+            ax.plot([lo, hi], [y, y], color=color, lw=1.8,
+                    solid_capstyle='round', zorder=2)
+            ax.plot(mean, y, marker=marker, color=color, ms=6, zorder=3)
+            ax.annotate(f'{wins}/{n_s}', xy=(1.02, y), xycoords=('axes fraction', 'data'),
+                        fontsize=fs * 0.9, va='center', color='dimgray',
+                        annotation_clip=False)
+
+        ax.axvline(0, ls='--', lw=0.8, color='black', zorder=1)
+        ax.set_xlabel(xlabel, fontsize=fs)
+        ax.set_title(direction, fontsize=fs * 0.9, color='dimgray')
+        ax.grid(axis='x', ls=':', lw=0.5, alpha=0.5)
+        ax.tick_params(labelsize=fs)
+
+    axes[0].set_yticks(range(n))
+    axes[0].set_yticklabels(labels[::-1], fontsize=fs)
+    axes[1].annotate('wins A/B', xy=(1.02, n - 0.3),
+                     xycoords=('axes fraction', 'data'),
+                     fontsize=fs * 0.9, color='dimgray', annotation_clip=False)
+
+    handles = [plt.Line2D([], [], color='tab:green', marker='o', ls='-', label='Significant improvement'),
+               plt.Line2D([], [], color='tab:red', marker='s', ls='-', label='Significant degradation'),
+               plt.Line2D([], [], color='gray', marker='o', ls='-', label='Not significant (95% CI crosses zero)')]
+    fig.legend(handles=handles, loc='lower center', ncol=3,
+               fontsize=fs * 0.9, frameon=False, bbox_to_anchor=(0.5, -0.04))
+
+    fig.suptitle('Paired strategy comparisons — 100 traction distributions',
+                 fontsize=fs * 1.1)
+    fig.tight_layout()
+    if SAVE_PATH is not None:
+        fig.savefig(SAVE_PATH, bbox_inches='tight')
+    plt.show()
+
+
+#%% Generate the forest plot
+comparisons = [
+    (['Only UNet', 'UNet'], ['Only UNet', 'FEM']),
+    (['Decreasing compliance', 'UNet'], ['Only UNet', 'UNet']),
+    (['Decreasing compliance', 'FEM'],  ['Only UNet', 'FEM']),
+    (['10 Unet - 3 FEM', 'UNet'], ['Only UNet', 'UNet']),
+]
+short_labels = ['U-Net vs FEM start',
+                'Decreasing (U-Net start)',
+                'Decreasing (FEM start)',
+                'Periodic (U-Net start)']
+
+plot_forest_paired(df, comparisons, labels=short_labels)
