@@ -40,6 +40,17 @@ from train          import *
 from evaluate       import *
 from topology_utils import *
 
+#%% User settings
+RUN_TRAINING  = False   # Phase 1 — train one model per (config, seed)
+RUN_BENCHMARK = False   # Phase 2 — evaluate each model with the TopOpt benchmark
+RESET_BENCHMARK = False # overwrite BENCHMARK_CSV once at the start of the run (False -> append)
+
+# If a config's checkpoint already exists, skip retraining it. Useful when
+# several configs share the same model-relevant fields (NIF, N_conv, cbam,
+# augmentation, portion, batch size) and only differ by Strategy/First step,
+# which only affect Phase 2.
+SKIP_EXISTING_TRAINING = True
+
 
 #%% Reproducibility helper
 
@@ -92,9 +103,9 @@ print(f"Device: {device}")
 #  probability of augmentation, dataset portion, batch size]
 CONFIGS = [
     # ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False,0.2, 0.2, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.2, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2,  1 , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.2, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2,  1 , 16],
     # Add more configs here, e.g.:
     # ['Hybrid',    'U-Net', 'UNet', 32, 2, False, True, 0.2, 1, 16],
     # ['Only UNet', 'U-Net', 'UNet', 16, 2, False, True, 0.2, 1, 16],
@@ -129,15 +140,7 @@ RESULT_COLUMNS = ['Input ID',
 name_benchmark_file = 'benchmark_seed.csv'
 BENCHMARK_CSV        = SEED_BENCH_DIR / name_benchmark_file
 
-RUN_TRAINING  = True   # Phase 1 — train one model per (config, seed)
-RUN_BENCHMARK = True   # Phase 2 — evaluate each model with the TopOpt benchmark
-RESET_BENCHMARK = False # overwrite BENCHMARK_CSV once at the start of the run (False -> append)
 
-# If a config's checkpoint already exists, skip retraining it. Useful when
-# several configs share the same model-relevant fields (NIF, N_conv, cbam,
-# augmentation, portion, batch size) and only differ by Strategy/First step,
-# which only affect Phase 2.
-SKIP_EXISTING_TRAINING = True
 
 
 def model_tag(config, seed):
@@ -413,13 +416,23 @@ for CONFIG in CONFIGS:
 
 
 #%% Phase 3b — visualise the seed-to-seed variability
+# Uses the CONFIGS defined at the top of the file (the ones actually benchmarked),
+# so the figures show exactly those configurations and nothing stale in the CSV.
+
+CONFIGS = [
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.2, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2,  1 , 16],
+]
+
 
 # Per-seed boxplots + mean ± 1σ band, for one dataset portion.
 plot_seed_benchmark(BENCHMARK_CSV, portion=0.5,
                     save_path=SEED_BENCH_DIR / 'seed_benchmark.png')
 
-# Cost/quality plane: one point per seed, one colour and one 1σ ellipse per portion.
-plot_seed_quality_cost(BENCHMARK_CSV,
-                       save_path=SEED_BENCH_DIR / 'seed_quality_cost.png', scale_font=1.5, scale_dot=2)
+# Cost/quality plane: one point per seed, one colour and one 1σ ellipse per config.
+plot_seed_quality_cost(BENCHMARK_CSV, configs=CONFIGS,
+                       save_path=SEED_BENCH_DIR / 'seed_quality_cost.png',
+                       scale_font=1.5, scale_dot=2)
 
 # %%

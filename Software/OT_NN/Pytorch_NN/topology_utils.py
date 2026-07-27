@@ -2129,21 +2129,67 @@ def plot_seed_benchmark(csv_path, portion=None, save_path=None):
     plt.show()
 
 
-def plot_seed_quality_cost(csv_path, save_path=None, use_abs_error=False, n_std=1.0,
-                           scale_font=1.0, scale_dot=1.0):
+def _seed_config_mask(df, config):
+    """Dtype-robust mask of the benchmark_seed rows matching one full config.
+
+    A single benchmark_seed CSV holds several configs (and FEM-only rows leave
+    numeric config columns blank, forcing those columns to object dtype). A plain
+    `df[cols] == config` would then compare '32' with 32 and never match, so
+    numeric fields are coerced to numbers and the rest compared as trimmed
+    strings — same logic as `_config_mask` in the benchmark scripts.
     """
-    Cost/quality scatter of the per-seed results, one colour per dataset portion.
+    import pandas as pd
+
+    mask = pd.Series(True, index=df.index)
+    for col, val in zip(BENCHMARK_CONFIG_COLUMNS, config):
+        if isinstance(val, bool):
+            mask &= df[col].astype(str).str.strip() == str(val)
+        elif isinstance(val, (int, float)):
+            mask &= pd.to_numeric(df[col], errors='coerce') == val
+        else:
+            col_norm = df[col].where(df[col].notna(), '').astype(str).str.strip()
+            mask &= col_norm == str(val).strip()
+    return mask
+
+
+def _seed_config_label(config, configs):
+    """Compact label = only the config columns that differ across `configs`."""
+    cols     = BENCHMARK_CONFIG_COLUMNS
+    p_idx    = cols.index('dataset portion')
+    varying  = [i for i in range(len(cols))
+                if len({str(c[i]) for c in configs}) > 1]
+    if not varying:                                   # a single config
+        return f'portion {_seed_portion_label(config[p_idx])}'
+    parts = []
+    for i in varying:
+        if i == p_idx:
+            parts.append(f'portion {_seed_portion_label(config[i])}')
+        else:
+            parts.append(f'{cols[i]}={config[i]}')
+    return ', '.join(parts)
+
+
+def plot_seed_quality_cost(csv_path, configs=None, save_path=None, use_abs_error=False,
+                           n_std=1.0, scale_font=1.0, scale_dot=1.0):
+    """
+    Cost/quality scatter of the per-seed results, one colour per configuration.
 
     Each point is ONE trained model (one seed): x = its mean FEM-iteration ratio
     (cost), y = its mean relative compliance difference (quality). Both axes are
     minimised, so the best models sit at the bottom-left — same convention as
-    `plot_pareto_front_c`. For every portion, the cross marks the centroid of its
-    seeds and the ellipse is the n_std-σ covariance ellipse of the seed cloud:
-    its size is the retraining noise, its tilt the cost/quality correlation.
+    `plot_pareto_front_c`. For every configuration, the cross marks the centroid
+    of its seeds and the ellipse is the n_std-σ covariance ellipse of the seed
+    cloud: its size is the retraining noise, its tilt the cost/quality correlation.
 
     Parameters
     ----------
-    csv_path      : path-like — CSV written by TopOpt_benchmark_seed.py.
+    csv_path      : path-like — CSV written by TopOpt_benchmark_seed.py, which can
+                    hold several configurations.
+    configs       : list[list] | None — the CONFIGS list to display (each entry a
+                    full config row, see BENCHMARK_CONFIG_COLUMNS). Only rows
+                    matching one of these configs are plotted, one cloud each. If
+                    None, every distinct 'dataset portion' found in the CSV is
+                    plotted instead (valid only when portion is the sole difference).
     save_path     : path-like | None — where to save the PNG (None: display only).
     use_abs_error : bool — compare |error| instead of the signed difference. Use it
                     when a compliance *below* the FEM reference should count as a
@@ -2159,15 +2205,27 @@ def plot_seed_quality_cost(csv_path, save_path=None, use_abs_error=False, n_std=
     import pandas as pd
     from matplotlib.patches import Ellipse, Patch
 
-    df       = pd.read_csv(csv_path)
-    portions = pd.to_numeric(df[SEED_PORTION_COL], errors='coerce')
-    values   = sorted(portions.dropna().unique().tolist())
+    df = pd.read_csv(csv_path)
+
+    # Build the (label, rows) groups to plot: one per requested config, or one
+    # per distinct portion as a fallback when no configs are given.
+    groups = []
+    if configs is None:
+        portions = pd.to_numeric(df[SEED_PORTION_COL], errors='coerce')
+        for p in sorted(portions.dropna().unique().tolist()):
+            groups.append((f'portion {_seed_portion_label(p)}', df[portions == p]))
+    else:
+        for cfg in configs:
+            sub = df[_seed_config_mask(df, cfg)]
+            if sub.empty:
+                print(f"plot_seed_quality_cost: no rows for config {cfg}; skipped.")
+                continue
+            groups.append((_seed_config_label(cfg, configs), sub))
 
     cmap = plt.get_cmap('tab10')
     fig, ax = plt.subplots(figsize=(10, 7))
 
-    for i, p in enumerate(values):
-        sub = df[portions == p]
+    for i, (base_label, sub) in enumerate(groups):
         # One point per seed: the seed's mean over its test distributions.
         g = sub.groupby('seed').agg(x=(SEED_RATIO_COL, 'mean'),
                                     y=(SEED_ERR_COL,   'mean'))
@@ -2175,9 +2233,18 @@ def plot_seed_quality_cost(csv_path, save_path=None, use_abs_error=False, n_std=
         y     = (np.abs(g['y'].values) if use_abs_error else g['y'].values) * 100
         color = cmap(i % 10)
 
+        # Seed-to-seed std of ONE configuration on each axis (cost = x, quality = y).
+        sx = float(np.std(x, ddof=1)) if len(x) > 1 else 0.0
+        sy = float(np.std(y, ddof=1)) if len(y) > 1 else 0.0
+        # Significance threshold for comparing TWO configs: the difference of two
+        # independent runs has std sqrt(2)*sigma (variances add). Below this, two
+        # configurations cannot be told apart.
+        tx, ty = np.sqrt(2) * sx, np.sqrt(2) * sy
+
         ax.scatter(x, y, s=45 * scale_dot, color=color, alpha=0.75, edgecolor='white',
                    linewidth=0.6, zorder=4,
-                   label=f'portion {_seed_portion_label(p)} ({len(x)} seeds)')
+                   label=(f'{base_label} — '
+                          fr'$\sqrt{{2}}\sigma$ = ({tx:.2f}, {ty:.2f}) pp'))
         ax.scatter(x.mean(), y.mean(), s=170 * scale_dot, marker='X', color=color,
                    edgecolor='black', linewidth=1.0, zorder=5)
 
@@ -2211,10 +2278,26 @@ def plot_seed_quality_cost(csv_path, save_path=None, use_abs_error=False, n_std=
                           markersize=11 * scale_dot))
     leg_labels.append('Centroid over seeds')
     handles.append(Patch(facecolor='0.6', alpha=0.3, edgecolor='0.4'))
-    leg_labels.append(fr'{n_std:g}$\sigma$ ellipse (retraining noise)')
+    leg_labels.append(fr'{n_std:g}$\sigma$ ellipse ')
     ax.legend(handles, leg_labels, fontsize=10 * scale_font, loc='best')
 
-    ax.set_title('Cost / quality of each seed, by dataset portion',
+    n_seeds  = df['seed'].nunique()
+    # Augmentation status of the plotted rows -> 'with'/'without'/'mixed'.
+    aug_vals = set(pd.concat([sub['use augmentation'] for _, sub in groups])
+                   .astype(str).str.strip().unique())
+    if aug_vals == {'True'}:
+        probs = pd.to_numeric(
+            pd.concat([sub['probability of augmentation'] for _, sub in groups]),
+            errors='coerce').dropna().unique()
+        if len(probs) == 1:
+            aug_txt = f'with {_seed_portion_label(probs[0])} data augmentation'
+        else:
+            aug_txt = 'with data augmentation'   # several probabilities
+    elif aug_vals == {'False'}:
+        aug_txt = 'without data augmentation'
+    else:
+        aug_txt = 'mixed data augmentation'
+    ax.set_title(f'Cost / quality of each seed, by configuration \n{n_seeds} seeds — {aug_txt}',
                  fontsize=16 * scale_font)
     plt.tight_layout()
 
