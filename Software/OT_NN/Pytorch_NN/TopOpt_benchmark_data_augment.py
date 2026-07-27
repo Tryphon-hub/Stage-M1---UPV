@@ -76,7 +76,7 @@ IterData_FEM = IterationDataset(ds_filtre)
 #  probability of augmentation, dataset portion, batch size]
 list_benchmark = [
     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1, 16],  # without augmentation
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True,  0.5, 1, 16],  # with augmentation (50%)
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True,  0.2, 1, 16],  # with augmentation (50%)
 ]
 
 # The three data operations applied to each starting sample. 'original' is the
