@@ -1,5 +1,11 @@
 # Stress Field Prediction for 2D Topology Optimisation using U-Net
 
+## Work in progress
+
+This repository is still a work in progress. Some parts of the code may not be 
+fully implemented, cleaned up, or documented yet.
+
+
 ## Overview
 
 This repository contains a U-Net-based neural network for predicting the stress
@@ -9,8 +15,6 @@ topology-optimisation loop**. Replacing the FEM stress solve by a fast network
 prediction is what makes the optimisation cheaper; the FEM is kept as an optional
 corrector.
 
-This repository is still a work in progress. Some parts of the code may not be 
-fully implemented, cleaned up, or documented yet.
 
 Two architectures are provided:
 
