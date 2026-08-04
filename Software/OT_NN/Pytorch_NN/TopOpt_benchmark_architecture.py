@@ -38,6 +38,10 @@ NGPpS    = 9
 E        = 1000
 NU       = 0.3
 
+#%% Benchmark settings
+
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
+RESET_BENCHMARK = False # deletes old benchmark csv file
 
 
 #%% Load dataset
@@ -82,25 +86,21 @@ eng.eval("D = DHooks2D(1000, 0.3, 'Plane Stress');", nargout=0)
 
 
 #%% Define benchmark
-
 # [Strategy, Model, First step, NIF, N_conv, use cbam, use augmentation, probability of augmentation, dataset portion, batch size]
 list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, True , 0.2, 1 , 16],
-    ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
+    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],  # 1
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16],  # 2
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8],  # 3
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32],  # 4
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],  # 5
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.5, 1  , 16],  # 6
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16],  # 7
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16],  # 8
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16],  # 9
+    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],  # 10
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],  # 11
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1  , 16],  # 12
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1  , 16],  # 13
 ]
 
 # Column layout of each list_benchmark entry, reused for the CSV header,
@@ -115,7 +115,6 @@ RESULT_COLUMNS = ['Input ID',
                   'Ratio of FEM iterations (Hybrid / full-FEM)',
                   'Relative compliance error']
 
-RESET_BENCHMARK = True # deletes old benchmark csv file
 
 if RESET_BENCHMARK:
     TYPE_WRITE = 'w'
@@ -126,7 +125,7 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
+
 
 #%% Run benchmark
 
@@ -248,25 +247,7 @@ if RUN_BENCHMARK:
 
 #%% Read File Benchmark
 
-list_benchmark = [
-    ['Only UNet', 'U-Net', 'UNet', 16, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 16], # reference configuration
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  ,  8], # batch size 8
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 1  , 32], # batch size 32
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
-    ['Only UNet','U-Net'  , 'UNet', 32,2, False, True , 0.5, 1  , 16], # data augmentation
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, False, False, 0.2, 1  , 16], # N_conv = 3
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , False, 0.2, 1  , 16], #CBAM
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True , 0.2, 1  , 16], # data augmentation
-    ['Only UNet', 'U-Net', 'UNet', 32, 3, True , True , 0.2, 1  , 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.2, 1, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, True , True , 0.5, 1, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2, 1 , 16], # reference BE_UNet configuration
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, False, False, 0.2,0.5, 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, False , 0.2, 1 , 16],
-    # ['Only UNet','BE_UNet', 'UNet', 32, 2, True, True , 0.2 , 1 , 16],
-]
+
 
 
 df = pd.read_csv(BASE / 'Software' / 'OT_NN' / 'Pytorch_NN' / 'results' / name_benchmark_file)
@@ -366,6 +347,34 @@ plot_smape_benchmark(list_benchmark, smape_csv, 'Architecture')
 
 # Fused chart: FEM-iteration ratio (blue), compliance error (orange), sMAPE (green)
 plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv, 'Architecture')
+
+
+#%% Architecture summary table (for the report)
+
+rows = []
+for k, bench in enumerate(list_benchmark, start=1):
+    sub = df[_config_mask(df, bench)]
+    rows.append({
+        'Cfg': k,
+        'NIF': bench[3], 'N_conv': bench[4], 'CBAM': bench[5],
+        'aug': bench[6], 'p_aug': bench[7] if bench[6] else None,
+        'portion': bench[8], 'bs': bench[9],
+        'perf': sub['Ratio of FEM iterations (Hybrid / full-FEM)'].mean() * 100,
+        'perf_med': sub['Ratio of FEM iterations (Hybrid / full-FEM)'].median() * 100,
+        'prec': sub['Relative compliance error'].mean() * 100,
+        'prec_med': sub['Relative compliance error'].median() * 100,
+        'n': len(sub),
+    })
+
+table = pd.DataFrame(rows)
+
+# Attach the mean sMAPE of each configuration, matched on the same config columns
+df_smape = pd.read_csv(smape_csv)
+smape_col = [c for c in df_smape.columns if 'smape' in c.lower()][-1]
+table['smape'] = [df_smape[_config_mask(df_smape, bench)][smape_col].mean() * 100
+                  for bench in list_benchmark]
+
+print(table.round(2).to_string(index=False))
 
 
 #%%

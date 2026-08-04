@@ -33,6 +33,10 @@ from model         import *
 from dataset       import *
 from topology_utils import *
 
+#%% Run control
+RUN_BENCHMARK   = False    # Set to False to skip the benchmark and only read the CSV
+RESET_BENCHMARK = False    # overwrite the CSV (False -> append)
+
 
 #%% Paths & constants
 
@@ -83,7 +87,7 @@ list_benchmark = [
 # reference; the other two are physical symmetries the model should preserve.
 OPERATIONS = {
     'original':    lambda s: s,
-    'rotation_90': lambda s: rotation_90(s, N_rot=1),
+    # 'rotation_90': lambda s: rotation_90(s, N_rot=1),
     'symmetry_x':  symmetry_x,
 }
 
@@ -136,9 +140,6 @@ RESULT_COLUMNS = ['Input ID',
 SIZE_LOOP           = 100
 name_benchmark_file = 'benchmark_data_augment.csv'
 BENCHMARK_CSV       = RESULTS_ROOT / 'U-Net' / name_benchmark_file
-
-RUN_BENCHMARK   = True    # Set to False to skip the benchmark and only read the CSV
-RESET_BENCHMARK = True    # overwrite the CSV (False -> append)
 
 
 #%% Run benchmark

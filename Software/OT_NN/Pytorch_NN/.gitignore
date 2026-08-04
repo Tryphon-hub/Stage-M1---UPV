@@ -1,2 +1,7 @@
 data/
 __pycache__/
+
+# Checkpoints de reprise d'entrainement (poids + etat optimiseur, ~93 Mo chacun).
+# Seul best.pth est necessaire pour recharger un modele.
+# N'affecte que les nouveaux runs : les fichiers deja suivis le restent.
+*checkpoint.pth

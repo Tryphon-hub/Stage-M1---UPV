@@ -1448,7 +1448,7 @@ def save_density_video(List_iterations, SAVE_DIR, FPS=5):
 
 #%% Compare NN and FEM results for a given force distribution
 
-def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None):
+def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None, end_FEM=True):
     """
     Display the optimized densities of a U-Net run and a FEM run side by side,
     each overlaid with its boundary traction arrows, sharing a common density
@@ -1481,7 +1481,7 @@ def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None):
         ax.set_ylim(-cadre, img_size + cadre)
         ax.set_aspect('equal')
         ax.axis('off')
-        ax.set_title(title, fontsize=24, pad=-50)
+        ax.set_title(title, fontsize=24, pad=-200)
 
         T_scale = sample.Tractions.squeeze().numpy() * scale_force
         T_scale = T_scale.T
@@ -1505,7 +1505,10 @@ def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None):
 
         return im
 
-    im = plot_density(axes[0], sample_NN,  'Hybrid solution')
+    if end_FEM:
+        im = plot_density(axes[0], sample_NN,  'Hybrid solution')
+    else:
+        im = plot_density(axes[0], sample_NN,  'U-Net solution')
     plot_density(axes[1], sample_FEM, 'FEM solution')
 
     # Common reference arrow on axes[0]

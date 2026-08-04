@@ -29,6 +29,11 @@ sys.path.append(str(BASE / 'Software' / 'OT_Functions'))
 sys.path.append(str(BASE / 'Software' / 'OT_Software'))
 
 
+#%% Benchmark settings (Run the benchmark or only read the results file)
+
+RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
+RESET_BENCHMARK = False # deletes old benchmark csv file
+
 
 #%% Constants
 IMG_SIZE = 32
@@ -138,7 +143,6 @@ RESULT_COLUMNS = ['Input ID',
                   'Ratio of FEM iterations (Hybrid / full-FEM)',
                   'Relative compliance error']
 
-RESET_BENCHMARK = True # deletes old benchmark csv file
 
 if RESET_BENCHMARK:
     TYPE_WRITE = 'w'
@@ -149,7 +153,6 @@ SIZE_LOOP = 100
 
 name_benchmark_file = 'benchmark_architecture.csv'
 
-RUN_BENCHMARK = False  # Set to False to skip the benchmark and only read the results file
 
 #%% Run benchmark
 
@@ -384,4 +387,46 @@ plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         TYPE_BENCHMARK='Architecture', use_abs_error=False,
                         show_error=False, SAVE_PATH=None,
                         scale_font = 1.5, scale_dot = 2)
+
+
+#%% Model comparison summary (for the report)
+
+model_labels = ['U-Net', 'BE U-Net', 'Energy',
+                'U-Net + CBAM', 'BE U-Net + CBAM', 'Energy + aug']
+
+rows = []
+for label, bench in zip(model_labels, list_benchmark):
+    sub = df[_config_mask(df, bench)]
+    perf = sub['Ratio of FEM iterations (Hybrid / full-FEM)'] * 100
+    prec = sub['Relative compliance error'] * 100
+    rows.append({
+        'Model': label,
+        'perf': perf.mean(),
+        'perf_med': perf.median(),
+        'perf_p17': perf.quantile(0.165),
+        'perf_p83': perf.quantile(0.835),
+        'prec': prec.mean(),
+        'prec_med': prec.median(),
+        'prec_p17': prec.quantile(0.165),
+        'prec_p83': prec.quantile(0.835),
+        'n': len(sub),
+    })
+
+print(pd.DataFrame(rows).round(2).to_string(index=False))
+
+# Parameter counts, for the discussion on the Boundary-Embedded U-Net
+for label, bench in zip(model_labels, list_benchmark):
+    if bench[1] == 'Energy':
+        continue
+    n_in = 1 if bench[1] == 'BE_UNet' else 3
+    if bench[1] == 'BE_UNet':
+        m = BE_UNetTopo(nif=bench[3], n_in=n_in, n_out=3, use_cbam=bench[5],
+                        hidden_layers_MLP=[32, 64], embed_out=128,
+                        N_conv=bench[4])
+    else:
+        m = UNetTopo(nif=bench[3], n_in=n_in, n_out=3, use_cbam=bench[5],
+                     N_conv=bench[4])
+    print(f'{label:20s} {sum(p.numel() for p in m.parameters())/1e6:.2f} M')
+
+
 #%%
