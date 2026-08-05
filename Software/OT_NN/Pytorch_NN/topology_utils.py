@@ -8,17 +8,19 @@ import time
 import threading
 
 
-from zmq import TYPE
+from pathlib import Path
 
-sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_NN\U-net')
-sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Software')
-sys.path.append(r'C:\Users\maxen\Documents\Stage\Software\OT_Functions')
+# Repository root, derived from this file's own location so the module works on
+# any machine and any checkout path (same convention as the benchmark scripts).
+BASE = Path(__file__).resolve().parents[3]
+
+sys.path.append(str(BASE / 'Software' / 'OT_Software'))
+sys.path.append(str(BASE / 'Software' / 'OT_Functions'))
 
 import torch
 import numpy as np
 import matlab.engine
 from model import *
-from pathlib import Path
 from dataset import *
 import scipy.io
 import matplotlib.pyplot as plt

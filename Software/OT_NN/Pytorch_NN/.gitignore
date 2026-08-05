@@ -5,3 +5,11 @@ __pycache__/
 # Seul best.pth est necessaire pour recharger un modele.
 # N'affecte que les nouveaux runs : les fichiers deja suivis le restent.
 *checkpoint.pth
+
+# Resultats d'entrainement. Un seul run de reference est versionne par
+# architecture ; tous les autres (dont l'etude de graines seed_benchmark)
+# sont reproductibles a l'identique via set_seed(), donc inutiles a publier.
+results/U-Net/*/
+results/BE_UNet/*/
+!results/U-Net/dataset_1k_NIF=32_2_conv_CBAM=True_aug=False_portion=100%_batch=16/
+!results/BE_UNet/dataset_1k_normalised_NIF=32_2_conv_32-64_CBAM=True_aug=20%_portion=100%_batch=16/

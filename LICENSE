@@ -1,0 +1,51 @@
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+(CC BY-NC-SA 4.0)
+
+Copyright (c) 2026 Maxence Barberet-Pinto
+
+This work is licensed under the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International License.
+
+Full legal text:
+    https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+Human-readable summary (not a substitute for the license):
+    https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+
+SUMMARY (informative only — the legal text linked above governs)
+
+You are free to:
+  - Share   : copy and redistribute the material in any medium or format.
+  - Adapt   : remix, transform, and build upon the material.
+
+Under the following terms:
+  - Attribution   : you must give appropriate credit, provide a link to the
+                    license, and indicate if changes were made.
+  - NonCommercial : you may not use the material for commercial purposes.
+  - ShareAlike    : if you remix or build upon the material, you must
+                    distribute your contributions under the same license.
+
+No warranties are given. The license may not give you all of the permissions
+necessary for your intended use.
+
+
+SCOPE AND THIRD-PARTY COMPONENTS
+
+The license above applies to the material authored by the copyright holder,
+namely the Python code under Software/OT_NN/Pytorch_NN/, the documentation,
+and the figures and benchmark results produced by it.
+
+It does NOT apply to the following, which remain under their own terms and are
+not the copyright holder's to relicense:
+
+  - Software/OT_Functions/ and Software/OT_Software/
+    MATLAB finite-element and topology-optimisation codes provided by the
+    I2MB laboratory (Universitat Politecnica de Valencia). Contact I2MB
+    regarding any reuse of these files.
+
+  - Any third-party dependency (PyTorch, gmsh, the MATLAB Engine API, and
+    other packages listed in the README), which is governed by its own
+    license.
+
+If you intend to reuse any part of this repository, check which of the above
+applies to the files you need.
