@@ -100,7 +100,7 @@ optional CBAM attention at the bottleneck.
 
 | Input | Output |
 |---|---|
-| ρ + tx + ty — `[B, 3, 32, 32]` | σx, σy, τxy — `[B, 3, 32, 32]` |
+| ρ, tx, ty — `[B, 3, 32, 32]` | σx, σy, τxy — `[B, 3, 32, 32]` |
 
 The `tx, ty` channels are built from the stored `(Tn, Tt)` by converting them to
 **global** components and rasterising them at their **physical edge positions**
@@ -264,8 +264,12 @@ $$\mathcal{L} = \frac{1}{N} \sum_i \frac{2|\sigma_i - \hat{\sigma}_i|}{|\sigma_i
 
 ## Acknowledgements
 
-The MATLAB codes used for finite-element computation and topology optimisation were
-provided by the [I2MB laboratory](https://i2mb.upv.es/).
+The MATLAB codes used for finite-element computation and topology optimisation
+were provided by the [I2MB laboratory](https://i2mb.upv.es/), which also hosted
+this work and provided the computational resources used in this study. I am
+grateful to Prof. Juan José Ródenas García, Prof. Enrique Nadal Soriano and
+Prof. José Manuel Navarro Jiménez for their supervision, and to Clément Jailin
+for introducing me to the I2MB team and following up on my progress.
 
 ### AI & Tools Assistance
 
