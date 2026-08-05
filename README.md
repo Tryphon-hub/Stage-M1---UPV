@@ -1,42 +1,54 @@
-# Stress Field Prediction for 2D Topology Optimisation using U-Net
+# A Task-Based Benchmark for Machine-Learning-Accelerated Topology Optimisation
 
 ## Work in progress
 
-This repository is still a work in progress. Some parts of the code may not be 
+This repository is still a work in progress. Some parts of the code may not be
 fully implemented, cleaned up, or documented yet.
 
 
 ## Overview
 
-This repository contains a U-Net-based neural network for predicting the stress
-fields (σx, σy, τxy) of 2D topology-optimisation problems, together with the
-machinery to **use those predictions as a surrogate for finite elements inside a
-topology-optimisation loop**. Replacing the FEM stress solve by a fast network
-prediction is what makes the optimisation cheaper; the FEM is kept as an optional
-corrector.
+This repository provides a full pipeline to accelerate 2D topology optimisation
+with machine learning, and a benchmark protocol to compare accelerated methods on
+equal footing.
 
+The pipeline couples a Python optimisation loop to an existing I2MB **MATLAB**
+FEM/SIMP solver (`OT_Functions/`, `OT_Software/`) through `matlab.engine`, running
+each SIMP iteration with either the FEM or a fast surrogate prediction. Two
+accelerated approaches are implemented on top of this loop:
 
-Two architectures are provided:
+1. **U-Net stress surrogate** — a neural network predicts the stress fields
+   (σx, σy, τxy) instead of solving the FEM, and can be interleaved with FEM
+   corrections through several hybrid strategies.
+2. **Energy-distance warm start** — a database method that retrieves the
+   converged geometry of the most similar already-solved case and starts the
+   optimisation from it.
 
-- **UNetTopo** — standard U-Net that takes the boundary loads as two image
-  channels `(tx, ty)` alongside the density.
-- **BE_UNetTopo** — U-Net with a dedicated **Boundary Embedding** module that
-  encodes the 8 nodal traction vectors directly into the bottleneck latent space
-  (density-only image input).
+Both are evaluated with the same benchmark protocol: for a given test problem,
+each method is compared to a full-FEM optimisation on two axes — the **cost**
+(ratio of FEM iterations still required) and the **quality** (compliance
+difference at convergence). This makes strategies, network architectures and
+entirely different acceleration methods directly comparable.
 
-Both models are trained on FEM-generated datasets and integrated into the loop.
+My contributions live in `OT_NN/Pytorch_NN/`; the MATLAB code was provided by
+I2MB (see Acknowledgements).
 
-Beyond the plain surrogate, the repository implements two accelerators:
+---
 
-1. **Hybrid U-Net / FEM optimisation** — several strategies that interleave fast
-   U-Net steps with occasional FEM corrections (`run_topology_optimization`).
-2. **Energy-distance warm start** — a database method that, given an *unoptimised*
-   problem, retrieves the *converged* geometry of the most similar case (compared
-   by strain-energy field) and starts the optimisation from it, cutting the number
-   of iterations to convergence.
+## Pipeline
 
-This work uses the I2MB MATLAB codes in `OT_Functions/` and `OT_Software/`, called
-from Python in `OT_NN/`. My contributions live in `OT_NN/Pytorch_NN/`.
+```text
+Python (my contribution)                    MATLAB (I2MB, OT_Functions/ OT_Software/)
+─────────────────────                        ──────────────────────────────────────
+GenTopology.py  ──── matlab.engine ────►      SolveFE / GenTopology.m
+  ρ, tractions  ─────────────────────►          density, tractions
+  σx, σy, τxy   ◄─────────────────────          stress field, compliance
+```
+
+The MATLAB engine is started once and kept alive for the whole optimisation
+(`MeshData` stays resident in the workspace instead of being transferred at every
+call). Each SIMP iteration's stress source — FEM or surrogate — is selected from
+Python, which is what makes the hybrid strategies below possible.
 
 ---
 
@@ -53,16 +65,13 @@ from Python in `OT_NN/`. My contributions live in `OT_NN/Pytorch_NN/`.
 │   ├── TopOpt_accelerated.py       # Energy-distance warm start + optimisation
 │   ├── TopOpt_benchmark_*.py       # Benchmarks (architectures, models, hybrid strategy)
 │   ├── training_benchmark.py       # Train several models and log results
-│   ├── tune_Unet.py                # Hyper-parameter search
 │   ├── verify_rotation_consistency.py  # Checks the D4 augmentation is consistent
 │   │
 │   ├── results/{U-Net,BE_Unet}/{dataset}/   # checkpoints: *_best.pth, *_checkpoint.pth
 │   └── illustrations/{U-Net,BE_Unet}/{dataset}/
 │
 ├── Software/OT_Functions/          # I2MB FEM MATLAB code (stiffness, stress, tractions)
-├── Software/OT_Software/           # I2MB TopOpt MATLAB code (SolveFE, GenTopology, mesh)
-├── PlotNeuralNet/                  # PDF/TikZ representation of the networks
-└── Bibliography/                   # Reference documents
+└── Software/OT_Software/           # I2MB TopOpt MATLAB code (SolveFE, GenTopology, mesh)
 ```
 
 ---
@@ -83,7 +92,7 @@ A unit square `[-1, 1]²` meshed with 32×32 quad elements.
 
 ---
 
-## Models
+## Surrogate models
 
 ### UNetTopo
 Standard U-Net, 4 encoder/decoder levels, configurable convolutions per block,
@@ -105,6 +114,10 @@ by an MLP + `ConvTranspose2d` and concatenated at the bottleneck before CBAM.
 | Input | Output |
 |---|---|
 | ρ — `[B, 1, 32, 32]` + nodes `[B, 16]` | σx, σy, τxy — `[B, 3, 32, 32]` |
+
+All architecture hyperparameters (number of filters, convolutions per block, use
+of CBAM, ...) are passed as constructor arguments, so a configuration is fully
+described by a tuple — see `TopOpt_benchmark_architecture.py`.
 
 ---
 
@@ -134,7 +147,7 @@ Entry points: `random_augment` (on-the-fly, per epoch) and
 
 ---
 
-## Topology-optimisation loop
+## Hybrid FEM/surrogate optimisation loop
 
 `run_topology_optimization` (in `topology_utils.py`) runs SIMP-style optimisation
 where each iteration's stress comes from either the U-Net or the FEM, selected by
@@ -171,11 +184,13 @@ solved case covers all 8 orientations. See `TopOpt_accelerated.py`.
 
 ---
 
-## Benchmarks
+## Benchmark protocol
 
 The `TopOpt_benchmark_*.py` scripts provide a **common yardstick for any accelerated
-topology-optimisation method**. Each method is run against a set of test problems
-and compared to a full-FEM optimisation on two axes:
+topology-optimisation method**, independent of the machine, the implementation, or
+the nature of the method itself (surrogate-based or not). Each method is run
+against a set of test problems and compared to a full-FEM optimisation on two
+axes:
 
 - **Cost** — `Ratio of FEM iterations (Hybrid / full-FEM)`: how many expensive FEM
   solves the accelerated method still needs, relative to pure FEM. Lower = faster.
@@ -196,6 +211,11 @@ aggregated per method. New accelerated methods only need to report these same tw
 numbers to be directly comparable. (`training_benchmark.py` and
 `benchmark_smape_architecture.csv` additionally log the pure stress-prediction
 accuracy — sMAPE — per architecture.)
+
+Since all strategies/architectures/models are evaluated on the same test
+problems, comparisons are paired: differences are assessed with confidence
+intervals and a Wilcoxon signed-rank test rather than by comparing raw averages
+(see the report for the full statistical protocol).
 
 ---
 
@@ -253,7 +273,7 @@ Portions of this codebase were developed with the assistance of:
 - **Claude** (Anthropic) — generating portions of PyTorch code, debugging the
   data-augmentation / traction conventions, harmonising comments and docstrings,
   and resolving Git issues. As it was used to debug errors in 8 of the 260 total commits,
-  it is mentioned as a GitHub co-author. 
+  it is mentioned as a GitHub co-author.
 - **Grammarly** — spelling and grammar correction in documentation.
 
 ---
@@ -262,7 +282,3 @@ Portions of this codebase were developed with the assistance of:
 This work is licensed under CC BY-NC-SA 4.0: you may share and adapt
 it for non-commercial purposes, provided that you give appropriate
 credit and distribute any adaptation under the same license.
-
-Credit the creator (BY).
-No commercial use (NC).
-Share adaptations under the same license (SA).
