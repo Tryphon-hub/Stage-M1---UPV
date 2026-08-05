@@ -250,8 +250,19 @@ provided by the [I2MB laboratory](https://i2mb.upv.es/).
 ### AI & Tools Assistance
 
 Portions of this codebase were developed with the assistance of:
-
 - **Claude** (Anthropic) — generating portions of PyTorch code, debugging the
   data-augmentation / traction conventions, harmonising comments and docstrings,
-  and resolving Git issues.
+  and resolving Git issues. As it was used to debug errors in 8 of the 260 total commits,
+  it is mentioned as a GitHub co-author. 
 - **Grammarly** — spelling and grammar correction in documentation.
+
+---
+
+## License
+This work is licensed under CC BY-NC-SA 4.0: you may share and adapt
+it for non-commercial purposes, provided that you give appropriate
+credit and distribute any adaptation under the same license.
+
+Credit the creator (BY).
+No commercial use (NC).
+Share adaptations under the same license (SA).
