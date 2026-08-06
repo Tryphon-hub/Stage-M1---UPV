@@ -276,8 +276,7 @@ for introducing me to the I2MB team and following up on my progress.
 Portions of this codebase were developed with the assistance of:
 - **Claude** (Anthropic) — generating portions of PyTorch code, debugging the
   data-augmentation / traction conventions, harmonising comments and docstrings,
-  and resolving Git issues. As it was used to debug errors in 8 of the 260 total commits,
-  it is mentioned as a GitHub co-author.
+  and resolving Git issues. 
 - **Grammarly** — spelling and grammar correction in documentation.
 
 ---
