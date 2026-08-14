@@ -595,14 +595,18 @@ def ErrorMetrics_1D(y_true, y_pred, TYPE):
 
 # %% Error calculation with kernel
 
-def convolve(img, kernel: int, pad: bool, strides: (int, int)):
+def convolve(img, kernel, pad: bool, strides: (int, int)):
     """
-    Applies a 2D convolution with a ones kernel.
+    Slide `kernel` over `img` and sum the element-wise products.
+
+    Strictly a cross-correlation (the kernel is not flipped), which is
+    equivalent to a convolution for the symmetric ones-kernel used by
+    `ErrorMetrics_Kernel`, its only caller.
 
     Parameters
     ----------
     img         : np.ndarray [H, W]  — input image
-    kernel      : np.ndarray         — square kernel
+    kernel      : np.ndarray [k, k]  — square kernel
     pad         : bool               — if True, pads input to preserve spatial dimensions
     strides     : (int, int)         — (stride_h, stride_w)
 
@@ -719,14 +723,36 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
                      N_end_FEM_iterations=0, window_Unet=5, window_FEM=2, tol_c=1e-3, tol_rho=0.01,
                      end_FEM='False'):
     """
-    Run the main optimization loop until max iterations, convergence, or final compliance reached.
-    Mutates and returns the tracking lists and state variables.
+    Run the main optimization loop until the iteration cap or convergence.
+    Mutates (in place) and returns the tracking lists and state variables.
 
     If the iteration cap is hit before convergence, the loop does not stop:
     it switches permanently to full-FEM and keeps iterating until the
     compliance itself converges, up to `N_max_iterations` extra steps
     (same cap as the U-Net phase, as a safety net in case full-FEM never
     converges either).
+
+    Parameters
+    ----------
+    sample, next_sample : IterationSample — current state; `sample` carries the
+        stress/compliance of the step being committed, `next_sample` only its
+        updated density.
+    i               : int — iteration counter, continued from the caller.
+    List_iterations, List_Relative_Vol_Frac, List_mean_densities, List_count_FEM :
+        list — appended to in place; `List_count_FEM` collects the indices of
+        the iterations evaluated with FEM.
+    count_unet      : int — U-Net steps since the last FEM step (periodic rule).
+    match_FEM, match_Periodic, match_decreasing : re.Match | bool | None —
+        truthy for the strategy selected by `RULE` in `run_topology_optimization`.
+    n_unet, m_fem   : int | None — n U-Net then m FEM steps of the periodic rule.
+    threshold       : float — slope threshold of `is_increasing_trend`.
+    end_FEM         : bool — append a FEM step once the U-Net has converged, and
+        enable the post-cap full-FEM phase described above.
+
+    Returns
+    -------
+    tuple(IterationSample, IterationSample, int, int) —
+        (sample, next_sample, i, count_unet).
     """
     NEXT_TYPE = 'UNet'
     
@@ -822,7 +848,7 @@ def _run_while_loop(sample, next_sample, i, List_iterations, List_Relative_Vol_F
             and i-1 not in List_count_FEM   # NEXT_TYPE == 'UNet'
             and end_FEM
         ): 
-            # U-Net has converged, so a FEM iteration are done
+            # U-Net has converged, so one FEM iteration is appended to verify it
             next_sample = GenTopology(sample, eng, model, TYPE='FEM', N_in=N_in)   
 
             List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
@@ -940,7 +966,7 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
     match_decreasing = re.match('Decreasing compliance', RULE)
 
     # sample updated with stress and compliance
-    # next_sample density updated, but stress and compliance not computed yes
+    # next_sample density updated, but stress and compliance not computed yet
     next_sample = GenTopology(sample, eng, model, TYPE=TYPE_FIRST, N_in=N_in)
 
 
@@ -964,9 +990,9 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
     # replace sample with next_sample
     sample = next_sample
 
-    # sample updated with stress and compliance. Uptate also applies to List_iterations
-    # next_sample density updated, but stress and compliance not computed yes
-    next_sample = GenTopology(sample, eng, model, TYPE=NEXT_TYPE, N_in=N_in)    
+    # sample updated with stress and compliance. Update also applies to List_iterations
+    # next_sample density updated, but stress and compliance not computed yet
+    next_sample = GenTopology(sample, eng, model, TYPE=NEXT_TYPE, N_in=N_in)
 
     List_Relative_Vol_Frac.append(sample.Relative_Vol_Frac)
     List_mean_densities.append(sample.Densities.numpy().mean())
@@ -1034,6 +1060,8 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
         the *predicted* compliance and, if `eng` is provided, green triangles
         overlay the FEM-recomputed compliance at the U-Net iterations, showing
         the gap between the network's prediction and the physical value.
+    SAVE_PATH            : path-like | None — where to save the figure (None:
+        display only).
 
     Returns
     -------
@@ -1241,7 +1269,26 @@ def visualize_unet_FEM_compliance(List_Iterations_Unet, IterationDataset_FEM, Li
 
 def statistical_convergence(List_List_Iterations_UNet, IterData_FEM:IterationDataset, NETWORK='U-Net', PLOT=True, TYPE='std'):
     '''
-    Returns the mean evolution of the compliance.
+    Mean compliance trajectory across several optimizations, full-FEM vs hybrid.
+
+    Every run is normalized by its own maximum compliance, then the runs are
+    averaged iteration by iteration. Runs have different lengths, so the number
+    of contributing runs decreases along the curve and is returned alongside the
+    statistics.
+
+    Parameters
+    ----------
+    List_List_Iterations_UNet : list[list[IterationSample]] — one hybrid run per entry.
+    IterData_FEM : IterationDataset — the full-FEM reference runs.
+    NETWORK      : str  — network name, used in the legend.
+    PLOT         : bool — draw the figure.
+    TYPE         : str  — shaded band: 'std' (mean +/- 1 std) or 'lenght' (band
+                   width proportional to the number of runs still alive).
+
+    Returns
+    -------
+    tuple(list, list) — (FEM_c, UNet_c), each a list of (mean, std, count) per
+        iteration index, in units of c / c_max.
     '''
     IterData_Unet=list_to_IterationDataset(List_List_Iterations_UNet[0])
 
@@ -1260,7 +1307,7 @@ def statistical_convergence(List_List_Iterations_UNet, IterData_FEM:IterationDat
 
         for i in range(len(c_array)):
             c_i = c_array[i].flatten()
-            c0  = c_i.max()  # compliance at index 1
+            c0  = c_i.max()  # normalize each run by its own maximum compliance
             for j in range(len(c_i)):
                 dict_c[j].append(float(c_i[j]/c0))
 
@@ -1395,7 +1442,8 @@ def save_density_video(List_iterations, SAVE_DIR, FPS=5):
     List_iterations : list[IterationSample] — optimization history; one frame
         per sample.
     SAVE_DIR        : str | Path — directory the video is written to (created if
-        needed), or a full path ending in '.mp4'/'.gif'.
+        needed, the file is then named 'density_evolution.mp4'), or a full path
+        ending in '.mp4'. Any other suffix is treated as a directory name.
     FPS             : int — frames per second of the output video.
 
     Returns
@@ -2134,27 +2182,39 @@ def plot_seed_benchmark(csv_path, portion=None, save_path=None):
     plt.show()
 
 
-def _seed_config_mask(df, config):
-    """Dtype-robust mask of the benchmark_seed rows matching one full config.
+def config_mask(df, bench, CONFIG_COLUMNS):
+    """Dtype-robust match of one list_benchmark config against the CSV rows.
 
-    A single benchmark_seed CSV holds several configs (and FEM-only rows leave
-    numeric config columns blank, forcing those columns to object dtype). A plain
-    `df[cols] == config` would then compare '32' with 32 and never match, so
-    numeric fields are coerced to numbers and the rest compared as trimmed
-    strings — same logic as `_config_mask` in the benchmark scripts.
+    FEM-only rows leave the numeric config columns blank, which forces those
+    columns to object (string) dtype on read. A plain `df[cols] == bench`
+    would then compare e.g. '32' == 32 and never match, so we coerce numeric
+    fields to numbers and compare everything else as trimmed strings.
     """
     import pandas as pd
 
     mask = pd.Series(True, index=df.index)
-    for col, val in zip(BENCHMARK_CONFIG_COLUMNS, config):
+    for col, val in zip(CONFIG_COLUMNS, bench):
         if isinstance(val, bool):
             mask &= df[col].astype(str).str.strip() == str(val)
         elif isinstance(val, (int, float)):
             mask &= pd.to_numeric(df[col], errors='coerce') == val
         else:
+            # val is a string; blank placeholders (' ' in the FEM-only config)
+            # must match blank CSV cells, which pandas reads as NaN. Normalise
+            # NaN/whitespace to '' on both sides before comparing.
             col_norm = df[col].where(df[col].notna(), '').astype(str).str.strip()
             mask &= col_norm == str(val).strip()
     return mask
+
+
+def _seed_config_mask(df, config):
+    """Dtype-robust mask of the benchmark_seed rows matching one full config.
+
+    A single benchmark_seed CSV holds several configs (and FEM-only rows leave
+    numeric config columns blank, forcing those columns to object dtype), hence
+    the shared `config_mask` logic applied to BENCHMARK_CONFIG_COLUMNS.
+    """
+    return config_mask(df, config, BENCHMARK_CONFIG_COLUMNS)
 
 
 def _seed_config_label(config, configs):
@@ -2799,6 +2859,215 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
               fontsize=FONT)
     plt.tight_layout()
     plt.show()
+
+
+#%% Paired comparison of hybrid strategies 
+from scipy import stats
+
+def paired_stats(df, metric, config_a, config_b, CONFIG_COLUMNS, alpha=0.05):
+    """Paired difference (A - B) on common samples.
+
+    df : benchmark DataFrame, one row per (Input ID, configuration).
+    config_a / config_b : [Strategy, First step], as in list_benchmark.
+    Returns mean, CI bounds, win count and sample size, in pp.
+    """
+    piv = df.pivot_table(index='Input ID',
+                         columns=CONFIG_COLUMNS,
+                         values=metric)
+    d = (piv[tuple(config_a)] - piv[tuple(config_b)]).dropna() * 100  # -> pp
+    n = len(d)
+    mean = d.mean()
+    half = stats.t.ppf(1 - alpha / 2, n - 1) * d.std(ddof=1) / np.sqrt(n)
+    wins = int((d < 0).sum())      # A better than B (lower is better)
+    p_wilcoxon = stats.wilcoxon(d).pvalue if (d != 0).any() else 1.0
+    return mean, mean - half, mean + half, wins, n, p_wilcoxon
+
+
+def compare_configs(df, config_a, config_b, CONFIG_COLUMNS, COL_PERF, COL_PREC):
+    print(f"\n--- {config_a} vs {config_b} ---")
+    for metric, label in [(COL_PERF, 'Performance'), (COL_PREC, 'Precision')]:
+        mean, lo, hi, wins, n, p_w = paired_stats(df, metric, config_a, config_b, CONFIG_COLUMNS)
+        signif = 'significant' if (lo > 0 or hi < 0) else 'within sampling noise'
+        print(f"{label:12s}: {mean:+.2f} pp  (95% CI [{lo:+.2f}; {hi:+.2f}])  "
+              f"{signif:22s} wins {wins}/{n}  Wilcoxon p={p_w:.3f}")
+
+
+#%% Forest plot of paired comparisons
+def plot_forest_paired(df, comparisons, labels=None,
+                       CONFIG_COLUMNS=['Strategy', 'First step'],
+                       COL_PERF='Ratio of FEM iterations (Hybrid / full-FEM)',
+                       COL_PREC='Relative compliance error',
+                       SAVE_PATH=None, scale_font=1.0, show_title=False,
+                       alpha_wilcoxon=0.05):
+    """Forest plot of paired mean differences with 95% confidence intervals.
+
+    Markers are filled only when the Student CI and the Wilcoxon
+    signed-rank test agree; open coloured markers flag mean differences
+    driven by a few extreme samples (rank test not significant).
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Benchmark results, one row per (configuration, sample).
+    comparisons : list of (config_a, config_b)
+        Each config is a [Strategy, First step] pair, as in list_benchmark.
+        Differences are computed as A - B (negative = A better).
+    labels : list of str, optional
+        Short display name for each comparison. Defaults to 'A vs B'.
+    SAVE_PATH : Path, optional
+        If given, saves the figure as PDF.
+    show_title : bool
+        Embed a suptitle (screen use). Keep False for the report: the
+        LaTeX caption plays that role.
+    alpha_wilcoxon : float
+        Significance level for the Wilcoxon test.
+    """
+    metrics = [(COL_PERF,
+                'Performance difference (pp)\n'
+                r'$\leftarrow$ A cheaper $\quad|\quad$ A costlier $\rightarrow$'),
+               (COL_PREC,
+                'Precision difference (pp)\n'
+                r'$\leftarrow$ A closer to FEM $\quad|\quad$ A further $\rightarrow$')]
+
+    if labels is None:
+        labels = [f'{a[0]} ({a[1]})\nvs {b[0]} ({b[1]})'
+                  for a, b in comparisons]
+
+    fs = 14 * scale_font
+    n = len(comparisons)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 0.7 * n + 2.5), sharey=True)
+
+    for ax, (metric, xlabel) in zip(axes, metrics):
+        for i, (config_a, config_b) in enumerate(comparisons):
+            mean, lo, hi, wins, n_s, p_w = paired_stats(df, metric, config_a, config_b, CONFIG_COLUMNS)
+            y = n - 1 - i                      # first comparison on top
+
+            student_sig  = (lo > 0) or (hi < 0)
+            wilcoxon_sig = p_w < alpha_wilcoxon
+
+            if not student_sig:
+                color, marker = 'gray', 'o'
+                mfc = 'white'
+            else:
+                color = 'tab:blue' if mean < 0 else 'tab:red'
+                marker = 'o' if mean < 0 else 's'
+                mfc = color if wilcoxon_sig else 'white'
+
+            ax.plot([lo, hi], [y, y], color=color, lw=2.4,
+                    solid_capstyle='round', zorder=2)
+            ax.plot(mean, y, marker=marker, color=color, mfc=mfc,
+                    mew=1.6, ms=9, zorder=3)
+            ax.annotate(f'{wins}/{n_s}', xy=(1.02, y),
+                        xycoords=('axes fraction', 'data'),
+                        fontsize=fs * 0.9, va='center', color='dimgray',
+                        annotation_clip=False)
+
+        ax.axvline(0, ls='--', lw=0.8, color='black', zorder=1)
+        ax.set_xlabel(xlabel, fontsize=fs)
+        ax.grid(axis='x', ls=':', lw=0.5, alpha=0.5)
+        ax.tick_params(labelsize=fs)
+        ax.tick_params(axis='y', length=0)
+        ax.annotate('A wins over B', xy=(0.95, n - 0.55),
+                    xycoords=('axes fraction', 'data'),
+                    fontsize=fs * 0.9, color='dimgray',
+                    annotation_clip=False)
+
+    axes[0].set_yticks(range(n))
+    axes[0].set_yticklabels(labels[::-1], fontsize=fs)
+
+    handles = [
+        plt.Line2D([], [], color='tab:blue', marker='o', ls='-', ms=9,
+                   label='Improvement (both tests)'),
+        plt.Line2D([], [], color='tab:red', marker='s', ls='-', ms=9,
+                   label='Degradation (both tests)'),
+        plt.Line2D([], [], color='tab:red', marker='s', mfc='white', ls='-', ms=9,
+                   label='Significant mean only (heavy tails)'),
+        plt.Line2D([], [], color='gray', marker='o', mfc='white', ls='-', ms=9,
+                   label='Not significant'),
+    ]
+    fig.legend(handles=handles, loc='lower center', ncol=2,
+               fontsize=fs * 0.9, frameon=False, bbox_to_anchor=(0.5, -0.10))
+
+    if show_title:
+        fig.tight_layout(rect=[0, 0.05, 1, 0.90])
+        fig.suptitle('Paired strategy comparisons — 100 traction distributions',
+                     fontsize=fs * 1.25, y=0.95)
+    else:
+        fig.tight_layout(rect=[0, 0.05, 1, 1])
+
+    if SAVE_PATH is not None:
+        fig.savefig(SAVE_PATH, bbox_inches='tight')
+    plt.show()
+
+def plot_paired_distributions(df, comparisons, CONFIG_COLUMNS, labels=None,
+                              metric='Ratio of FEM iterations (Hybrid / full-FEM)',
+                              xlabel='Performance difference (pp)',
+                              SAVE_PATH=None, scale_font=1.0, seed=0):
+    """Distributions of the per-sample paired differences d_i.
+
+    Shows what the Wilcoxon test 'sees': one horizontal strip of points
+    per comparison, with the median (bar) and the mean (diamond). A gap
+    between the two flags heavy-tailed differences, i.e. a mean driven
+    by a few extreme samples.
+
+    Parameters
+    ----------
+    df, comparisons, labels : as in plot_forest_paired.
+    metric : str
+        Column of the benchmark CSV to compare (one metric per figure).
+    seed : int
+        Seed of the vertical jitter (reproducibility of the figure).
+    """
+    if labels is None:
+        labels = [f'{a[0]} ({a[1]})\nvs {b[0]} ({b[1]})'
+                  for a, b in comparisons]
+
+    fs = 14 * scale_font
+    n = len(comparisons)
+    rng = np.random.default_rng(seed)
+    fig, ax = plt.subplots(figsize=(12, 0.9 * n + 2.0))
+
+    for i, (config_a, config_b) in enumerate(comparisons):
+        piv = df.pivot_table(index='Input ID', columns=CONFIG_COLUMNS,
+                             values=metric)
+        d = (piv[tuple(config_a)] - piv[tuple(config_b)]).dropna() * 100
+        y = n - 1 - i
+
+        jitter = rng.uniform(-0.14, 0.14, size=len(d))
+        ax.plot(d, y + jitter, 'o', ms=4, color='tab:blue', alpha=0.35,
+                mec='none', zorder=2)
+        ax.plot(d.median(), y, '|', ms=26, mew=3, color='black', zorder=4)
+        ax.plot(d.mean(), y, 'D', ms=9, color='tab:red',
+                mec='white', mew=1.2, zorder=5)
+
+    ax.axvline(0, ls='--', lw=0.8, color='black', zorder=1)
+    ax.set_yticks(range(n))
+    ax.set_yticklabels(labels[::-1], fontsize=fs)
+    ax.set_xlabel(xlabel + '\n'
+                  r'$\leftarrow$ A better $\quad|\quad$ A worse $\rightarrow$',
+                  fontsize=fs)
+    ax.grid(axis='x', ls=':', lw=0.5, alpha=0.5)
+    ax.tick_params(labelsize=fs)
+    ax.tick_params(axis='y', length=0)
+
+    handles = [
+        plt.Line2D([], [], color='tab:blue', marker='o', ls='', ms=6,
+                   alpha=0.5, label='Per-sample difference $d_i$'),
+        plt.Line2D([], [], color='black', marker='|', ls='', ms=14, mew=3,
+                   label='Median'),
+        plt.Line2D([], [], color='tab:red', marker='D', ls='', ms=9,
+                   label='Mean'),
+    ]
+    ax.legend(handles=handles, loc='lower center', ncol=3,
+              fontsize=fs * 0.9, frameon=False,
+              bbox_to_anchor=(0.5, -0.45))
+
+    fig.tight_layout()
+    if SAVE_PATH is not None:
+        fig.savefig(SAVE_PATH, bbox_inches='tight')
+    plt.show()
+
+
 
 
 #%%

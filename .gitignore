@@ -4,3 +4,35 @@ HeavyFiles/
 rapport_latex/
 Bibliography/
 PlotNeuralNet/
+
+# ---------------------------------------------------------------------------
+# Dead code — unreachable from the four entry points of the pipeline.
+# Kept on disk, untracked. Verify with:  python tools/depgraph.py
+# ---------------------------------------------------------------------------
+
+# Shadowed: addpath puts OT_Software first, so OT_Software/SolveFE.m wins.
+# VectorF_Surface.m is only ever called by the shadowed copy.
+Software/OT_Functions/SolveFE.m
+Software/OT_Functions/VectorF_Surface.m
+
+# Superseded by Opt_Stress: the three call sites in GenTopology.m are commented out.
+Software/OT_Functions/Opt.m
+
+# Never called: 3D and energy helpers, alternative optimiser to OC.
+Software/OT_Functions/DHooks3D.m
+Software/OT_Functions/EvalEnergies.m
+Software/OT_Functions/MMA.m
+
+# Never called from any entry point.
+Software/OT_Software/SolveFE_var.m
+Software/OT_Software/Extract_Results.m
+Software/OT_Software/Extract_Compliance.m
+Software/OT_Software/keep_only_first_at_05.m
+
+# plot_Traction.m is shadowed by a Python function of the same name in dataset_vizu.py.
+Software/OT_Software/plot_Traction.m
+
+# Replaced by the PyTorch pipeline (Deep Learning Toolbox era).
+Software/OT_Software/Training_Net.m
+Software/OT_NN/Main.m
+Software/OT_NN/Main_Stress.m

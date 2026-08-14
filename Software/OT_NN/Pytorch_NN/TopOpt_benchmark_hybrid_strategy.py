@@ -306,220 +306,19 @@ plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         scale_font = 1.5, scale_dot = 2,
                         low_margin=0.1, right_margin=0.1,left_margin=0.05)
 
-#%% Paired comparison of hybrid strategies (Section 5.2)
-from scipy import stats
+
 
 COL_PERF = 'Ratio of FEM iterations (Hybrid / full-FEM)'
 COL_PREC = 'Relative compliance error'
 
 
-def paired_stats(metric, config_a, config_b, alpha=0.05):
-    """Paired difference (A - B) on common samples.
-
-    config_a / config_b : [Strategy, First step], as in list_benchmark.
-    Returns mean, CI bounds, win count and sample size, in pp.
-    """
-    piv = df.pivot_table(index='Input ID',
-                         columns=CONFIG_COLUMNS,
-                         values=metric)
-    d = (piv[tuple(config_a)] - piv[tuple(config_b)]).dropna() * 100  # -> pp
-    n = len(d)
-    mean = d.mean()
-    half = stats.t.ppf(1 - alpha / 2, n - 1) * d.std(ddof=1) / np.sqrt(n)
-    wins = int((d < 0).sum())      # A better than B (lower is better)
-    p_wilcoxon = stats.wilcoxon(d).pvalue if (d != 0).any() else 1.0
-    return mean, mean - half, mean + half, wins, n, p_wilcoxon
-
-
-def compare_configs(config_a, config_b):
-    print(f"\n--- {config_a} vs {config_b} ---")
-    for metric, label in [(COL_PERF, 'Performance'), (COL_PREC, 'Precision')]:
-        mean, lo, hi, wins, n, p_w = paired_stats(metric, config_a, config_b)
-        signif = 'significant' if (lo > 0 or hi < 0) else 'within sampling noise'
-        print(f"{label:12s}: {mean:+.2f} pp  (95% CI [{lo:+.2f}; {hi:+.2f}])  "
-              f"{signif:22s} wins {wins}/{n}  Wilcoxon p={p_w:.3f}")
-
 
 #%% Comparisons quoted in the text (Sections 5.2.6 and 5.2.7)
-compare_configs(['Only UNet', 'UNet'], ['Only UNet', 'FEM'])
-compare_configs(['Decreasing compliance', 'UNet'], ['Only UNet', 'UNet'])
-compare_configs(['Decreasing compliance', 'FEM'],  ['Only UNet', 'FEM'])
-compare_configs(['10 Unet - 3 FEM', 'UNet'], ['Only UNet', 'UNet'])
+compare_configs(df, ['Only UNet', 'UNet'], ['Only UNet', 'FEM'], CONFIG_COLUMNS, COL_PERF, COL_PREC)
+compare_configs(df, ['Decreasing compliance', 'UNet'], ['Only UNet', 'UNet'], CONFIG_COLUMNS, COL_PERF, COL_PREC)
+compare_configs(df, ['Decreasing compliance', 'FEM'],  ['Only UNet', 'FEM'], CONFIG_COLUMNS, COL_PERF, COL_PREC)
+compare_configs(df, ['10 Unet - 3 FEM', 'UNet'], ['Only UNet', 'UNet'], CONFIG_COLUMNS, COL_PERF, COL_PREC)
 
-
-#%% Forest plot of paired comparisons
-def plot_forest_paired(df, comparisons, labels=None,
-                       COL_PERF='Ratio of FEM iterations (Hybrid / full-FEM)',
-                       COL_PREC='Relative compliance error',
-                       SAVE_PATH=None, scale_font=1.0, show_title=False,
-                       alpha_wilcoxon=0.05):
-    """Forest plot of paired mean differences with 95% confidence intervals.
-
-    Markers are filled only when the Student CI and the Wilcoxon
-    signed-rank test agree; open coloured markers flag mean differences
-    driven by a few extreme samples (rank test not significant).
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Benchmark results, one row per (configuration, sample).
-    comparisons : list of (config_a, config_b)
-        Each config is a [Strategy, First step] pair, as in list_benchmark.
-        Differences are computed as A - B (negative = A better).
-    labels : list of str, optional
-        Short display name for each comparison. Defaults to 'A vs B'.
-    SAVE_PATH : Path, optional
-        If given, saves the figure as PDF.
-    show_title : bool
-        Embed a suptitle (screen use). Keep False for the report: the
-        LaTeX caption plays that role.
-    alpha_wilcoxon : float
-        Significance level for the Wilcoxon test.
-    """
-    metrics = [(COL_PERF,
-                'Performance difference (pp)\n'
-                r'$\leftarrow$ A cheaper $\quad|\quad$ A costlier $\rightarrow$'),
-               (COL_PREC,
-                'Precision difference (pp)\n'
-                r'$\leftarrow$ A closer to FEM $\quad|\quad$ A further $\rightarrow$')]
-
-    if labels is None:
-        labels = [f'{a[0]} ({a[1]})\nvs {b[0]} ({b[1]})'
-                  for a, b in comparisons]
-
-    fs = 14 * scale_font
-    n = len(comparisons)
-    fig, axes = plt.subplots(1, 2, figsize=(12, 0.7 * n + 2.5), sharey=True)
-
-    for ax, (metric, xlabel) in zip(axes, metrics):
-        for i, (config_a, config_b) in enumerate(comparisons):
-            mean, lo, hi, wins, n_s, p_w = paired_stats(metric, config_a, config_b)
-            y = n - 1 - i                      # first comparison on top
-
-            student_sig  = (lo > 0) or (hi < 0)
-            wilcoxon_sig = p_w < alpha_wilcoxon
-
-            if not student_sig:
-                color, marker = 'gray', 'o'
-                mfc = 'white'
-            else:
-                color = 'tab:blue' if mean < 0 else 'tab:red'
-                marker = 'o' if mean < 0 else 's'
-                mfc = color if wilcoxon_sig else 'white'
-
-            ax.plot([lo, hi], [y, y], color=color, lw=2.4,
-                    solid_capstyle='round', zorder=2)
-            ax.plot(mean, y, marker=marker, color=color, mfc=mfc,
-                    mew=1.6, ms=9, zorder=3)
-            ax.annotate(f'{wins}/{n_s}', xy=(1.02, y),
-                        xycoords=('axes fraction', 'data'),
-                        fontsize=fs * 0.9, va='center', color='dimgray',
-                        annotation_clip=False)
-
-        ax.axvline(0, ls='--', lw=0.8, color='black', zorder=1)
-        ax.set_xlabel(xlabel, fontsize=fs)
-        ax.grid(axis='x', ls=':', lw=0.5, alpha=0.5)
-        ax.tick_params(labelsize=fs)
-        ax.tick_params(axis='y', length=0)
-        ax.annotate('A wins over B', xy=(0.95, n - 0.55),
-                    xycoords=('axes fraction', 'data'),
-                    fontsize=fs * 0.9, color='dimgray',
-                    annotation_clip=False)
-
-    axes[0].set_yticks(range(n))
-    axes[0].set_yticklabels(labels[::-1], fontsize=fs)
-
-    handles = [
-        plt.Line2D([], [], color='tab:blue', marker='o', ls='-', ms=9,
-                   label='Improvement (both tests)'),
-        plt.Line2D([], [], color='tab:red', marker='s', ls='-', ms=9,
-                   label='Degradation (both tests)'),
-        plt.Line2D([], [], color='tab:red', marker='s', mfc='white', ls='-', ms=9,
-                   label='Significant mean only (heavy tails)'),
-        plt.Line2D([], [], color='gray', marker='o', mfc='white', ls='-', ms=9,
-                   label='Not significant'),
-    ]
-    fig.legend(handles=handles, loc='lower center', ncol=2,
-               fontsize=fs * 0.9, frameon=False, bbox_to_anchor=(0.5, -0.10))
-
-    if show_title:
-        fig.tight_layout(rect=[0, 0.05, 1, 0.90])
-        fig.suptitle('Paired strategy comparisons — 100 traction distributions',
-                     fontsize=fs * 1.25, y=0.95)
-    else:
-        fig.tight_layout(rect=[0, 0.05, 1, 1])
-
-    if SAVE_PATH is not None:
-        fig.savefig(SAVE_PATH, bbox_inches='tight')
-    plt.show()
-
-def plot_paired_distributions(df, comparisons, labels=None,
-                              metric='Ratio of FEM iterations (Hybrid / full-FEM)',
-                              xlabel='Performance difference (pp)',
-                              SAVE_PATH=None, scale_font=1.0, seed=0):
-    """Distributions of the per-sample paired differences d_i.
-
-    Shows what the Wilcoxon test 'sees': one horizontal strip of points
-    per comparison, with the median (bar) and the mean (diamond). A gap
-    between the two flags heavy-tailed differences, i.e. a mean driven
-    by a few extreme samples.
-
-    Parameters
-    ----------
-    df, comparisons, labels : as in plot_forest_paired.
-    metric : str
-        Column of the benchmark CSV to compare (one metric per figure).
-    seed : int
-        Seed of the vertical jitter (reproducibility of the figure).
-    """
-    if labels is None:
-        labels = [f'{a[0]} ({a[1]})\nvs {b[0]} ({b[1]})'
-                  for a, b in comparisons]
-
-    fs = 14 * scale_font
-    n = len(comparisons)
-    rng = np.random.default_rng(seed)
-    fig, ax = plt.subplots(figsize=(12, 0.9 * n + 2.0))
-
-    for i, (config_a, config_b) in enumerate(comparisons):
-        piv = df.pivot_table(index='Input ID', columns=CONFIG_COLUMNS,
-                             values=metric)
-        d = (piv[tuple(config_a)] - piv[tuple(config_b)]).dropna() * 100
-        y = n - 1 - i
-
-        jitter = rng.uniform(-0.14, 0.14, size=len(d))
-        ax.plot(d, y + jitter, 'o', ms=4, color='tab:blue', alpha=0.35,
-                mec='none', zorder=2)
-        ax.plot(d.median(), y, '|', ms=26, mew=3, color='black', zorder=4)
-        ax.plot(d.mean(), y, 'D', ms=9, color='tab:red',
-                mec='white', mew=1.2, zorder=5)
-
-    ax.axvline(0, ls='--', lw=0.8, color='black', zorder=1)
-    ax.set_yticks(range(n))
-    ax.set_yticklabels(labels[::-1], fontsize=fs)
-    ax.set_xlabel(xlabel + '\n'
-                  r'$\leftarrow$ A better $\quad|\quad$ A worse $\rightarrow$',
-                  fontsize=fs)
-    ax.grid(axis='x', ls=':', lw=0.5, alpha=0.5)
-    ax.tick_params(labelsize=fs)
-    ax.tick_params(axis='y', length=0)
-
-    handles = [
-        plt.Line2D([], [], color='tab:blue', marker='o', ls='', ms=6,
-                   alpha=0.5, label='Per-sample difference $d_i$'),
-        plt.Line2D([], [], color='black', marker='|', ls='', ms=14, mew=3,
-                   label='Median'),
-        plt.Line2D([], [], color='tab:red', marker='D', ls='', ms=9,
-                   label='Mean'),
-    ]
-    ax.legend(handles=handles, loc='lower center', ncol=3,
-              fontsize=fs * 0.9, frameon=False,
-              bbox_to_anchor=(0.5, -0.45))
-
-    fig.tight_layout()
-    if SAVE_PATH is not None:
-        fig.savefig(SAVE_PATH, bbox_inches='tight')
-    plt.show()
 
 #%% Paired comparison figures 
 comparisons = [
@@ -538,21 +337,75 @@ FIGURES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Forest plot: mean differences, 95% CI, Student/Wilcoxon concordance
 plot_forest_paired(
-    df, comparisons, labels=short_labels,
+    df, comparisons, short_labels,
+    CONFIG_COLUMNS, COL_PERF, COL_PREC,
     scale_font=1.2,
     SAVE_PATH=FIGURES_DIR / 'forest_paired_hybrid.pdf')
 
 # Distributions of the paired differences d_i: what the Wilcoxon test sees
 plot_paired_distributions(
-    df, comparisons, labels=short_labels,
+    df, comparisons, CONFIG_COLUMNS, labels=short_labels,
     metric='Ratio of FEM iterations (Hybrid / full-FEM)',
     xlabel='Performance difference (pp)',
     scale_font=1.2,
     SAVE_PATH=FIGURES_DIR / 'paired_distributions_performance.pdf')
 
 plot_paired_distributions(
-    df, comparisons, labels=short_labels,
+    df, comparisons, CONFIG_COLUMNS,labels=short_labels,
     metric='Relative compliance error',
     xlabel='Precision difference (pp)',
     scale_font=1.2,
     SAVE_PATH=FIGURES_DIR / 'paired_distributions_precision.pdf')
+
+
+#%% Helper for robust config matching
+# `config_mask` lives in topology_utils (imported with *), shared by every
+# benchmark script.
+
+counts = []
+for bench in list_benchmark:
+    mask = config_mask(df, bench, CONFIG_COLUMNS)
+    row  = df[mask]
+    counts.append(len(row))
+
+    Tab_ratio_FEM.append(row['Ratio of FEM iterations (Hybrid / full-FEM)'].values)
+    Tab_err_rel_c.append(row['Relative compliance error'].values)
+
+# All configs must match the same (non-zero) number of rows, otherwise the
+# stack below fails with a cryptic "inhomogeneous shape" numpy error.
+if len(set(counts)) != 1 or counts[0] == 0:
+    details = '\n'.join(f'  {n:3d} rows  {bench}'
+                        for n, bench in zip(counts, list_benchmark))
+    raise ValueError(
+        f"Each configuration must match the same non-zero number of rows in "
+        f"'{name_benchmark_file}', but got:\n{details}\n"
+        f"Configs with 0 rows are absent from the CSV (run the benchmark for "
+        f"them, or remove them from list_benchmark)."
+    )
+
+Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
+Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
+
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
+
+
+
+# SMAPE Benchmark
+
+# Samples on which the sMAPE is evaluated (full filtered dataset).
+ds_iter_smape = IterationDataset(ds_filtre)
+
+name_smape_file = 'benchmark_smape_architecture.csv'
+smape_csv       = RESULTS_ROOT / name_smape_file
+
+RUN_SMAPE = False  # Set to False to skip the computation and only read/plot the csv
+
+if RUN_SMAPE:
+    save_smape_benchmark(
+        list_benchmark,
+        ds_iter_smape,
+        smape_csv,
+        RESULTS_ROOT,
+        name_file,
+        reset=True,
+    )

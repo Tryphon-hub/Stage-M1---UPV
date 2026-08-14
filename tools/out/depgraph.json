@@ -1,0 +1,287 @@
+{
+  "edges": {
+    "Software/OT_NN/Pytorch_NN/dataset.py": [],
+    "Software/OT_NN/Pytorch_NN/dataset_vizu.py": [
+      "Software/OT_NN/Pytorch_NN/dataset.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/evaluate.py": [
+      "Software/OT_NN/Pytorch_NN/train.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/illustrations/BE_UNet/double_conv/draw_BE_double_conv.py": [],
+    "Software/OT_NN/Pytorch_NN/illustrations/U-Net/double_conv/draw_double_conv.py": [],
+    "Software/OT_NN/Pytorch_NN/illustrations/U-Net/triple_conv/draw_triple_conv.py": [],
+    "Software/OT_NN/Pytorch_NN/main_training_UNet.py": [
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/evaluate.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py",
+      "Software/OT_NN/Pytorch_NN/train.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/model.py": [],
+    "Software/OT_NN/Pytorch_NN/topology_utils.py": [
+      "Software/OT_Functions/EvalStress.m",
+      "Software/OT_Functions/Filter.m",
+      "Software/OT_Functions/OC.m",
+      "Software/OT_Functions/Opt_Stress.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/train.py",
+      "Software/OT_Software/SolveFE.m"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_accelerated.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_benchmark_architecture.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_benchmark_hybrid_strategy.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_benchmark_model.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_benchmark_seed.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/evaluate.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py",
+      "Software/OT_NN/Pytorch_NN/train.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_process.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/TopOpt_process_img_gen.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/train.py": [
+      "Software/OT_NN/Pytorch_NN/dataset.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/training_benchmark.py": [
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/evaluate.py",
+      "Software/OT_NN/Pytorch_NN/model.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py",
+      "Software/OT_NN/Pytorch_NN/train.py"
+    ],
+    "Software/OT_NN/Pytorch_NN/verify_rotation_consistency.py": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_NN/Pytorch_NN/dataset.py",
+      "Software/OT_NN/Pytorch_NN/topology_utils.py"
+    ],
+    "Software/OT_Functions/DHooks2D.m": [],
+    "Software/OT_Functions/DHooks3D.m": [],
+    "Software/OT_Functions/EvalEnergies.m": [],
+    "Software/OT_Functions/EvalStress.m": [
+      "Software/OT_Functions/Shapef_2D.m",
+      "Software/OT_Functions/Shapef_3D.m"
+    ],
+    "Software/OT_Functions/FEM_Creator_Elasticity.m": [
+      "Software/OT_Functions/Shapef_2D.m",
+      "Software/OT_Functions/Shapef_3D.m",
+      "Software/OT_Functions/pgauss.m"
+    ],
+    "Software/OT_Functions/Filter.m": [],
+    "Software/OT_Functions/MMA.m": [],
+    "Software/OT_Functions/OC.m": [],
+    "Software/OT_Functions/Opt.m": [
+      "Software/OT_Functions/Shapef_2D.m",
+      "Software/OT_Functions/Shapef_3D.m",
+      "Software/OT_Functions/pgauss.m"
+    ],
+    "Software/OT_Functions/Opt_Stress.m": [
+      "Software/OT_Functions/Shapef_2D.m",
+      "Software/OT_Functions/Shapef_3D.m",
+      "Software/OT_Functions/pgauss.m"
+    ],
+    "Software/OT_Functions/pgauss.m": [],
+    "Software/OT_Functions/ReadGMSH.m": [],
+    "Software/OT_Functions/Shapef_1D.m": [],
+    "Software/OT_Functions/Shapef_2D.m": [],
+    "Software/OT_Functions/Shapef_3D.m": [],
+    "Software/OT_Functions/SolveFE.m": [
+      "Software/OT_Functions/FEM_Creator_Elasticity.m",
+      "Software/OT_Functions/Shapef_2D.m",
+      "Software/OT_Functions/VectorF_Surface.m"
+    ],
+    "Software/OT_Functions/VectorF_Line.m": [
+      "Software/OT_Functions/Shapef_1D.m",
+      "Software/OT_Functions/pgauss.m"
+    ],
+    "Software/OT_Functions/VectorF_Surface.m": [
+      "Software/OT_Functions/Shapef_2D.m",
+      "Software/OT_Functions/pgauss.m"
+    ],
+    "Software/OT_NN/Main.m": [],
+    "Software/OT_NN/Main_Stress.m": [],
+    "Software/OT_Software/compute_energy_first_image.m": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/EvalStress.m",
+      "Software/OT_Software/SolveFE.m"
+    ],
+    "Software/OT_Software/Extract_Compliance.m": [],
+    "Software/OT_Software/Extract_Results.m": [],
+    "Software/OT_Software/generate_dataset.m": [
+      "Software/OT_Software/GenerateSamples.m"
+    ],
+    "Software/OT_Software/generate_dataset_from_tractions.m": [
+      "Software/OT_Software/GenerateSamples.m"
+    ],
+    "Software/OT_Software/GenerateSamples.m": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/EvalStress.m",
+      "Software/OT_Functions/ReadGMSH.m",
+      "Software/OT_Software/GenTopology.m",
+      "Software/OT_Software/GenerateTractions.m",
+      "Software/OT_Software/LoadMacroProblemData.m",
+      "Software/OT_Software/SolveFE.m"
+    ],
+    "Software/OT_Software/GenerateTractions.m": [],
+    "Software/OT_Software/GenTopology.m": [
+      "Software/OT_Functions/DHooks2D.m",
+      "Software/OT_Functions/EvalStress.m",
+      "Software/OT_Functions/Filter.m",
+      "Software/OT_Functions/OC.m",
+      "Software/OT_Functions/Opt_Stress.m",
+      "Software/OT_Software/SolveFE.m"
+    ],
+    "Software/OT_Software/keep_only_first_at_05.m": [],
+    "Software/OT_Software/LoadMacroProblemData.m": [],
+    "Software/OT_Software/plot_Traction.m": [],
+    "Software/OT_Software/SolveFE.m": [
+      "Software/OT_Functions/FEM_Creator_Elasticity.m",
+      "Software/OT_Functions/VectorF_Line.m"
+    ],
+    "Software/OT_Software/SolveFE_var.m": [
+      "Software/OT_Functions/FEM_Creator_Elasticity.m",
+      "Software/OT_Functions/VectorF_Line.m"
+    ],
+    "Software/OT_Software/Training_Net.m": [],
+    "HeavyFiles/data/generate_dataset_macro.m": [
+      "Software/OT_Software/GenerateSamples.m"
+    ],
+    "Bibliography/ML_lessons/CNN/dataset.py": [],
+    "Bibliography/ML_lessons/CNN/Etude_hyperparametres.py": [],
+    "Bibliography/ML_lessons/CNN/evaluate.py": [],
+    "Bibliography/ML_lessons/CNN/main.py": [
+      "Bibliography/ML_lessons/CNN/dataset.py",
+      "Bibliography/ML_lessons/CNN/evaluate.py",
+      "Bibliography/ML_lessons/CNN/model.py",
+      "Bibliography/ML_lessons/CNN/train.py"
+    ],
+    "Bibliography/ML_lessons/CNN/model.py": [],
+    "Bibliography/ML_lessons/CNN/train.py": [],
+    "Bibliography/ML_lessons/Encoder-Decoder/dataset.py": [],
+    "Bibliography/ML_lessons/Encoder-Decoder/evaluate.py": [],
+    "Bibliography/ML_lessons/Encoder-Decoder/main.py": [
+      "Bibliography/ML_lessons/Encoder-Decoder/dataset.py",
+      "Bibliography/ML_lessons/Encoder-Decoder/evaluate.py",
+      "Bibliography/ML_lessons/Encoder-Decoder/model.py",
+      "Bibliography/ML_lessons/Encoder-Decoder/train.py"
+    ],
+    "Bibliography/ML_lessons/Encoder-Decoder/model.py": [],
+    "Bibliography/ML_lessons/Encoder-Decoder/previzu.py": [
+      "Bibliography/ML_lessons/Encoder-Decoder/dataset.py"
+    ],
+    "Bibliography/ML_lessons/Encoder-Decoder/test_hyperparameters.py": [],
+    "Bibliography/ML_lessons/Encoder-Decoder/train.py": [],
+    "Bibliography/ML_lessons/U-net/dataset.py": [],
+    "Bibliography/ML_lessons/U-net/evaluate.py": [],
+    "Bibliography/ML_lessons/U-net/main.py": [
+      "Bibliography/ML_lessons/U-net/dataset.py",
+      "Bibliography/ML_lessons/U-net/evaluate.py",
+      "Bibliography/ML_lessons/U-net/model.py",
+      "Bibliography/ML_lessons/U-net/train.py"
+    ],
+    "Bibliography/ML_lessons/U-net/model.py": [],
+    "Bibliography/ML_lessons/U-net/process_vizu.py": [
+      "Bibliography/ML_lessons/U-net/dataset.py",
+      "Bibliography/ML_lessons/U-net/model.py"
+    ],
+    "Bibliography/ML_lessons/U-net/train.py": [],
+    "Bibliography/99 line Topopt/top3D125.m": [],
+    "Bibliography/99 line Topopt/top99neo.m": [],
+    "PlotNeuralNet/pycore/__init__.py": [],
+    "PlotNeuralNet/pycore/blocks.py": [
+      "PlotNeuralNet/pycore/tikzeng.py"
+    ],
+    "PlotNeuralNet/pycore/RGB_conversion.py": [],
+    "PlotNeuralNet/pycore/tikzeng.py": [],
+    "PlotNeuralNet/pyexamples/BE-unet.py": [
+      "PlotNeuralNet/pycore/blocks.py",
+      "PlotNeuralNet/pycore/tikzeng.py"
+    ],
+    "PlotNeuralNet/pyexamples/test_simple.py": [
+      "PlotNeuralNet/pycore/tikzeng.py"
+    ],
+    "PlotNeuralNet/pyexamples/unet.py": [
+      "PlotNeuralNet/pycore/blocks.py",
+      "PlotNeuralNet/pycore/tikzeng.py"
+    ]
+  },
+  "roots": [
+    "Software/OT_NN/Pytorch_NN/TopOpt_benchmark_architecture.py",
+    "Software/OT_NN/Pytorch_NN/main_training_UNet.py",
+    "Software/OT_Software/compute_energy_first_image.m",
+    "Software/OT_Software/generate_dataset.m"
+  ],
+  "reachable": [
+    "Software/OT_Functions/DHooks2D.m",
+    "Software/OT_Functions/EvalStress.m",
+    "Software/OT_Functions/FEM_Creator_Elasticity.m",
+    "Software/OT_Functions/Filter.m",
+    "Software/OT_Functions/OC.m",
+    "Software/OT_Functions/Opt_Stress.m",
+    "Software/OT_Functions/ReadGMSH.m",
+    "Software/OT_Functions/Shapef_1D.m",
+    "Software/OT_Functions/Shapef_2D.m",
+    "Software/OT_Functions/Shapef_3D.m",
+    "Software/OT_Functions/VectorF_Line.m",
+    "Software/OT_Functions/pgauss.m",
+    "Software/OT_NN/Pytorch_NN/TopOpt_benchmark_architecture.py",
+    "Software/OT_NN/Pytorch_NN/dataset.py",
+    "Software/OT_NN/Pytorch_NN/evaluate.py",
+    "Software/OT_NN/Pytorch_NN/main_training_UNet.py",
+    "Software/OT_NN/Pytorch_NN/model.py",
+    "Software/OT_NN/Pytorch_NN/topology_utils.py",
+    "Software/OT_NN/Pytorch_NN/train.py",
+    "Software/OT_Software/GenTopology.m",
+    "Software/OT_Software/GenerateSamples.m",
+    "Software/OT_Software/GenerateTractions.m",
+    "Software/OT_Software/LoadMacroProblemData.m",
+    "Software/OT_Software/SolveFE.m",
+    "Software/OT_Software/compute_energy_first_image.m",
+    "Software/OT_Software/generate_dataset.m"
+  ],
+  "shadowed": {
+    "SolveFE": [
+      "Software/OT_Functions/SolveFE.m"
+    ]
+  }
+}

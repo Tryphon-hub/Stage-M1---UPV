@@ -1,0 +1,109 @@
+Software/OT_NN/Pytorch_NN/TopOpt_benchmark_architecture.py
+|-- Software/OT_Functions/DHooks2D.m
+|-- Software/OT_Functions/ReadGMSH.m
+|-- Software/OT_NN/Pytorch_NN/dataset.py
+|-- Software/OT_NN/Pytorch_NN/model.py
+`-- Software/OT_NN/Pytorch_NN/topology_utils.py
+    |-- Software/OT_Functions/EvalStress.m
+    |   |-- Software/OT_Functions/Shapef_2D.m
+    |   `-- Software/OT_Functions/Shapef_3D.m
+    |-- Software/OT_Functions/Filter.m
+    |-- Software/OT_Functions/OC.m
+    |-- Software/OT_Functions/Opt_Stress.m
+    |   |-- Software/OT_Functions/Shapef_2D.m
+    |   |-- Software/OT_Functions/Shapef_3D.m
+    |   `-- Software/OT_Functions/pgauss.m
+    |-- Software/OT_NN/Pytorch_NN/dataset.py
+    |-- Software/OT_NN/Pytorch_NN/model.py
+    |-- Software/OT_NN/Pytorch_NN/train.py
+    |   `-- Software/OT_NN/Pytorch_NN/dataset.py
+    `-- Software/OT_Software/SolveFE.m
+        |-- Software/OT_Functions/FEM_Creator_Elasticity.m
+        |   |-- Software/OT_Functions/Shapef_2D.m
+        |   |-- Software/OT_Functions/Shapef_3D.m
+        |   `-- Software/OT_Functions/pgauss.m
+        `-- Software/OT_Functions/VectorF_Line.m
+            |-- Software/OT_Functions/Shapef_1D.m
+            `-- Software/OT_Functions/pgauss.m
+
+Software/OT_NN/Pytorch_NN/main_training_UNet.py
+|-- Software/OT_NN/Pytorch_NN/dataset.py
+|-- Software/OT_NN/Pytorch_NN/evaluate.py
+|   `-- Software/OT_NN/Pytorch_NN/train.py
+|       `-- Software/OT_NN/Pytorch_NN/dataset.py
+|-- Software/OT_NN/Pytorch_NN/model.py
+|-- Software/OT_NN/Pytorch_NN/topology_utils.py
+|   |-- Software/OT_Functions/EvalStress.m
+|   |   |-- Software/OT_Functions/Shapef_2D.m
+|   |   `-- Software/OT_Functions/Shapef_3D.m
+|   |-- Software/OT_Functions/Filter.m
+|   |-- Software/OT_Functions/OC.m
+|   |-- Software/OT_Functions/Opt_Stress.m
+|   |   |-- Software/OT_Functions/Shapef_2D.m
+|   |   |-- Software/OT_Functions/Shapef_3D.m
+|   |   `-- Software/OT_Functions/pgauss.m
+|   |-- Software/OT_NN/Pytorch_NN/dataset.py
+|   |-- Software/OT_NN/Pytorch_NN/model.py
+|   |-- Software/OT_NN/Pytorch_NN/train.py
+|   |   `-- Software/OT_NN/Pytorch_NN/dataset.py
+|   `-- Software/OT_Software/SolveFE.m
+|       |-- Software/OT_Functions/FEM_Creator_Elasticity.m
+|       |   |-- Software/OT_Functions/Shapef_2D.m
+|       |   |-- Software/OT_Functions/Shapef_3D.m
+|       |   `-- Software/OT_Functions/pgauss.m
+|       `-- Software/OT_Functions/VectorF_Line.m
+|           |-- Software/OT_Functions/Shapef_1D.m
+|           `-- Software/OT_Functions/pgauss.m
+`-- Software/OT_NN/Pytorch_NN/train.py
+    `-- Software/OT_NN/Pytorch_NN/dataset.py
+
+Software/OT_Software/compute_energy_first_image.m
+|-- Software/OT_Functions/DHooks2D.m
+|-- Software/OT_Functions/EvalStress.m
+|   |-- Software/OT_Functions/Shapef_2D.m
+|   `-- Software/OT_Functions/Shapef_3D.m
+`-- Software/OT_Software/SolveFE.m
+    |-- Software/OT_Functions/FEM_Creator_Elasticity.m
+    |   |-- Software/OT_Functions/Shapef_2D.m
+    |   |-- Software/OT_Functions/Shapef_3D.m
+    |   `-- Software/OT_Functions/pgauss.m
+    `-- Software/OT_Functions/VectorF_Line.m
+        |-- Software/OT_Functions/Shapef_1D.m
+        `-- Software/OT_Functions/pgauss.m
+
+Software/OT_Software/generate_dataset.m
+`-- Software/OT_Software/GenerateSamples.m
+    |-- Software/OT_Functions/DHooks2D.m
+    |-- Software/OT_Functions/EvalStress.m
+    |   |-- Software/OT_Functions/Shapef_2D.m
+    |   `-- Software/OT_Functions/Shapef_3D.m
+    |-- Software/OT_Functions/ReadGMSH.m
+    |-- Software/OT_Software/GenTopology.m
+    |   |-- Software/OT_Functions/DHooks2D.m
+    |   |-- Software/OT_Functions/EvalStress.m
+    |   |   |-- Software/OT_Functions/Shapef_2D.m
+    |   |   `-- Software/OT_Functions/Shapef_3D.m
+    |   |-- Software/OT_Functions/Filter.m
+    |   |-- Software/OT_Functions/OC.m
+    |   |-- Software/OT_Functions/Opt_Stress.m
+    |   |   |-- Software/OT_Functions/Shapef_2D.m
+    |   |   |-- Software/OT_Functions/Shapef_3D.m
+    |   |   `-- Software/OT_Functions/pgauss.m
+    |   `-- Software/OT_Software/SolveFE.m
+    |       |-- Software/OT_Functions/FEM_Creator_Elasticity.m
+    |       |   |-- Software/OT_Functions/Shapef_2D.m
+    |       |   |-- Software/OT_Functions/Shapef_3D.m
+    |       |   `-- Software/OT_Functions/pgauss.m
+    |       `-- Software/OT_Functions/VectorF_Line.m
+    |           |-- Software/OT_Functions/Shapef_1D.m
+    |           `-- Software/OT_Functions/pgauss.m
+    |-- Software/OT_Software/GenerateTractions.m
+    |-- Software/OT_Software/LoadMacroProblemData.m
+    `-- Software/OT_Software/SolveFE.m
+        |-- Software/OT_Functions/FEM_Creator_Elasticity.m
+        |   |-- Software/OT_Functions/Shapef_2D.m
+        |   |-- Software/OT_Functions/Shapef_3D.m
+        |   `-- Software/OT_Functions/pgauss.m
+        `-- Software/OT_Functions/VectorF_Line.m
+            |-- Software/OT_Functions/Shapef_1D.m
+            `-- Software/OT_Functions/pgauss.m

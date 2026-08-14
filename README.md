@@ -59,7 +59,7 @@ Python, which is what makes the hybrid strategies below possible.
 │   ├── train.py                    # Training loop + input/target tensor builders
 │   ├── evaluate.py                 # Evaluation and visualisation
 │   ├── dataset.py                  # Datasets, D4 data augmentation, energy warm start
-│   ├── main.py                     # Training entry point
+│   ├── main_training_UNet.py       # Training entry point
 │   ├── topology_utils.py           # Stress prediction (U-Net / FEM) + optimisation loop
 │   ├── TopOpt_process.py           # Run one hybrid U-Net/FEM optimisation
 │   ├── TopOpt_accelerated.py       # Energy-distance warm start + optimisation
@@ -72,6 +72,25 @@ Python, which is what makes the hybrid strategies below possible.
 │
 ├── Software/OT_Functions/          # I2MB FEM MATLAB code (stiffness, stress, tractions)
 └── Software/OT_Software/           # I2MB TopOpt MATLAB code (SolveFE, GenTopology, mesh)
+```
+
+### Call graph
+
+![Call graph of the four entry points, from the Python and MATLAB roots down to the FEM primitives](docs/topopt_pipeline.png)
+
+Every file reachable from the four entry points — `main_training_UNet.py`,
+`TopOpt_benchmark_*.py`, `generate_dataset.m` and `compute_energy_first_image.m`.
+Blue edges are Python imports, orange are MATLAB calls, and violet marks the
+`matlab.engine` bridge. Both orchestrators — the MATLAB loop in
+`GenerateSamples.m` and the Python loop in `topology_utils.py` — converge on the
+same FEM core.
+
+The graph is extracted from the sources rather than drawn by hand, so it stays
+honest about commented-out calls and MATLAB path shadowing:
+
+```bash
+python tools/depgraph.py        # parse sources -> tools/out/depgraph.{dot,mmd,txt,json}
+python tools/render_figures.py  # render figures as PDF / PNG / SVG / TikZ
 ```
 
 ---

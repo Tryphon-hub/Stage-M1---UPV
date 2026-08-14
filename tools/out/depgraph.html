@@ -1,0 +1,831 @@
+<title>Dépendances TopOpt</title>
+
+<style>
+  :root {
+    --ground:   #F4F6F8;
+    --sheet:    #FFFFFF;
+    --ink:      #14181F;
+    --ink-soft: #565F6E;
+    --rule:     #D3D9E0;
+    --rule-firm:#AEB7C2;
+    --matlab:   #B5561F;
+    --python:   #1F6076;
+    --muted:    #7E7C8C;
+    --tint:     #EAEEF2;
+    --shadow:   0 1px 2px rgba(20, 24, 31, .06);
+
+    --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0F1218;
+      --sheet:    #161A21;
+      --ink:      #E4E9F0;
+      --ink-soft: #98A2B1;
+      --rule:     #2A313B;
+      --rule-firm:#3D4653;
+      --matlab:   #D9722F;
+      --python:   #3E9DBC;
+      --muted:    #9A97A8;
+      --tint:     #1D222A;
+      --shadow:   0 1px 2px rgba(0, 0, 0, .4);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #0F1218;
+    --sheet:    #161A21;
+    --ink:      #E4E9F0;
+    --ink-soft: #98A2B1;
+    --rule:     #2A313B;
+    --rule-firm:#3D4653;
+    --matlab:   #D9722F;
+    --python:   #3E9DBC;
+    --muted:    #9A97A8;
+    --tint:     #1D222A;
+    --shadow:   0 1px 2px rgba(0, 0, 0, .4);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 44px;
+  }
+
+  /* ---- Cartouche, à la manière d'un cartouche de plan ---- */
+
+  .titleblock {
+    border: 1px solid var(--rule-firm);
+    background: var(--sheet);
+    box-shadow: var(--shadow);
+  }
+
+  .titleblock h1 {
+    margin: 0;
+    padding: 26px 26px 20px;
+    font-family: var(--mono);
+    font-size: clamp(24px, 4.2vw, 38px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    text-wrap: balance;
+  }
+
+  .titleblock h1 span { color: var(--ink-soft); font-weight: 400; }
+
+  .subtitle {
+    margin: 0;
+    padding: 0 26px 24px;
+    max-width: 64ch;
+    color: var(--ink-soft);
+  }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border-top: 1px solid var(--rule);
+  }
+
+  .fact { padding: 16px 20px 18px; border-right: 1px solid var(--rule); }
+  .fact:last-child { border-right: 0; }
+
+  .fact dt {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .13em;
+    color: var(--ink-soft);
+    margin: 0 0 6px;
+  }
+
+  .fact dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .fact dd small {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    letter-spacing: 0;
+    margin-top: 3px;
+  }
+
+  /* ---- Sections ---- */
+
+  section { display: flex; flex-direction: column; gap: 16px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  h2 {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: clamp(17px, 2.4vw, 21px);
+    font-weight: 700;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+
+  h3 {
+    margin: 8px 0 0;
+    font-size: 15px;
+    font-weight: 640;
+  }
+
+  p { margin: 0; max-width: 72ch; }
+  p + p { margin-top: 10px; }
+
+  a { color: var(--python); text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--python);
+    outline-offset: 2px;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: .88em;
+    background: var(--tint);
+    padding: .1em .35em;
+    border-radius: 2px;
+  }
+
+  /* ---- Blocs de code ---- */
+
+  pre.sh {
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--python);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+
+  pre.sh .c { color: var(--ink-soft); }
+
+  /* ---- Panneaux de diagramme ---- */
+
+  figure {
+    margin: 0;
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    box-shadow: var(--shadow);
+  }
+
+  figure .panel { padding: 20px 18px; overflow-x: auto; }
+
+  figcaption {
+    padding: 12px 18px 14px;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-size: 13px;
+  }
+
+  figcaption b { color: var(--ink); font-weight: 620; }
+
+  .mermaid { min-width: 0; }
+  .mermaid svg { max-width: none !important; height: auto; }
+
+  /* ---- Légende ---- */
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 22px;
+    padding: 14px 18px;
+    background: var(--sheet);
+    border: 1px solid var(--rule);
+    font-size: 13px;
+  }
+
+  .key { display: flex; align-items: center; gap: 8px; }
+
+  .swatch {
+    width: 26px; height: 14px;
+    border-radius: 2px;
+    flex: none;
+  }
+
+  .swatch.py     { background: #1F6076; }
+  .swatch.mat    { background: #B5561F; }
+  .swatch.dead   { background: #B9BFC8; }
+  .swatch.shadow { background: #7E7C8C; }
+
+  .dashline {
+    width: 26px; height: 0;
+    border-top: 2px dashed var(--rule-firm);
+    flex: none;
+  }
+
+  /* ---- Tableau ---- */
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--sheet); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+
+  th, td {
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--ink-soft);
+    font-weight: 600;
+    background: var(--tint);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: 0; }
+
+  td.file { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+    border: 1px solid currentColor;
+  }
+
+  .tag.mort   { color: var(--matlab); }
+  .tag.entree { color: var(--python); }
+  .tag.ombre  { color: var(--muted); }
+
+  /* ---- Encart d'avertissement ---- */
+
+  .note {
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--matlab);
+    background: var(--sheet);
+    padding: 16px 18px;
+  }
+
+  .note p { max-width: 68ch; }
+
+  .note .eyebrow { color: var(--matlab); margin-bottom: 6px; }
+
+  ul { margin: 10px 0 0; padding-left: 20px; }
+  li { margin: 4px 0; max-width: 70ch; }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="sheet">
+
+  <header class="titleblock">
+    <h1>Dépendances <span>TopOpt</span></h1>
+    <p class="subtitle">
+      Qui appelle qui, entre les 84 fichiers <code>.py</code> et <code>.m</code> du dépôt.
+      Graphe extrait des sources par <code>tools/depgraph.py</code>, pas à la main : les appels
+      en commentaire ne comptent pas, et l'ombrage du chemin MATLAB est résolu.
+    </p>
+    <dl class="facts">
+      <div class="fact"><dt>Fichiers</dt><dd>84<small>.py et .m</small></dd></div>
+      <div class="fact"><dt>Arêtes</dt><dd>131<small>appels et imports</small></dd></div>
+      <div class="fact"><dt>Dans le pipeline</dt><dd>25<small>depuis 4 racines</small></dd></div>
+      <div class="fact"><dt>Hors pipeline</dt><dd>59<small>dont 24 isolés</small></dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <p class="eyebrow">La méthode</p>
+    <h2>Comment obtenir le graphe</h2>
+    <p>
+      Le script parcourt <code>Software/</code>, <code>HeavyFiles/</code>, <code>Bibliography/</code>
+      et <code>PlotNeuralNet/</code>, puis écrit quatre vues du même graphe dans <code>tools/out/</code>.
+      Relancez-le après chaque refactor : c'est la seule façon que la carte reste juste.
+    </p>
+    <pre class="sh"><span class="c"># graphe complet + arborescences depuis les 4 racines</span>
+python tools/depgraph.py
+
+<span class="c"># cibler d'autres racines</span>
+python tools/depgraph.py --roots main.py Training_Net.m
+
+<span class="c"># rendu image (nécessite Graphviz — absent de ce poste)</span>
+python tools/depgraph.py --svg</pre>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Sortie</th><th>Contenu</th><th>À ouvrir avec</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="file">depgraph.mmd</td><td>graphe complet en Mermaid</td><td>ce document, mermaid.live, VS&nbsp;Code</td></tr>
+          <tr><td class="file">depgraph.dot</td><td>graphe complet en Graphviz</td><td><code>dot -Tsvg</code>, ou dreampuf.github.io/GraphvizOnline</td></tr>
+          <tr><td class="file">depgraph.txt</td><td>arborescences ASCII par racine</td><td>terminal, README</td></tr>
+          <tr><td class="file">depgraph.json</td><td>arêtes brutes, atteignabilité, homonymes</td><td>tout retraitement</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>Ce que le script fait que <code>grep</code> ne fait pas</h3>
+    <ul>
+      <li><b>Il retire les commentaires</b> avant de chercher les appels — MATLAB <code>%</code> et blocs <code>%{ %}</code>, Python <code>#</code>. C'est ce qui distingue <code>Opt.m</code> (trois appels, tous commentés) de <code>Opt_Stress.m</code>.</li>
+      <li><b>Il résout l'ombrage du chemin MATLAB</b> : deux <code>SolveFE.m</code> existent, un seul s'exécute.</li>
+      <li><b>Il lit le MATLAB niché dans les chaînes Python</b>, y compris les blocs <code>rf"""…"""</code> passés à <code>eng.eval()</code>.</li>
+      <li><b>Il ignore les homonymes Python</b> : <code>GenTopology</code> est réimplémenté en Python dans <code>topology_utils.py</code> et n'appelle jamais <code>GenTopology.m</code>.</li>
+    </ul>
+  </section>
+
+  <hr>
+
+  <section>
+    <p class="eyebrow">Lecture</p>
+    <div class="legend">
+      <span class="key"><span class="swatch py"></span> fichier Python</span>
+      <span class="key"><span class="swatch mat"></span> fichier MATLAB</span>
+      <span class="key"><span class="swatch dead"></span> hors pipeline</span>
+      <span class="key"><span class="swatch shadow"></span> ombré, jamais exécuté</span>
+      <span class="key"><span class="dashline"></span> franchit le pont <code>matlab.engine</code></span>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Diagramme 1 sur 3 — 25 fichiers</p>
+    <h2>Le pipeline vivant</h2>
+    <p>
+      Les quatre racines demandées convergent vers le même noyau éléments finis. La chaîne Python
+      ne traverse pas <code>GenerateSamples.m</code> : elle réimplémente la boucle d'optimisation
+      côté Python et n'appelle MATLAB que pour les briques de calcul.
+    </p>
+    <figure>
+      <div class="panel">
+<pre class="mermaid">
+flowchart LR
+  subgraph ENT["Racines"]
+    direction TB
+    PY["TopOpt_benchmark_architecture.py"]
+    GD["generate_dataset.m"]
+    GDM["generate_dataset_macro.m"]
+    CEF["compute_energy_first_image.m"]
+  end
+
+  subgraph PYM["Modules Python"]
+    direction TB
+    TU["topology_utils.py"]
+    MO["model.py"]
+    DS["dataset.py"]
+    TR["train.py"]
+  end
+
+  subgraph ORC["Orchestration MATLAB"]
+    direction TB
+    GS["GenerateSamples.m"]
+    GT["GenTopology.m"]
+    GTR["GenerateTractions.m"]
+    LMP["LoadMacroProblemData.m"]
+  end
+
+  subgraph FEM["Noyau FEM"]
+    direction TB
+    SF["SolveFE.m"]
+    ES["EvalStress.m"]
+    OS["Opt_Stress.m"]
+    FI["Filter.m"]
+    OC["OC.m"]
+    DH["DHooks2D.m"]
+    RG["ReadGMSH.m"]
+    FC["FEM_Creator_Elasticity.m"]
+    VL["VectorF_Line.m"]
+  end
+
+  subgraph PRI["Primitives"]
+    direction TB
+    S1["Shapef_1D.m"]
+    S2["Shapef_2D.m"]
+    S3["Shapef_3D.m"]
+    PG["pgauss.m"]
+  end
+
+  PY --> MO
+  PY --> DS
+  PY --> TU
+  PY -.->|eng.eval| DH
+  PY -.->|eng.eval| RG
+
+  TU --> MO
+  TU --> DS
+  TU --> TR
+  TU -.->|eng.eval| SF
+  TU -.->|eng.eval| ES
+  TU -.->|eng.eval| OS
+  TU -.->|eng.eval| FI
+  TU -.->|eng.eval| OC
+  TR --> DS
+
+  GD --> GS
+  GDM --> GS
+  GS --> RG
+  GS --> GTR
+  GS --> LMP
+  GS --> DH
+  GS --> ES
+  GS --> SF
+  GS --> GT
+
+  GT --> DH
+  GT --> ES
+  GT --> OS
+  GT --> FI
+  GT --> OC
+  GT --> SF
+
+  CEF --> DH
+  CEF --> ES
+  CEF --> SF
+
+  SF --> FC
+  SF --> VL
+  FC --> S2
+  FC --> S3
+  FC --> PG
+  VL --> S1
+  VL --> PG
+  ES --> S2
+  ES --> S3
+  OS --> S2
+  OS --> S3
+  OS --> PG
+
+  class PY,TU,MO,DS,TR py
+  class GD,GDM,CEF,GS,GT,GTR,LMP,SF,ES,OS,FI,OC,DH,RG,FC,VL,S1,S2,S3,PG mat
+  classDef py  fill:#1F6076,stroke:#12414F,color:#FFFFFF
+  classDef mat fill:#B5561F,stroke:#7E3A12,color:#FFFFFF
+</pre>
+      </div>
+      <figcaption>
+        <b>Un seul noyau, deux orchestrateurs.</b> <code>generate_dataset.m</code> génère le jeu de
+        données par la boucle MATLAB complète ; le script Python rejoue cette boucle en Python et
+        n'emprunte que <code>SolveFE</code>, <code>EvalStress</code>, <code>Opt_Stress</code>,
+        <code>Filter</code> et <code>OC</code>. <code>LoadMacroProblemData.m</code> n'est atteint
+        que par la branche <code>NumSamples == -1</code>, donc en pratique seulement depuis
+        <code>generate_dataset_macro.m</code>.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">Diagramme 2 sur 3 — 18 fichiers</p>
+    <h2>Toutes les entrées Python</h2>
+    <p>
+      Treize scripts exécutables partagent cinq modules. Aucun n'est importé par un autre : ce sont
+      des points d'entrée, pas du code mort. Les huit <code>TopOpt_*</code> ont un graphe de
+      dépendances rigoureusement identique, à l'exception de <code>_seed</code> qui importe en plus
+      <code>train</code> et <code>evaluate</code> directement.
+    </p>
+    <figure>
+      <div class="panel">
+<pre class="mermaid">
+flowchart LR
+  subgraph BENCH["Entrées — pipeline hybride FEM/U-Net"]
+    direction TB
+    A1["TopOpt_benchmark_architecture.py"]
+    A2["TopOpt_benchmark_hybrid_strategy.py"]
+    A3["TopOpt_benchmark_model.py"]
+    A4["TopOpt_benchmark_data_augment.py"]
+    A5["TopOpt_benchmark_seed.py"]
+    A6["TopOpt_accelerated.py"]
+    A7["TopOpt_process.py"]
+    A8["TopOpt_process_img_gen.py"]
+  end
+
+  subgraph OUTIL["Entrées — entraînement et contrôle"]
+    direction TB
+    B1["main.py"]
+    B2["training_benchmark.py"]
+    B3["tune_Unet.py"]
+    B4["verify_rotation_consistency.py"]
+    B5["dataset_vizu.py"]
+  end
+
+  subgraph MODS["Modules partagés"]
+    direction TB
+    TU["topology_utils.py"]
+    EV["evaluate.py"]
+    TR["train.py"]
+    MO["model.py"]
+    DS["dataset.py"]
+  end
+
+  subgraph MAT["MATLAB, via matlab.engine"]
+    direction TB
+    RG["ReadGMSH.m"]
+    DH["DHooks2D.m"]
+    NOY["noyau FEM — voir diagramme 1"]
+  end
+
+  A1 --> TU
+  A2 --> TU
+  A3 --> TU
+  A4 --> TU
+  A5 --> TU
+  A6 --> TU
+  A7 --> TU
+  A8 --> TU
+  A5 --> TR
+  A5 --> EV
+
+  B1 --> TU
+  B1 --> EV
+  B2 --> TU
+  B2 --> EV
+  B3 --> TR
+  B4 --> TU
+  B5 --> DS
+
+  TU --> MO
+  TU --> DS
+  TU --> TR
+  EV --> TR
+  TR --> DS
+
+  A1 -.->|eng.eval| RG
+  A1 -.->|eng.eval| DH
+  TU -.->|eng.eval| NOY
+
+  class A1,A2,A3,A4,A5,A6,A7,A8,B1,B2,B3,B4,B5,TU,EV,TR,MO,DS py
+  class RG,DH,NOY mat
+  classDef py  fill:#1F6076,stroke:#12414F,color:#FFFFFF
+  classDef mat fill:#B5561F,stroke:#7E3A12,color:#FFFFFF
+</pre>
+      </div>
+      <figcaption>
+        <b><code>topology_utils.py</code> est le goulot.</b> Onze des treize entrées passent par lui,
+        et c'est le seul module qui parle à MATLAB en dehors de l'amorçage du maillage. Pour lisibilité,
+        seules les arêtes MATLAB de <code>A1</code> sont tracées : les sept autres <code>TopOpt_*</code>
+        ont exactement les mêmes.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <p class="eyebrow">Diagramme 3 sur 3 — 46 fichiers</p>
+    <h2>Hors du pipeline</h2>
+    <p>
+      Trois familles bien distinctes, qu'il ne faut pas traiter pareil : du code mort à supprimer,
+      des scripts autonomes encore utiles, et des dépôts tiers qui ne vous appartiennent pas.
+    </p>
+    <figure>
+      <div class="panel">
+<pre class="mermaid">
+flowchart LR
+  subgraph MORT["Code mort — OT_Functions et OT_Software"]
+    direction TB
+    SFO["SolveFE.m — ombré"]
+    VS["VectorF_Surface.m"]
+    OPT["Opt.m"]
+    D3["DHooks3D.m"]
+    EE["EvalEnergies.m"]
+    MMA["MMA.m"]
+    SFV["SolveFE_var.m"]
+    TN["Training_Net.m"]
+    ER["Extract_Results.m"]
+    EC["Extract_Compliance.m"]
+    KO["keep_only_first_at_05.m"]
+    PT["plot_Traction.m"]
+    GDT["generate_dataset_from_tractions.m"]
+  end
+
+  subgraph AUTO["Scripts autonomes"]
+    direction TB
+    MN["Main.m"]
+    MS["Main_Stress.m"]
+    I1["draw_double_conv.py"]
+    I2["draw_triple_conv.py"]
+    I3["draw_BE_double_conv.py"]
+  end
+
+  subgraph BIB["Bibliography — cours et références"]
+    direction TB
+    T3["top3D125.m"]
+    T9["top99neo.m"]
+    C1["CNN/main.py"]
+    C2["CNN/Etude_hyperparametres.py"]
+    E1["Encoder-Decoder/main.py"]
+    E2["Encoder-Decoder/previzu.py"]
+    E3["Encoder-Decoder/test_hyperparameters.py"]
+    U1["U-net/main.py"]
+    U2["U-net/process_vizu.py"]
+    LIB["dataset / model / train / evaluate — 3 copies locales"]
+  end
+
+  subgraph PNN["PlotNeuralNet — dépôt tiers"]
+    direction TB
+    PE["unet.py · BE-unet.py · test_simple.py"]
+    PB["pycore/blocks.py"]
+    PK["pycore/tikzeng.py"]
+    PR["pycore/RGB_conversion.py"]
+    PI["pycore/__init__.py"]
+  end
+
+  SFO --> VS
+  SFV --> GDT
+  C1 --> LIB
+  C2 --> LIB
+  E1 --> LIB
+  E2 --> LIB
+  E3 --> LIB
+  U1 --> LIB
+  U2 --> LIB
+  PE --> PB
+  PE --> PK
+  PB --> PK
+
+  class SFO,VS shadow
+  class OPT,D3,EE,MMA,SFV,TN,ER,EC,KO,PT,GDT,MN,MS,T3,T9 dead
+  class I1,I2,I3,C1,C2,E1,E2,E3,U1,U2,LIB,PE,PB,PK,PR,PI dead
+  classDef dead   fill:#B9BFC8,stroke:#8D96A2,color:#22262D
+  classDef shadow fill:#7E7C8C,stroke:#5C5A68,color:#FFFFFF
+</pre>
+      </div>
+      <figcaption>
+        <b>Les arêtes qui subsistent ne mènent nulle part.</b> <code>SolveFE.m</code> (OT_Functions)
+        appelle bien <code>VectorF_Surface.m</code>, et <code>generate_dataset_from_tractions.m</code>
+        est une racine valide — mais rien ne les atteint depuis les quatre entrées réelles du projet.
+        Les copies <code>dataset/model/train/evaluate</code> de <code>ML_lessons</code> sont locales à
+        chaque mini-projet et n'ont aucun lien avec celles de <code>Pytorch_NN</code>.
+      </figcaption>
+    </figure>
+  </section>
+
+  <hr>
+
+  <section>
+    <p class="eyebrow">Le piège</p>
+    <h2>Deux <code>SolveFE.m</code>, un seul s'exécute</h2>
+    <p>
+      Tous les scripts font <code>addpath OT_Functions</code> puis <code>addpath OT_Software</code>.
+      Or <code>addpath</code> <em>préfixe</em> le chemin : le dernier ajouté passe devant. C'est donc
+      la version <code>OT_Software</code> qui gagne — ce que confirment les quatre sites d'appel, qui
+      utilisent tous sa signature.
+    </p>
+    <figure>
+      <div class="panel">
+        <svg viewBox="0 0 760 314" role="img"
+             aria-label="L'ordre des addpath fait gagner OT_Software/SolveFE.m ; la version OT_Functions est ombrée et entraîne VectorF_Surface.m avec elle."
+             style="max-width:100%;height:auto;display:block;min-width:640px">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+            </marker>
+          </defs>
+
+          <g font-family="ui-monospace, Consolas, monospace" font-size="12">
+
+            <text x="0" y="14" font-size="10" letter-spacing="1.4" fill="currentColor" opacity=".6">ORDRE DANS LE SCRIPT</text>
+            <rect x="0" y="26" width="252" height="34" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+            <text x="14" y="47" fill="currentColor">addpath OT_Functions</text>
+            <rect x="0" y="68" width="252" height="34" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+            <text x="14" y="89" fill="currentColor">addpath OT_Software</text>
+            <text x="0" y="124" font-size="11" fill="currentColor" opacity=".7">addpath préfixe :</text>
+            <text x="0" y="140" font-size="11" fill="currentColor" opacity=".7">le dernier passe devant</text>
+
+            <line x1="258" y1="64" x2="322" y2="64" stroke="currentColor" stroke-opacity=".55"
+                  marker-end="url(#ar)"/>
+
+            <text x="336" y="14" font-size="10" letter-spacing="1.4" fill="currentColor" opacity=".6">CHEMIN MATLAB RÉSOLU</text>
+
+            <rect x="336" y="26" width="200" height="34" rx="2" fill="#B5561F"/>
+            <text x="350" y="47" fill="#FFFFFF">1. OT_Software</text>
+            <rect x="336" y="68" width="200" height="34" rx="2" fill="none" stroke="currentColor" stroke-opacity=".38"/>
+            <text x="350" y="89" fill="currentColor" opacity=".65">2. OT_Functions</text>
+
+            <line x1="542" y1="43" x2="596" y2="43" stroke="currentColor" stroke-opacity=".55"
+                  marker-end="url(#ar)"/>
+            <line x1="542" y1="85" x2="596" y2="85" stroke="currentColor" stroke-opacity=".3"
+                  stroke-dasharray="4 3" marker-end="url(#ar)"/>
+
+            <rect x="600" y="26" width="160" height="34" rx="2" fill="#B5561F"/>
+            <text x="612" y="47" fill="#FFFFFF">SolveFE.m</text>
+            <text x="612" y="76" font-size="10" fill="currentColor" opacity=".7">NGPpS, NGPpL, Tvert</text>
+
+            <rect x="600" y="92" width="160" height="34" rx="2" fill="#7E7C8C"/>
+            <text x="612" y="113" fill="#FFFFFF">SolveFE.m</text>
+            <text x="612" y="142" font-size="10" fill="currentColor" opacity=".55">NGPpV, NGPpS, TnTt</text>
+
+            <line x1="680" y1="130" x2="680" y2="176" stroke="currentColor" stroke-opacity=".3"
+                  stroke-dasharray="4 3" marker-end="url(#ar)"/>
+            <rect x="600" y="180" width="160" height="30" rx="2" fill="none"
+                  stroke="currentColor" stroke-opacity=".3" stroke-dasharray="4 3"/>
+            <text x="612" y="200" fill="currentColor" opacity=".55">VectorF_Surface.m</text>
+
+            <text x="336" y="200" font-size="11" fill="currentColor" opacity=".7">Les 4 sites d'appel utilisent</text>
+            <text x="336" y="216" font-size="11" fill="currentColor" opacity=".7">la signature du gagnant.</text>
+
+            <line x1="0" y1="248" x2="760" y2="248" stroke="currentColor" stroke-opacity=".16"/>
+
+            <text x="0" y="272" font-size="11" fill="currentColor" opacity=".75">Conséquence : OT_Functions/SolveFE.m n'est jamais exécuté,</text>
+            <text x="0" y="290" font-size="11" fill="currentColor" opacity=".75">et VectorF_Surface.m — son seul appelant — devient inatteignable.</text>
+            <text x="0" y="308" font-size="11" fill="currentColor" opacity=".75">Supprimer les deux, ou renommer, pour lever l'ambiguïté.</text>
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        <b>L'ombrage est silencieux.</b> MATLAB n'avertit pas ; si l'ordre des <code>addpath</code>
+        changeait, le code appellerait l'autre fonction avec des arguments dans le mauvais ordre —
+        <code>NGPpL</code> reçu comme <code>NGPpS</code> — sans erreur, juste des résultats faux.
+      </figcaption>
+    </figure>
+  </section>
+
+  <hr>
+
+  <section>
+    <p class="eyebrow">Inventaire</p>
+    <h2>Fichiers sans appelant</h2>
+    <p>
+      Vingt-quatre fichiers ont zéro arête entrante <em>et</em> zéro sortante. Les autres ci-dessous
+      gardent des liens internes mais restent inatteignables depuis les quatre racines.
+    </p>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Fichier</th><th>Statut</th><th>Raison</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="file">OT_Functions/SolveFE.m</td><td><span class="tag ombre">Ombré</span></td><td>Perd contre <code>OT_Software/SolveFE.m</code> dans l'ordre des <code>addpath</code></td></tr>
+          <tr><td class="file">OT_Functions/VectorF_Surface.m</td><td><span class="tag ombre">Ombré</span></td><td>Seul appelant : le <code>SolveFE.m</code> ombré</td></tr>
+          <tr><td class="file">OT_Functions/Opt.m</td><td><span class="tag mort">Mort</span></td><td>Trois appels dans <code>GenTopology.m</code>, tous commentés — remplacé par <code>Opt_Stress</code></td></tr>
+          <tr><td class="file">OT_Functions/DHooks3D.m</td><td><span class="tag mort">Mort</span></td><td>Aucun appelant — le projet est 2D</td></tr>
+          <tr><td class="file">OT_Functions/EvalEnergies.m</td><td><span class="tag mort">Mort</span></td><td>Aucun appelant</td></tr>
+          <tr><td class="file">OT_Functions/MMA.m</td><td><span class="tag mort">Mort</span></td><td>Optimiseur alternatif à <code>OC</code>, jamais branché</td></tr>
+          <tr><td class="file">OT_Software/SolveFE_var.m</td><td><span class="tag mort">Mort</span></td><td>Aucun appelant</td></tr>
+          <tr><td class="file">OT_Software/Training_Net.m</td><td><span class="tag mort">Mort</span></td><td>Remplacé par le pipeline PyTorch</td></tr>
+          <tr><td class="file">OT_Software/Extract_Results.m</td><td><span class="tag mort">Mort</span></td><td>Aucun appelant</td></tr>
+          <tr><td class="file">OT_Software/Extract_Compliance.m</td><td><span class="tag mort">Mort</span></td><td>Aucun appelant</td></tr>
+          <tr><td class="file">OT_Software/keep_only_first_at_05.m</td><td><span class="tag mort">Mort</span></td><td>Aucun appelant</td></tr>
+          <tr><td class="file">OT_Software/plot_Traction.m</td><td><span class="tag mort">Mort</span></td><td><code>dataset_vizu.py</code> définit sa propre fonction Python homonyme</td></tr>
+          <tr><td class="file">OT_Software/generate_dataset_from_tractions.m</td><td><span class="tag entree">Entrée</span></td><td>Racine valide, jumelle de <code>generate_dataset.m</code></td></tr>
+          <tr><td class="file">OT_NN/Main.m</td><td><span class="tag entree">Entrée</span></td><td>Ancien entraînement Deep Learning Toolbox, autosuffisant</td></tr>
+          <tr><td class="file">OT_NN/Main_Stress.m</td><td><span class="tag entree">Entrée</span></td><td>Idem, variante contrainte</td></tr>
+          <tr><td class="file">Pytorch_NN/main.py</td><td><span class="tag entree">Entrée</span></td><td>Entraînement U-Net seul</td></tr>
+          <tr><td class="file">Pytorch_NN/training_benchmark.py</td><td><span class="tag entree">Entrée</span></td><td>Banc d'essai d'entraînement</td></tr>
+          <tr><td class="file">Pytorch_NN/tune_Unet.py</td><td><span class="tag entree">Entrée</span></td><td>Recherche d'hyperparamètres</td></tr>
+          <tr><td class="file">Pytorch_NN/dataset_vizu.py</td><td><span class="tag entree">Entrée</span></td><td>Visualisation du jeu de données</td></tr>
+          <tr><td class="file">Pytorch_NN/verify_rotation_consistency.py</td><td><span class="tag entree">Entrée</span></td><td>Harnais de vérification des augmentations</td></tr>
+          <tr><td class="file">Pytorch_NN/illustrations/*.py</td><td><span class="tag entree">Entrée</span></td><td>3 scripts de figures TikZ, indépendants</td></tr>
+          <tr><td class="file">Bibliography/**</td><td><span class="tag entree">Hors projet</span></td><td>2 codes de référence + 3 mini-projets de cours, 21 fichiers</td></tr>
+          <tr><td class="file">PlotNeuralNet/**</td><td><span class="tag entree">Hors projet</span></td><td>Dépôt tiers de génération de figures, 7 fichiers</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <p class="eyebrow">Avant de supprimer</p>
+      <p>
+        Les douze <span class="tag mort">Mort</span> ci-dessus sont sûrs au sens du graphe statique.
+        Restent deux angles morts qu'aucun analyseur ne couvre : un appel construit dynamiquement
+        (<code>feval</code>, <code>eval</code> avec un nom assemblé) et un appel depuis un fichier
+        hors des dossiers scannés. Un <code>grep</code> du nom sur tout le dépôt avant chaque
+        suppression suffit à lever le doute.
+      </p>
+    </div>
+  </section>
+
+</div>

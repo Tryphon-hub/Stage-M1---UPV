@@ -272,32 +272,10 @@ Tab_ratio_FEM = []
 Tab_err_rel_c = []
 
 
-def _config_mask(df, bench):
-    """Dtype-robust match of one list_benchmark config against the CSV rows.
-
-    FEM-only rows leave the numeric config columns blank, which forces those
-    columns to object (string) dtype on read. A plain `df[cols] == bench`
-    would then compare e.g. '32' == 32 and never match, so we coerce numeric
-    fields to numbers and compare everything else as trimmed strings.
-    """
-    mask = pd.Series(True, index=df.index)
-    for col, val in zip(CONFIG_COLUMNS, bench):
-        if isinstance(val, bool):
-            mask &= df[col].astype(str).str.strip() == str(val)
-        elif isinstance(val, (int, float)):
-            mask &= pd.to_numeric(df[col], errors='coerce') == val
-        else:
-            # val is a string; blank placeholders (' ' in the FEM-only config)
-            # must match blank CSV cells, which pandas reads as NaN. Normalise
-            # NaN/whitespace to '' on both sides before comparing.
-            col_norm = df[col].where(df[col].notna(), '').astype(str).str.strip()
-            mask &= col_norm == str(val).strip()
-    return mask
-
 
 counts = []
 for bench in list_benchmark:
-    mask = _config_mask(df, bench)
+    mask = config_mask(df, bench, CONFIG_COLUMNS)
     row  = df[mask]
     counts.append(len(row))
 
@@ -353,7 +331,7 @@ plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv, 'Archi
 
 rows = []
 for k, bench in enumerate(list_benchmark, start=1):
-    sub = df[_config_mask(df, bench)]
+    sub = df[config_mask(df, bench, CONFIG_COLUMNS)]
     rows.append({
         'Cfg': k,
         'NIF': bench[3], 'N_conv': bench[4], 'CBAM': bench[5],
@@ -371,7 +349,7 @@ table = pd.DataFrame(rows)
 # Attach the mean sMAPE of each configuration, matched on the same config columns
 df_smape = pd.read_csv(smape_csv)
 smape_col = [c for c in df_smape.columns if 'smape' in c.lower()][-1]
-table['smape'] = [df_smape[_config_mask(df_smape, bench)][smape_col].mean() * 100
+table['smape'] = [df_smape[config_mask(df_smape, bench, CONFIG_COLUMNS)][smape_col].mean() * 100
                   for bench in list_benchmark]
 
 print(table.round(2).to_string(index=False))
