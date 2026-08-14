@@ -1,5 +1,10 @@
 # A Task-Based Benchmark for Machine-Learning-Accelerated Topology Optimisation
 
+*Research internship at the [Instituto Universitario de Ingeniería Mecánica y
+Biomecánica (I2MB)](https://i2mb.upv.es/), Universitat Politècnica de València —
+supervised by Juan José Ródenas García, Enrique Nadal Soriano and José Manuel
+Navarro Jiménez.*
+
 ## Work in progress
 
 This repository is still a work in progress. Some parts of the code may not be
