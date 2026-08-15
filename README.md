@@ -227,17 +227,6 @@ problems, comparisons are paired: differences are assessed with confidence
 intervals and a Wilcoxon signed-rank test rather than by comparing raw averages
 (see the report for the full statistical protocol).
 
----
-
-## Installation
-
-```bash
-conda create -n env_stage python=3.11
-conda activate env_stage
-pip install torch torchvision scipy matplotlib tensorboard
-# MATLAB Engine for Python (required for the optimisation loop / FEM):
-#   in your MATLAB install: cd extern/engines/python && python setup.py install
-```
 
 ---
 
@@ -267,8 +256,35 @@ $$\mathcal{L} = \frac{1}{N} \sum_i \frac{2|\sigma_i - \hat{\sigma}_i|}{|\sigma_i
 
 ## Requirements
 
-- Python 3.11, PyTorch, NumPy, SciPy, Matplotlib, TensorBoard
-- MATLAB Engine for Python (topology-optimisation loop / FEM)
+- Python 3.11
+- PyTorch, torchvision, NumPy, SciPy, Matplotlib, pandas, Pillow, TensorBoard
+- MATLAB Engine for Python (topology-optimisation loop / FEM) — installed from
+  your MATLAB distribution, not from PyPI; its version must match your MATLAB
+  release
+- Optional: `h5py` (reading MATLAB v7.3 `.mat` files), `imageio-ffmpeg`
+  (`.mp4` export of the optimisation history when no system ffmpeg is on PATH)
+- Optional, for `tools/render_figures.py`: `pdflatex` and `pdftocairo`
+  (poppler-utils)
+- On Linux, `tkinter` needs the system package `python3-tk` (bundled with
+  Python on Windows)
+
+---
+
+## Installation
+
+```bash
+conda create -n env_benchmark python=3.11
+conda activate env_benchmark
+pip install torch torchvision numpy scipy matplotlib pandas pillow tensorboard h5py imageio-ffmpeg
+# MATLAB Engine for Python (required for the optimisation loop / FEM).
+# Recent MATLAB releases (R2022b and later):
+pip install matlabengine
+# Older releases, from your MATLAB installation directory:
+#   cd extern/engines/python && python setup.py install
+# The engine version must match your MATLAB release; see MathWorks
+# documentation for the compatible Python versions.
+```
+
 
 ---
 
