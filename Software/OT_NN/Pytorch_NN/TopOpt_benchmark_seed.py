@@ -140,9 +140,6 @@ RESULT_COLUMNS = ['Input ID',
 name_benchmark_file = 'benchmark_seed.csv'
 BENCHMARK_CSV        = SEED_BENCH_DIR / name_benchmark_file
 
-RUN_TRAINING  = False   # Phase 1 — train one model per (config, seed)
-RUN_BENCHMARK = True   # Phase 2 — evaluate each model with the TopOpt benchmark
-RESET_BENCHMARK = True # overwrite BENCHMARK_CSV once at the start of the run (False -> append)
 
 
 
@@ -422,20 +419,27 @@ for CONFIG in CONFIGS:
 # Uses the CONFIGS defined at the top of the file (the ones actually benchmarked),
 # so the figures show exactly those configurations and nothing stale in the CSV.
 
+# CONFIGS = [
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.2, 16],
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.5, 16],
+#     ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2,  1 , 16],
+# ]
+
 CONFIGS = [
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.2, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2, 0.5, 16],
-    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, True, 0.2,  1 , 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.2, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2, 0.5, 16],
+    ['Only UNet', 'U-Net', 'UNet', 32, 2, False, False, 0.2,  1 , 16],
 ]
 
 
 # Per-seed boxplots + mean ± 1σ band, for one dataset portion.
 plot_seed_benchmark(BENCHMARK_CSV, portion=0.5,
-                    save_path=SEED_BENCH_DIR / 'seed_benchmark.png')
+                    save_path=SEED_BENCH_DIR / 'seed_benchmark.png',
+                    scale_font=1.5)
 
 # Cost/quality plane: one point per seed, one colour and one 1σ ellipse per config.
 plot_seed_quality_cost(BENCHMARK_CSV, configs=CONFIGS,
                        save_path=SEED_BENCH_DIR / 'seed_quality_cost.png',
-                       scale_font=1.5, scale_dot=2)
+                       scale_font=1.5, scale_dot=2, SHOW_TITLE=False)
 
 # %%

@@ -297,12 +297,13 @@ for bench in list_benchmark:
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, up_legend=1.15)
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, up_legend=1.15,
+                 scale_font=1.5)
 
 
 plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         TYPE_BENCHMARK='Hybrid', use_abs_error=False,
-                        show_error=False, SAVE_PATH=None,
+                        show_error=False, SAVE_PATH=None, SHOW_TITLE=False,
                         scale_font = 1.5, scale_dot = 2,
                         low_margin=0.1, right_margin=0.1,left_margin=0.05)
 
@@ -362,7 +363,12 @@ plot_paired_distributions(
 # `config_mask` lives in topology_utils (imported with *), shared by every
 # benchmark script.
 
-counts = []
+# Rebuilt from scratch here: the cell above already turned these two names into
+# numpy arrays, so re-running this cell would otherwise fail on `.append`.
+counts        = []
+Tab_ratio_FEM = []
+Tab_err_rel_c = []
+
 for bench in list_benchmark:
     mask = config_mask(df, bench, CONFIG_COLUMNS)
     row  = df[mask]
@@ -386,7 +392,10 @@ if len(set(counts)) != 1 or counts[0] == 0:
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Architecture')
+# 'Hybrid': the entries of list_benchmark hold [Strategy, First step] only, so
+# there are no architecture parameters to tabulate under the bars.
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'Hybrid',
+                 scale_font=1.2, SHOW_TITLE=False)
 
 
 
@@ -398,14 +407,5 @@ ds_iter_smape = IterationDataset(ds_filtre)
 name_smape_file = 'benchmark_smape_architecture.csv'
 smape_csv       = RESULTS_ROOT / name_smape_file
 
-RUN_SMAPE = False  # Set to False to skip the computation and only read/plot the csv
 
-if RUN_SMAPE:
-    save_smape_benchmark(
-        list_benchmark,
-        ds_iter_smape,
-        smape_csv,
-        RESULTS_ROOT,
-        name_file,
-        reset=True,
-    )
+#%%

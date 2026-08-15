@@ -35,6 +35,17 @@ NGPpL = 2   # number of 1D integration points
 PENAL = 3
 RMIN  = 1.5
 
+# Base font sizes shared by every figure of the study. Each plotting function
+# multiplies them by its own `scale_font` argument, so a single scale keeps the
+# convergence, Pareto, bar-chart and paired-statistics figures consistent when
+# they sit side by side in the report. Change a size here, not in the functions.
+FS_TITLE  = 16   # figure title / suptitle
+FS_LABEL  = 15   # axis labels
+FS_TICK   = 13   # tick labels
+FS_LEGEND = 13   # legend entries
+FS_ANNOT  = 10   # in-plot annotations (point labels, table cells)
+FS_SMALL  = 8    # bar values and error-bar bounds
+
 #%% Helpers
 
 def _central_interval_err(data, mean, frac=0.67, axis=1):
@@ -1036,7 +1047,7 @@ def run_topology_optimization(sample, eng, model, N_in=3, N_max_iterations=100,
 
 
 # %% Convergence study
-def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None, SHOW_FEM_C=False, SAVE_PATH=None):
+def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None, SHOW_FEM_C=False, SHOW_TITLE=True, scale_font=1.0, SAVE_PATH=None):
     """
     Plot the compliance convergence of a single optimization: the full-FEM
     reference curve against the hybrid U-Net/FEM run, with the FEM steps of the
@@ -1060,6 +1071,11 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
         the *predicted* compliance and, if `eng` is provided, green triangles
         overlay the FEM-recomputed compliance at the U-Net iterations, showing
         the gap between the network's prediction and the physical value.
+    SHOW_TITLE           : bool — when False, the figure title is omitted (useful
+        for figures embedded in a report with their own caption).
+    scale_font           : float — multiplies the size of every text element
+        (1.0 = default). Same convention and base sizes as
+        `plot_seed_quality_cost`, so figures from both share one font scale.
     SAVE_PATH            : path-like | None — where to save the figure (None:
         display only).
 
@@ -1068,7 +1084,6 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
     tuple(np.ndarray, np.ndarray) — the normalized (FEM_c, UNet_c) curves,
         each as an array of [iteration, compliance] rows.
     """
-    f_text=1.25 # text size multiplicator
 
 
     FEM_c=[]
@@ -1128,22 +1143,23 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
         UNet_step_c[:, 1] = UNet_step_c[:, 1] / c0_FEM # normalize by initial FEM compliance
         plt.plot(UNet_step_c[:, 0], UNet_step_c[:, 1], '--s', color='tab:green', markersize=MARKERSIZE, label = f'{NETWORK} steps ({len(UNet_step_c)}): FEM-recomputed compliance')
 
-    plt.xlabel('Iterations', fontsize=f_text*14,)
-    plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
+    plt.xlabel('Iterations', fontsize=FS_LABEL*scale_font,)
+    plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=FS_LABEL*scale_font, )
 
     plt.yscale(SCALE)
     if SCALE == 'linear':
         plt.ylim(0,1.1)
 
-    plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=f_text*16, )
-    plt.legend(fontsize=f_text*13)
+    if SHOW_TITLE:
+        plt.title(f'Compliance convergence: full-FEM vs Hybrid {NETWORK} strategy', fontsize=FS_TITLE*scale_font, )
+    plt.legend(fontsize=FS_LEGEND*scale_font)
     plt.grid(True, alpha=0.3)
-    
+
 
     # Set x-axis ticks: integers only, step of 5
     max_iter = max(FEM_c[-1, 0], UNet_c[-1, 0])
-    plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=f_text*12)
-    plt.yticks(fontsize=f_text*12)
+    plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=FS_TICK*scale_font)
+    plt.yticks(fontsize=FS_TICK*scale_font)
     plt.tight_layout()
 
     if SAVE_PATH is not None:
@@ -1154,7 +1170,7 @@ def visualize_convergence(List_Iterations_Unet, IterationDataset_FEM, List_count
 
     return FEM_c, UNet_c
 
-def visualize_unet_FEM_compliance(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None, SAVE_PATH=None):
+def visualize_unet_FEM_compliance(List_Iterations_Unet, IterationDataset_FEM, List_count_FEM, NETWORK:str, PLOT=True,SCALE='linear', eng=None, SHOW_TITLE=True, scale_font=1.0, SAVE_PATH=None):
     """
     Plot two compliance curves for the hybrid U-Net run so the U-Net's
     *predicted* compliance can be compared against its *physical* one:
@@ -1169,15 +1185,17 @@ def visualize_unet_FEM_compliance(List_Iterations_Unet, IterationDataset_FEM, Li
     curve is drawn as well. Requires ``eng`` to be a matlab.engine for the
     recomputed curve to be available.
 
+    ``SHOW_TITLE=False`` omits the figure title (useful for figures embedded in
+    a report with their own caption). ``scale_font`` multiplies every text
+    element, with the same convention and base sizes as
+    ``plot_seed_quality_cost``.
+
     Returns
     -------
     tuple(np.ndarray, np.ndarray, np.ndarray) — the normalized
         (FEM_c, UNet_c_pred, UNet_c_FEM) curves. ``UNet_c_FEM`` is None when
         no engine is provided.
     """
-    f_text=1.25 # text size multiplicator
-
-
     FEM_c=[]
     UNet_c_pred=[]   # eng=None case: U-Net predicted (pseudo-)compliance
     UNet_c_FEM=[]    # eng=eng case: U-Net densities re-scored with FEM
@@ -1239,22 +1257,23 @@ def visualize_unet_FEM_compliance(List_Iterations_Unet, IterationDataset_FEM, Li
         FEM_step_c[:, 1] = FEM_step_c[:, 1] / c0_FEM # normalize by initial FEM compliance
         plt.plot(FEM_step_c[:, 0], FEM_step_c[:, 1], 'rs', markersize=MARKERSIZE, label = f'{NETWORK} strategy: {len(List_count_FEM)} FEM steps')
 
-    plt.xlabel('Iterations', fontsize=f_text*14,)
-    plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=f_text*14, )
+    plt.xlabel('Iterations', fontsize=FS_LABEL*scale_font,)
+    plt.ylabel(f'$c/c_{{0,FEM}}$', fontsize=FS_LABEL*scale_font, )
 
     plt.yscale(SCALE)
     if SCALE == 'linear':
         plt.ylim(0,1.1)
 
-    plt.title(f'Compliance approximation: full-FEM vs {NETWORK} strategy', fontsize=f_text*16, )
-    plt.legend(fontsize=f_text*13)
+    if SHOW_TITLE:
+        plt.title(f'Compliance approximation: full-FEM vs {NETWORK} strategy', fontsize=FS_TITLE*scale_font, )
+    plt.legend(fontsize=FS_LEGEND*scale_font)
     plt.grid(True, alpha=0.3)
 
 
     # Set x-axis ticks: integers only, step of 5
     max_iter = max(FEM_c[-1, 0], UNet_c_pred[-1, 0])
-    plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=f_text*12)
-    plt.yticks(fontsize=f_text*12)
+    plt.xticks(range(0, int(max_iter) + 5, 5), fontsize=FS_TICK*scale_font)
+    plt.yticks(fontsize=FS_TICK*scale_font)
     plt.tight_layout()
 
     if SAVE_PATH is not None:
@@ -1588,19 +1607,25 @@ def compare_NN_FEM(sample_NN, sample_FEM, SAVE_PATH=None, end_FEM=True):
 
 #%% Strategy comparison
 def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMARK='Hybrid',
-                     up_legend=1.55):
+                     up_legend=1.55, scale_font=1.0, SHOW_TITLE=True, label_y=0.5):
     """
     Tab_ratio_FEM : (n_configs, SIZE_LOOP)
     Tab_err_rel_c  : (n_configs, SIZE_LOOP)
     up_legend      : y-axis headroom factor above the tallest error bar; raise it
                      to lift the (inside) legend higher above the bars.
+    scale_font     : multiplies every text element (1.0 = default), on the shared
+                     FS_* base sizes.
+    SHOW_TITLE     : when False, the figure title is omitted (report figures carry
+                     their own caption).
+    label_y        : vertical anchor of both y-axis labels, in axes fraction
+                     (0 = bottom, 0.5 = centred, 1 = top). Lower it to slide the
+                     labels down when their top runs into the figure edge.
     """
     n = len(list_benchmark)
     x = np.arange(n)
     width = 0.35
 
-    FONT = 18
-    FONT_SIZE = 13  # font size of the parameter table cells
+    FONT_SIZE = FS_TICK * scale_font  # font size of the parameter table cells
 
     # Aggregate over SIZE_LOOP
     data_FEM     = Tab_ratio_FEM * 100
@@ -1621,20 +1646,27 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         row_labels, labels, table_data = _benchmark_table_content(
             list_benchmark, merge_aug=(TYPE_BENCHMARK == 'model'))
 
-    fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5), 7 if table_data else 6))
+    # A rotated y-label taller than the axes overflows the canvas: tight_layout
+    # only trims the margins, it never shrinks the axes to fit it. So grow the
+    # canvas with the font, and keep both labels on two short lines.
+    fig_grow = 0.75 + 0.25 * scale_font        # 1.0 at scale_font=1, 1.125 at 1.5
+    fig, ax1 = plt.subplots(figsize=(max(10, n * 1.5) * fig_grow,
+                                     (7 if table_data else 6) * fig_grow))
 
     # FEM iterations — left axis
     bars1 = ax1.bar(x - width/2, mean_FEM, width, yerr=err_FEM,
                      capsize=4, color='tab:blue', alpha=0.8)
-    ax1.set_ylabel(r'Ratio of FEM iterations: $N_{Hybrid}/N_{FEM}$ (%)', fontsize=13, color='tab:blue')
-    ax1.tick_params(axis='y', labelcolor='tab:blue')
+    ax1.set_ylabel('Ratio of FEM iterations\n' r'$N_{Hybrid}/N_{FEM}$ (%)',
+                   fontsize=FS_LABEL*scale_font, color='tab:blue', y=label_y)
+    ax1.tick_params(axis='y', labelcolor='tab:blue', labelsize=FS_TICK*scale_font)
 
     # Relative error (%) — right axis
     ax2 = ax1.twinx()
     bars2 = ax2.bar(x + width/2, mean_err_pct, width, yerr=err_err_pct,
                      capsize=4, color='tab:orange', alpha=0.8)
-    ax2.set_ylabel('Relative compliance difference (%)', fontsize=13, color='tab:orange')
-    ax2.tick_params(axis='y', labelcolor='tab:orange')
+    ax2.set_ylabel('Relative compliance\n difference (%)',
+                   fontsize=FS_LABEL*scale_font, color='tab:orange', y=label_y)
+    ax2.tick_params(axis='y', labelcolor='tab:orange', labelsize=FS_TICK*scale_font)
 
     # Median markers (black dot at the median of each distribution)
     ax1.scatter(x - width/2, median_FEM, color='black', s=18, zorder=5)
@@ -1643,24 +1675,24 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
     # Bar value labels
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.01,
-                 f'{val:.1f}', ha='left', va='bottom', fontsize=9, color='tab:blue')
+                 f'{val:.1f}', ha='left', va='bottom', fontsize=FS_SMALL*scale_font, color='tab:blue')
     for bar, val in zip(bars2, mean_err_pct):
         ax2.text(bar.get_x() + bar.get_width() * 0.55, bar.get_height() + 0.001,
-                 f'{val:.2f}', ha='left', va='bottom', fontsize=9, color='tab:orange')
+                 f'{val:.2f}', ha='left', va='bottom', fontsize=FS_SMALL*scale_font, color='tab:orange')
 
     # 67% interval bounds above (upper) and below (lower) the error bars, in black
     for bar, m, lo, hi in zip(bars1, mean_FEM, err_FEM[0], err_FEM[1]):
         xc = bar.get_x() + bar.get_width() / 2
         ax1.annotate(f'{m + hi:.1f}', (xc, m + hi), textcoords='offset points',
-                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='black')
         ax1.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
-                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+                     xytext=(0, -4), ha='center', va='top', fontsize=FS_SMALL*scale_font, color='black')
     for bar, m, lo, hi in zip(bars2, mean_err_pct, err_err_pct[0], err_err_pct[1]):
         xc = bar.get_x() + bar.get_width() / 2
         ax2.annotate(f'{m + hi:.2f}', (xc, m + hi), textcoords='offset points',
-                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='black')
         ax2.annotate(f'{m - lo:.2f}', (xc, m - lo), textcoords='offset points',
-                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+                     xytext=(0, -4), ha='center', va='top', fontsize=FS_SMALL*scale_font, color='black')
 
     # Extra headroom so the (inside) legend does not overlap the error bars
     top_FEM = (mean_FEM + err_FEM[1]).max() * up_legend
@@ -1680,14 +1712,14 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
 
     ax1.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
-    ax1.set_xticklabels(labels, fontsize=13, rotation=rotation, ha='right' if rotation else 'center')
+    ax1.set_xticklabels(labels, fontsize=FS_TICK*scale_font, rotation=rotation, ha='right' if rotation else 'center')
 
     err_handle = Line2D([0], [0], color='black', lw=1.2, marker='_', markersize=8)
     med_handle = Line2D([0], [0], color='black', marker='o', linestyle='None', markersize=5)
     ax1.legend([bars1, bars2, err_handle, med_handle],
                ['Ratio of FEM iterations', 'Relative error (%)',
                 'Error bars: central 67% interval', 'Median'],
-               fontsize=11, loc='upper left')
+               fontsize=FS_LEGEND*scale_font, loc='upper left')
 
     if table_data is not None:
         table = ax1.table(
@@ -1704,9 +1736,10 @@ def plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, TYPE_BENCHMAR
         ax1.set_xticklabels([])
         ax1.set_xlabel('')
 
-    title = 'Model comparison' if TYPE_BENCHMARK == 'model' else 'Hybrid strategies comparison'
-    plt.title(f'{title} — {len(Tab_ratio_FEM[0])} traction distributions',
-              fontsize=FONT)
+    if SHOW_TITLE:
+        title = 'Model comparison' if TYPE_BENCHMARK == 'model' else 'Hybrid strategies comparison'
+        plt.title(f'{title} — {len(Tab_ratio_FEM[0])} traction distributions',
+                  fontsize=FS_TITLE*scale_font)
     plt.tight_layout()
     plt.show()
 
@@ -1732,8 +1765,8 @@ def _pareto_mask(x, y):
 
 def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         TYPE_BENCHMARK='Architecture', use_abs_error=False,
-                        show_error=True, low_margin=0.05, left_margin=0.05, right_margin=0.05, 
-                        SAVE_PATH=None, scale_font=1.0, scale_dot=1.0):
+                        show_error=True, low_margin=0.05, left_margin=0.05, right_margin=0.05,
+                        SAVE_PATH=None, scale_font=1.0, scale_dot=1.0, SHOW_TITLE=True):
     """
     Cost/quality trade-off of the same data as `plot_FEM_error_c`, as a Pareto front.
 
@@ -1748,12 +1781,12 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                     span, so the labels under the lowest point stay inside the axes.
     scale_font    : multiplies the size of every text element (1.0 = default).
     scale_dot     : multiplies the size of every scatter marker (1.0 = default).
+    SHOW_TITLE    : when False, the figure title is omitted (report figures carry
+                    their own caption).
 
     Each config is one point (mean over SIZE_LOOP); non-dominated configs are filled,
     connected by the dominance staircase, and dominated ones are hollow.
     """
-    FONT = 18 * scale_font
-
     down_shift = 0 # vertical offset of the labels under the points
     # Same aggregation as plot_FEM_error_c so both figures tell the same story
     data_FEM     = Tab_ratio_FEM * 100
@@ -1796,7 +1829,7 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
 
     for i, lab in enumerate(labels):
         ax.annotate(lab, (mean_FEM[i], mean_err_pct[i]), textcoords='offset points',
-                    xytext=(0, -20 + down_shift), ha='center', fontsize=10 * scale_font,
+                    xytext=(0, -20 + down_shift), ha='center', fontsize=FS_ANNOT * scale_font,
                     color='black' if front[i] else 'dimgray')
 
     if not use_abs_error and mean_err_pct.min() < 0:
@@ -1812,20 +1845,21 @@ def plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
 
     # Both objectives are minimised: the front sits at the bottom-left
     ax.set_xlabel(r'Ratio of FEM iterations: $N_{Hybrid}~/~N_{FEM}$ (%)',
-                  fontsize=15 * scale_font)
+                  fontsize=FS_LABEL * scale_font)
     ax.set_ylabel(('Absolute' if use_abs_error else 'Relative') +
-                  ' compliance difference (%)', fontsize=15 * scale_font)
-    ax.tick_params(axis='both', labelsize=13 * scale_font)
+                  ' compliance difference (%)', fontsize=FS_LABEL * scale_font)
+    ax.tick_params(axis='both', labelsize=FS_TICK * scale_font)
     ax.grid(alpha=0.3)
 
     handles, leg_labels = ax.get_legend_handles_labels()
     if show_error:
         handles.append(Line2D([0], [0], color='gray', lw=1.2, marker='_', markersize=8))
         leg_labels.append('Error bars: central 67% interval')
-    ax.legend(handles, leg_labels, fontsize=13 * scale_font, loc='best')
+    ax.legend(handles, leg_labels, fontsize=FS_LEGEND * scale_font, loc='best')
 
-    ax.set_title(f'Cost / quality compromise \n({Tab_ratio_FEM.shape[1]} traction distributions)',
-                 fontsize=FONT)
+    if SHOW_TITLE:
+        ax.set_title(f'Cost / quality compromise \n({Tab_ratio_FEM.shape[1]} traction distributions)',
+                     fontsize=FS_TITLE * scale_font)
     plt.tight_layout()
 
     if SAVE_PATH:
@@ -2093,7 +2127,7 @@ def _select_seed_portion(df, portion):
     return sub, float(portion)
 
 
-def plot_seed_benchmark(csv_path, portion=None, save_path=None):
+def plot_seed_benchmark(csv_path, portion=None, save_path=None, scale_font=1.0, SHOW_TITLE=True):
     """
     Visualise the seed-to-seed (retraining) noise from a benchmark_seed CSV.
 
@@ -2112,6 +2146,10 @@ def plot_seed_benchmark(csv_path, portion=None, save_path=None):
                 would mix the seed noise of different dataset sizes.
     save_path : path-like | None — where to save the PNG. If None (default) the
                 figure is only displayed, not written to disk.
+    scale_font: float — multiplies every text element (1.0 = default), on the
+                shared FS_* base sizes.
+    SHOW_TITLE: bool — when False, the suptitle is omitted (report figures carry
+                their own caption).
 
     Returns
     -------
@@ -2151,29 +2189,30 @@ def plot_seed_benchmark(csv_path, portion=None, save_path=None):
         ax.axhline(m, color='black', lw=1.3)
 
         ax.set_xticks(positions)
-        ax.set_xticklabels(seeds, fontsize=13)
-        ax.tick_params(axis='y', labelsize=13)
-        ax.set_ylabel(ylabel, fontsize=15)
+        ax.set_xticklabels(seeds, fontsize=FS_TICK*scale_font)
+        ax.tick_params(axis='y', labelsize=FS_TICK*scale_font)
+        ax.set_ylabel(ylabel, fontsize=FS_LABEL*scale_font)
 
         # 20% extra headroom at the top so the (upper-left) legend clears the boxes.
         lo, hi = ax.get_ylim()
         ax.set_ylim(lo, hi + 0.20 * (hi - lo))
-        ax.legend(fontsize=12, loc='upper left', framealpha=0.9)
+        ax.legend(fontsize=FS_LEGEND*scale_font, loc='upper left', framealpha=0.9)
 
     fig, (ax1, ax2) = plt.subplots(
         2, 1, figsize=(max(8, len(seeds) * 0.9), 9), sharex=True)
     _panel(ax1, ratio_by_seed, mean_ratio, 'FEM-iteration ratio (%)', 'tab:blue')
     _panel(ax2, err_by_seed, mean_err, 'Relative compliance error (%)', 'tab:orange')
-    ax2.set_xlabel('seed', fontsize=14)
+    ax2.set_xlabel('seed', fontsize=FS_LABEL*scale_font)
 
-    # Title from the configuration stored in the CSV (constant across seeds).
-    nif       = df['NIF'].iloc[0]
-    n_conv    = df['N_conv'].iloc[0]
-    n_samples = len(ratio_by_seed[0]) if ratio_by_seed else 0
-    portion_txt = f', portion={_seed_portion_label(portion)}' if portion is not None else ''
-    fig.suptitle(f'Seed-to-seed variability — U-Net NIF={nif}, N_conv={n_conv}'
-                 f'{portion_txt} '
-                 f'({n_samples} samples/seed, {len(seeds)} seeds)', fontsize=15)
+    if SHOW_TITLE:
+        # Title from the configuration stored in the CSV (constant across seeds).
+        nif       = df['NIF'].iloc[0]
+        n_conv    = df['N_conv'].iloc[0]
+        n_samples = len(ratio_by_seed[0]) if ratio_by_seed else 0
+        portion_txt = f', portion={_seed_portion_label(portion)}' if portion is not None else ''
+        fig.suptitle(f'Seed-to-seed variability — U-Net NIF={nif}, N_conv={n_conv}'
+                     f'{portion_txt} '
+                     f'({n_samples} samples/seed, {len(seeds)} seeds)', fontsize=FS_TITLE*scale_font)
     fig.tight_layout()
 
     if save_path is not None:
@@ -2235,7 +2274,7 @@ def _seed_config_label(config, configs):
 
 
 def plot_seed_quality_cost(csv_path, configs=None, save_path=None, use_abs_error=False,
-                           n_std=1.0, scale_font=1.0, scale_dot=1.0):
+                           n_std=1.0, scale_font=1.0, scale_dot=1.0, SHOW_TITLE=True):
     """
     Cost/quality scatter of the per-seed results, one colour per configuration.
 
@@ -2262,6 +2301,8 @@ def plot_seed_quality_cost(csv_path, configs=None, save_path=None, use_abs_error
     n_std         : float — ellipse radius in standard deviations (1.0 = 1σ).
     scale_font    : float — multiplies the size of every text element (1.0 = default).
     scale_dot     : float — multiplies the size of every scatter marker (1.0 = default).
+    SHOW_TITLE    : bool — when False, the figure title is omitted (report figures
+                    carry their own caption).
 
     Returns
     -------
@@ -2331,10 +2372,10 @@ def plot_seed_quality_cost(csv_path, configs=None, save_path=None, use_abs_error
 
     # Both objectives are minimised: the best models sit at the bottom-left.
     ax.set_xlabel(r'Ratio of FEM iterations: $N_{Hybrid}~/~N_{FEM}$ (%)',
-                  fontsize=15 * scale_font)
+                  fontsize=FS_LABEL * scale_font)
     ax.set_ylabel(('Absolute' if use_abs_error else 'Relative') +
-                  ' compliance difference (%)', fontsize=15 * scale_font)
-    ax.tick_params(axis='both', labelsize=13 * scale_font)
+                  ' compliance difference (%)', fontsize=FS_LABEL * scale_font)
+    ax.tick_params(axis='both', labelsize=FS_TICK * scale_font)
     ax.grid(alpha=0.3)
 
     handles, leg_labels = ax.get_legend_handles_labels()
@@ -2344,26 +2385,27 @@ def plot_seed_quality_cost(csv_path, configs=None, save_path=None, use_abs_error
     leg_labels.append('Centroid over seeds')
     handles.append(Patch(facecolor='0.6', alpha=0.3, edgecolor='0.4'))
     leg_labels.append(fr'{n_std:g}$\sigma$ ellipse ')
-    ax.legend(handles, leg_labels, fontsize=10 * scale_font, loc='best')
+    ax.legend(handles, leg_labels, fontsize=(FS_LEGEND-2) * scale_font, loc='best')
 
-    n_seeds  = df['seed'].nunique()
-    # Augmentation status of the plotted rows -> 'with'/'without'/'mixed'.
-    aug_vals = set(pd.concat([sub['use augmentation'] for _, sub in groups])
-                   .astype(str).str.strip().unique())
-    if aug_vals == {'True'}:
-        probs = pd.to_numeric(
-            pd.concat([sub['probability of augmentation'] for _, sub in groups]),
-            errors='coerce').dropna().unique()
-        if len(probs) == 1:
-            aug_txt = f'with {_seed_portion_label(probs[0])} data augmentation'
+    if SHOW_TITLE:
+        n_seeds  = df['seed'].nunique()
+        # Augmentation status of the plotted rows -> 'with'/'without'/'mixed'.
+        aug_vals = set(pd.concat([sub['use augmentation'] for _, sub in groups])
+                       .astype(str).str.strip().unique())
+        if aug_vals == {'True'}:
+            probs = pd.to_numeric(
+                pd.concat([sub['probability of augmentation'] for _, sub in groups]),
+                errors='coerce').dropna().unique()
+            if len(probs) == 1:
+                aug_txt = f'with {_seed_portion_label(probs[0])} data augmentation'
+            else:
+                aug_txt = 'with data augmentation'   # several probabilities
+        elif aug_vals == {'False'}:
+            aug_txt = 'without data augmentation'
         else:
-            aug_txt = 'with data augmentation'   # several probabilities
-    elif aug_vals == {'False'}:
-        aug_txt = 'without data augmentation'
-    else:
-        aug_txt = 'mixed data augmentation'
-    ax.set_title(f'Cost / quality of each seed, by configuration \n{n_seeds} seeds — {aug_txt}',
-                 fontsize=16 * scale_font)
+            aug_txt = 'mixed data augmentation'
+        ax.set_title(f'Cost / quality of each seed, by configuration \n{n_seeds} seeds — {aug_txt}',
+                     fontsize=FS_TITLE * scale_font)
     plt.tight_layout()
 
     if save_path:
@@ -2372,7 +2414,8 @@ def plot_seed_quality_cost(csv_path, configs=None, save_path=None, use_abs_error
     plt.show()
 
 
-def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture', up_legend=1.45):
+def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture', up_legend=1.45,
+                         scale_font=1.0, SHOW_TITLE=True):
     """
     Read the CSV written by `save_smape_benchmark` and draw a bar chart of the
     mean total sMAPE (± std) over the `ds_iter` samples, one bar per model.
@@ -2385,6 +2428,10 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     list_benchmark : list[list] — configurations, in the desired bar order.
     csv_path       : path-like — CSV produced by `save_smape_benchmark`.
     TYPE_BENCHMARK : str — 'Architecture' (default) or 'Hybrid'.
+    scale_font     : float — multiplies every text element (1.0 = default), on the
+                     shared FS_* base sizes.
+    SHOW_TITLE     : bool — when False, the figure title is omitted (report figures
+                     carry their own caption).
 
     Returns
     -------
@@ -2399,8 +2446,7 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     x = np.arange(n)
     width = 0.6
 
-    FONT      = 18
-    FONT_SIZE = 13  # font size of the parameter table cells
+    FONT_SIZE = FS_TICK * scale_font  # font size of the parameter table cells
 
     # Build x-axis labels and optional parameter table (same logic as plot_FEM_error_c)
     if TYPE_BENCHMARK == 'Hybrid':
@@ -2423,8 +2469,8 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
 
     bars = ax.bar(x, mean_smape, width, yerr=err_smape,
                   capsize=4, color='tab:green', alpha=0.85)
-    ax.set_ylabel('Mean total sMAPE', fontsize=13, color='tab:green')
-    ax.tick_params(axis='y', labelcolor='tab:green')
+    ax.set_ylabel('Mean total sMAPE', fontsize=FS_LABEL*scale_font, color='tab:green')
+    ax.tick_params(axis='y', labelcolor='tab:green', labelsize=FS_TICK*scale_font)
 
     ax.scatter(x, median_smape, color='black', s=18, zorder=5)
 
@@ -2432,17 +2478,17 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
     med_handle = Line2D([0], [0], color='black', marker='o', linestyle='None', markersize=5)
     ax.legend([bars, err_handle, med_handle],
               ['Mean total sMAPE', 'Error bars: central 67% interval', 'Median'],
-              fontsize=11, loc='upper left')
+              fontsize=FS_LEGEND*scale_font, loc='upper left')
 
     for bar, val in zip(bars, mean_smape):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
-                f'{val:.3f}', ha='center', va='bottom', fontsize=9, color='tab:green')
+                f'{val:.3f}', ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='tab:green')
 
     # Extra headroom so the (inside) legend does not overlap the error bars
     ax.set_ylim(0, (mean_smape + err_smape[1]).max() * up_legend)
     ax.set_xticks(x)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
-    ax.set_xticklabels(labels, fontsize=13, rotation=rotation,
+    ax.set_xticklabels(labels, fontsize=FS_TICK*scale_font, rotation=rotation,
                        ha='right' if rotation else 'center')
 
     if table_data is not None:
@@ -2460,8 +2506,9 @@ def plot_smape_benchmark(list_benchmark, csv_path, TYPE_BENCHMARK='Architecture'
         ax.set_xticklabels([])
         ax.set_xlabel('')
 
-    plt.title(f'Model comparison — mean total sMAPE over {n_samples} stress predictions',
-              fontsize=FONT)
+    if SHOW_TITLE:
+        plt.title(f'Model comparison — mean total sMAPE over {n_samples} stress predictions',
+                  fontsize=FS_TITLE*scale_font)
     plt.tight_layout()
     plt.show()
 
@@ -2512,6 +2559,18 @@ def _benchmark_table_content(list_benchmark, merge_aug=False):
     col_labels  = [f"Config {i+1}" for i in range(len(list_benchmark))]
     param_names = ['NIF', 'N_conv', 'CBAM', 'aug', 'p_aug', 'portion', 'bs']
     aug_idx     = param_names.index('aug')
+
+    # Architecture parameters live at b[3:], after [Strategy, Model, First step].
+    # A hybrid-strategy list_benchmark only holds [Strategy, First step], which
+    # would fail below with a bare IndexError.
+    n_needed = 3 + len(param_names)
+    short    = [b for b in list_benchmark if len(b) < n_needed]
+    if short:
+        raise ValueError(
+            f"Each config must hold {n_needed} fields (3 identifiers + "
+            f"{len(param_names)} architecture parameters) to build the parameter "
+            f"table, but got e.g. {short[0]} with {len(short[0])}. Pass "
+            f"TYPE_BENCHMARK='Hybrid' for a [Strategy, First step] benchmark.")
 
     def cell(b, k):
         # Hide p_aug value when aug is False
@@ -2670,7 +2729,8 @@ def benchmark_latex_table(list_benchmark, transpose=False, max_cols=8, show=Fals
 
 
 def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
-                     TYPE_BENCHMARK='Architecture', up_legend=1.7):
+                     TYPE_BENCHMARK='Architecture', up_legend=1.7, scale_font=1.0,
+                     SHOW_TITLE=True):
     """
     Fused comparison chart merging `plot_FEM_error_c` and `plot_smape_benchmark`:
     three grouped bars per configuration, each on its own y-axis.
@@ -2686,6 +2746,10 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     Tab_err_rel_c  : np.ndarray (n_configs, SIZE_LOOP) — relative compliance errors.
     smape_csv      : path-like — CSV produced by `save_smape_benchmark`.
     TYPE_BENCHMARK : str — 'Architecture' (default) or 'Hybrid'.
+    scale_font     : float — multiplies every text element (1.0 = default), on the
+                     shared FS_* base sizes.
+    SHOW_TITLE     : bool — when False, the figure title is omitted (report figures
+                     carry their own caption).
 
     Returns
     -------
@@ -2695,8 +2759,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     x = np.arange(n)
     width = 0.25
 
-    FONT      = 18
-    FONT_SIZE = 10  # font size of the parameter table cells
+    FONT_SIZE = FS_ANNOT * scale_font  # font size of the parameter table cells
 
     # Aggregate the three metrics
     data_FEM     = Tab_ratio_FEM * 100
@@ -2747,20 +2810,20 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     bars1 = ax1.bar(x - width, mean_FEM, width, yerr=err_FEM,
                     capsize=4, color='tab:blue', alpha=0.85)
     ax1.set_ylabel('Ratio of FEM iterations\n' r'$N_{Hybrid}/N_{FEM}$ (%)',
-                   fontsize=13, color='tab:blue')
-    ax1.tick_params(axis='y', labelcolor='tab:blue')
+                   fontsize=FS_LABEL*scale_font, color='tab:blue')
+    ax1.tick_params(axis='y', labelcolor='tab:blue', labelsize=FS_TICK*scale_font)
 
     # Relative compliance error — right axis (orange)
     bars2 = ax2.bar(x, mean_err_pct, width, yerr=err_err_pct,
                     capsize=4, color='tab:orange', alpha=0.85)
-    ax2.set_ylabel('Relative compliance error (%)', fontsize=13, color='tab:orange')
-    ax2.tick_params(axis='y', labelcolor='tab:orange')
+    ax2.set_ylabel('Relative compliance error (%)', fontsize=FS_LABEL*scale_font, color='tab:orange')
+    ax2.tick_params(axis='y', labelcolor='tab:orange', labelsize=FS_TICK*scale_font)
 
     # Mean total sMAPE — far-right axis (green)
     bars3 = ax3.bar(x + width, mean_smape, width, yerr=err_smape,
                     capsize=4, color='tab:green', alpha=0.85)
-    ax3.set_ylabel('Mean total sMAPE (%)', fontsize=13, color='tab:green')
-    ax3.tick_params(axis='y', labelcolor='tab:green')
+    ax3.set_ylabel('Mean total sMAPE (%)', fontsize=FS_LABEL*scale_font, color='tab:green')
+    ax3.tick_params(axis='y', labelcolor='tab:green', labelsize=FS_TICK*scale_font)
 
     # Median markers (black dot at the median of each distribution)
     ax1.scatter(x - width, median_FEM,   color='black', s=18, zorder=5)
@@ -2770,33 +2833,33 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     # Bar value labels
     for bar, val in zip(bars1, mean_FEM):
         ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
-                 f'{val:.1f}', ha='center', va='bottom', fontsize=8, color='tab:blue')
+                 f'{val:.1f}', ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='tab:blue')
     for bar, val in zip(bars2, mean_err_pct):
         ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
-                 f'{val:.2f}', ha='center', va='bottom', fontsize=8, color='tab:orange')
+                 f'{val:.2f}', ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='tab:orange')
     for bar, val in zip(bars3, mean_smape):
         ax3.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
-                 f'{val:.1f}', ha='center', va='bottom', fontsize=8, color='tab:green')
+                 f'{val:.1f}', ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='tab:green')
 
     # 67% interval bounds above (upper) and below (lower) the error bars, in black
     for bar, m, lo, hi in zip(bars1, mean_FEM, err_FEM[0], err_FEM[1]):
         xc = bar.get_x() + bar.get_width() / 2
         ax1.annotate(f'{m + hi:.1f}', (xc, m + hi), textcoords='offset points',
-                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='black')
         ax1.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
-                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+                     xytext=(0, -4), ha='center', va='top', fontsize=FS_SMALL*scale_font, color='black')
     for bar, m, lo, hi in zip(bars2, mean_err_pct, err_err_pct[0], err_err_pct[1]):
         xc = bar.get_x() + bar.get_width() / 2
         ax2.annotate(f'{m + hi:.2f}', (xc, m + hi), textcoords='offset points',
-                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='black')
         ax2.annotate(f'{m - lo:.2f}', (xc, m - lo), textcoords='offset points',
-                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+                     xytext=(0, -4), ha='center', va='top', fontsize=FS_SMALL*scale_font, color='black')
     for bar, m, lo, hi in zip(bars3, mean_smape, err_smape[0], err_smape[1]):
         xc = bar.get_x() + bar.get_width() / 2
         ax3.annotate(f'{m + hi:.1f}', (xc, m + hi), textcoords='offset points',
-                     xytext=(0, 4), ha='center', va='bottom', fontsize=8, color='black')
+                     xytext=(0, 4), ha='center', va='bottom', fontsize=FS_SMALL*scale_font, color='black')
         ax3.annotate(f'{m - lo:.1f}', (xc, m - lo), textcoords='offset points',
-                     xytext=(0, -4), ha='center', va='top', fontsize=8, color='black')
+                     xytext=(0, -4), ha='center', va='top', fontsize=FS_SMALL*scale_font, color='black')
 
     # Vertical extent of the black frame: expand every y-axis span by 20%.
     Y_EXPAND = 1.2
@@ -2829,7 +2892,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     # that fraction; with the default autoscale margins the two would drift apart.
     ax1.set_xlim(-0.5, n - 0.5)
     rotation = 30 if TYPE_BENCHMARK == 'Hybrid' else 0
-    ax1.set_xticklabels(labels, fontsize=13, rotation=rotation,
+    ax1.set_xticklabels(labels, fontsize=FS_TICK*scale_font, rotation=rotation,
                         ha='right' if rotation else 'center')
 
     err_handle = Line2D([0], [0], color='black', lw=1.2, marker='_', markersize=8)
@@ -2837,7 +2900,7 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
     ax1.legend([bars1, bars2, bars3, err_handle, med_handle],
                ['Ratio of FEM iterations (%)', 'Relative error (%)', 'Mean total sMAPE (%)',
                 'Error bars: central 67% interval', 'Median'],
-               fontsize=11, loc='upper left')
+               fontsize=FS_LEGEND*scale_font, loc='upper left')
 
     if table_data is not None:
         table = ax1.table(
@@ -2854,9 +2917,10 @@ def plot_FEM_smape_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, smape_csv,
         ax1.set_xticklabels([])
         ax1.set_xlabel('')
 
-    plt.title(f'Model comparison — FEM ratio, compliance error & sMAPE\n'
-              f'({len(Tab_ratio_FEM[0])} distributions, {n_smp} sMAPE samples)',
-              fontsize=FONT)
+    if SHOW_TITLE:
+        plt.title(f'Model comparison — FEM ratio, compliance error & sMAPE\n'
+                  f'({len(Tab_ratio_FEM[0])} distributions, {n_smp} sMAPE samples)',
+                  fontsize=FS_TITLE*scale_font)
     plt.tight_layout()
     plt.show()
 

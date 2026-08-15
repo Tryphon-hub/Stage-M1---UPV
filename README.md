@@ -1,10 +1,5 @@
 # A Task-Based Benchmark for Machine-Learning-Accelerated Topology Optimisation
 
-## Work in progress
-
-This repository is still a work in progress. Some parts of the code may not be
-fully implemented, cleaned up, or documented yet.
-
 
 ## Overview
 

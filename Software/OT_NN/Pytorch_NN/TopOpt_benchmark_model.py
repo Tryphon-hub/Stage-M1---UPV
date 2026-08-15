@@ -381,12 +381,13 @@ if len(set(counts)) != 1 or counts[0] == 0:
 Tab_ratio_FEM = np.array(Tab_ratio_FEM)  # (n_configs, SIZE_LOOP)
 Tab_err_rel_c = np.array(Tab_err_rel_c)  # (n_configs, SIZE_LOOP)
 
-plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'model')
+plot_FEM_error_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c, 'model',
+                 scale_font=1.2, SHOW_TITLE=False)
 
 plot_pareto_front_c(list_benchmark, Tab_ratio_FEM, Tab_err_rel_c,
                         TYPE_BENCHMARK='Architecture', use_abs_error=False,
                         show_error=False, SAVE_PATH=None,
-                        scale_font = 1.5, scale_dot = 2)
+                        scale_font = 1.5, scale_dot = 2, SHOW_TITLE=False)
 
 
 #%% Model comparison summary (for the report)

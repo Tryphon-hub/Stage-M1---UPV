@@ -256,7 +256,8 @@ FEM_c, UNet_c = visualize_convergence(
     List_count_FEM,
     NETWORK=NETWORK,
     PLOT=True,
-    SCALE='linear'
+    SCALE='linear',
+    scale_font=1.5,   # same font scale as the benchmark figures
     )
 
 

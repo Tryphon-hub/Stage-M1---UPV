@@ -174,8 +174,9 @@ sample_start = IterationSample(IterationDataset(ds_filtre.get_series(ID_distrib)
 ds_iter=IterationDataset(ds_filtre.get_series(ID_distrib))
 
 list_images=[
-    ['Only UNet', 'UNet', 5, False],
-    ['Only UNet', 'FEM', 5, False],
+    # ['Only UNet', 'UNet', 5, False],
+    # ['Only UNet', 'FEM', 5, False],
+    ['Only UNet', 'UNet', 3, False],
     # ['Only UNet', 'UNet', 3, True],
     # ['Only UNet', 'FEM',  3, True],
     # ['10 Unet - 1 FEM', 'UNet', 3, True],
@@ -228,6 +229,8 @@ for Strategy, Type_First, window_Unet, end_FEM in list_images:
         eng=ENG,   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
         SAVE_PATH= img_convergence_path,
         SHOW_FEM_C=True,
+        SHOW_TITLE=False,
+        scale_font=1.5,   # same font scale as the seed benchmark figures
         )
 
 

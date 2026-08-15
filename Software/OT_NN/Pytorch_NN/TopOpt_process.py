@@ -221,6 +221,7 @@ for Strategy, Type_First, window_Unet, end_FEM in list_images:
         eng=ENG,   # re-evaluate each iterate with FEM: removes U-Net pseudo-compliance spikes
         SAVE_PATH= None,
         SHOW_FEM_C=True,
+        scale_font=1.5,   # same font scale as the benchmark figures
         )
 
 
