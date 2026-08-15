@@ -5,10 +5,6 @@ Biomecánica (I2MB)](https://i2mb.upv.es/), Universitat Politècnica de Valènci
 supervised by Juan José Ródenas García, Enrique Nadal Soriano and José Manuel
 Navarro Jiménez.*
 
-## Work in progress
-
-This repository is still a work in progress. Some parts of the code may not be
-fully implemented, cleaned up, or documented yet.
 
 
 ## Overview
