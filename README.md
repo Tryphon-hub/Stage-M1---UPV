@@ -34,22 +34,6 @@ entirely different acceleration methods directly comparable.
 My contributions live in `OT_NN/Pytorch_NN/`; the MATLAB code was provided by
 I2MB (see Acknowledgements).
 
----
-
-## Pipeline
-
-```text
-Python (my contribution)                    MATLAB (I2MB, OT_Functions/ OT_Software/)
-─────────────────────                        ──────────────────────────────────────
-GenTopology.py  ──── matlab.engine ────►      SolveFE / GenTopology.m
-  ρ, tractions  ─────────────────────►          density, tractions
-  σx, σy, τxy   ◄─────────────────────          stress field, compliance
-```
-
-The MATLAB engine is started once and kept alive for the whole optimisation
-(`MeshData` stays resident in the workspace instead of being transferred at every
-call). Each SIMP iteration's stress source — FEM or surrogate — is selected from
-Python, which is what makes the hybrid strategies below possible.
 
 ---
 
@@ -93,6 +77,12 @@ honest about commented-out calls and MATLAB path shadowing:
 python tools/depgraph.py        # parse sources -> tools/out/depgraph.{dot,mmd,txt,json}
 python tools/render_figures.py  # render figures as PDF / PNG / SVG / TikZ
 ```
+
+The MATLAB engine is started once and kept alive for the whole optimisation
+(`MeshData` stays resident in the workspace instead of being transferred at every
+call). Each SIMP iteration's stress source — FEM or surrogate — is selected from
+Python, which is what makes the hybrid strategies below possible.
+
 
 ---
 
